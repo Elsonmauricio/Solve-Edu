@@ -6,42 +6,11 @@ import { NeoButton } from '../ui/NeoButton';
 import { QuantumText } from '../ui/QuantumText';
 
 // Define o componente CompanyInterface, que recebe uma função 'onBack' como propriedade.
-export const CompanyInterface = ({ onBack }) => {
-  // Dados estáticos para as estatísticas da empresa.
-  const stats = [
-    { icon: '📋', value: '12', label: 'Desafios Quânticos Publicados', color: 'green' },
-    { icon: '👥', value: '45', label: 'Candidaturas Recebidas', color: 'blue' },
-    { icon: '✅', value: '8', label: 'Projetos Concluídos', color: 'teal' },
-    { icon: '💰', value: '€3,500', label: 'Investimento Total', color: 'green' }
-  ];
-
-  // Dados estáticos para as candidaturas pendentes.
-  const pendingApplications = [
-    {
-      name: 'Maria Santos',
-      project: 'Sistema de Inventário Quântico',
-      status: 'pending'
-    },
-    {
-      name: 'João Silva',
-      project: 'App Mobile Quântico',
-      status: 'pending'
-    }
-  ];
-
-  // Dados estáticos para os desafios da empresa.
-  const myChallenges = [
-    {
-      title: 'Sistema de Gestão de Inventário Quântico',
-      details: '12 candidaturas • €500 • 30 dias restantes',
-      status: 'active'
-    },
-    {
-      title: 'Redesign de Website Quântico',
-      details: 'Concluído • €300 • João Silva',
-      status: 'completed'
-    }
-  ];
+export const CompanyInterface = ({ onBack, onNavigate }) => {
+  // TODO: Fetch data from an API
+  const stats = [];
+  const pendingApplications = [];
+  const myChallenges = [];
 
   // Retorna o JSX que define a estrutura e o conteúdo da interface da empresa.
   return (
@@ -55,11 +24,14 @@ export const CompanyInterface = ({ onBack }) => {
       >
         <div>
           <h2 className="text-5xl font-black text-green-600 mb-4">
-            <QuantumText>🏢 Portal Quântico da Empresa</QuantumText>
+            <QuantumText>🏢 Portal da Empresa</QuantumText>
           </h2>
           <p className="text-gray-600 text-xl">TechCorp Lda - Bem-vindos ao futuro!</p>
         </div>
-        <NeoButton onClick={onBack}>← VOLTAR</NeoButton>
+        <div className="flex items-center space-x-4">
+          <NeoButton onClick={() => onNavigate('perfil')}>Perfil da Empresa</NeoButton>
+          <NeoButton onClick={onBack}>← VOLTAR</NeoButton>
+        </div>
       </motion.div>
 
       {/* Seção de estatísticas. */}
@@ -104,12 +76,12 @@ export const CompanyInterface = ({ onBack }) => {
         >
           <MorphicCard className="p-10 text-center glow-effect liquid-animation">
             <h3 className="text-4xl font-black mb-6 quantum-text">
-              ✨ Publicar Novo Desafio Quântico
+              ✨ Publicar Novo Desafio
             </h3>
             <p className="mb-8 text-xl text-gray-700 leading-relaxed">
               Encontre estudantes talentosos para resolver os seus desafios empresariais revolucionários
             </p>
-            <NeoButton>CRIAR DESAFIO QUÂNTICO</NeoButton>
+            <NeoButton onClick={() => onNavigate('desafio')}>CRIAR DESAFIO</NeoButton>
           </MorphicCard>
         </motion.div>
 
@@ -157,7 +129,7 @@ export const CompanyInterface = ({ onBack }) => {
       >
         <MorphicCard className="p-10 glow-effect">
           <h3 className="text-4xl font-black mb-10 text-gray-900 quantum-text">
-            🎯 Os Meus Desafios Quânticos
+            🎯 Os Meus Desafios 
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

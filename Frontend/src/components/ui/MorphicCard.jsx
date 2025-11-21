@@ -1,6 +1,5 @@
-// Importa a biblioteca 'framer-motion' para animações e o React.
+// Importa a biblioteca 'framer-motion' para animações.
 import { motion } from 'framer-motion';
-import React from 'react';
 
 // Define o componente MorphicCard, que é um cartão com efeitos visuais "mórficos".
 // Aceita propriedades como 'children' (conteúdo do cartão), 'className', 'onClick', e booleanos para 'glow' e 'liquid'.

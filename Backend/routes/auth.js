@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
+const { httpStatus, errorMessages, successMessages } = require('../utils/constants');
 
 const router = express.Router();
 
@@ -13,17 +14,17 @@ router.post('/register', async (req, res) => {
 
     // Validar dados
     if (!name || !email || !password || !userType) {
-      return res.status(400).json({ message: 'Todos os campos são obrigatórios' });
+      return res.status(httpStatus.BAD_REQUEST).json({ message: errorMessages.ALL_FIELDS_REQUIRED });
     }
 
     if (password.length < 6) {
-      return res.status(400).json({ message: 'A palavra-passe deve ter pelo menos 6 caracteres' });
+      return res.status(httpStatus.BAD_REQUEST).json({ message: errorMessages.PASSWORD_TOO_SHORT });
     }
 
     // Verificar se o utilizador já existe
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: 'Já existe uma conta com este email' });
+      return res.status(httpStatus.BAD_REQUEST).json({ message: errorMessages.EMAIL_IN_USE });
     }
 
     // Hash da password
@@ -56,15 +57,15 @@ router.post('/register', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    res.status(201).json({
-      message: 'Conta criada com sucesso!',
+    res.status(httpStatus.CREATED).json({
+      message: successMessages.ACCOUNT_CREATED,
       token,
       user: user.toJSON()
     });
 
   } catch (error) {
     console.error('Erro no registo:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -75,19 +76,19 @@ router.post('/login', async (req, res) => {
 
     // Validar dados
     if (!email || !password) {
-      return res.status(400).json({ message: 'Email e palavra-passe são obrigatórios' });
+      return res.status(httpStatus.BAD_REQUEST).json({ message: errorMessages.ALL_FIELDS_REQUIRED });
     }
 
     // Encontrar utilizador
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: 'Credenciais inválidas' });
+      return res.status(httpStatus.BAD_REQUEST).json({ message: errorMessages.INVALID_CREDENTIALS });
     }
 
     // Verificar password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({ message: 'Credenciais inválidas' });
+      return res.status(httpStatus.BAD_REQUEST).json({ message: errorMessages.INVALID_CREDENTIALS });
     }
 
     // Atualizar último login
@@ -102,14 +103,14 @@ router.post('/login', async (req, res) => {
     );
 
     res.json({
-      message: 'Login realizado com sucesso!',
+      message: successMessages.LOGIN_SUCCESS,
       token,
       user: user.toJSON()
     });
 
   } catch (error) {
     console.error('Erro no login:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -124,28 +125,28 @@ router.put('/change-password', auth, async (req, res) => {
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({ message: 'Todos os campos são obrigatórios' });
+      return res.status(httpStatus.BAD_REQUEST).json({ message: errorMessages.ALL_FIELDS_REQUIRED });
     }
 
     if (newPassword.length < 6) {
-      return res.status(400).json({ message: 'A nova palavra-passe deve ter pelo menos 6 caracteres' });
+      return res.status(httpStatus.BAD_REQUEST).json({ message: errorMessages.PASSWORD_TOO_SHORT });
     }
 
     const user = await User.findById(req.user._id);
     const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
 
     if (!isCurrentPasswordValid) {
-      return res.status(400).json({ message: 'Palavra-passe atual incorreta' });
+      return res.status(httpStatus.BAD_REQUEST).json({ message: 'Palavra-passe atual incorreta' });
     }
 
     user.password = await bcrypt.hash(newPassword, 12);
     await user.save();
 
-    res.json({ message: 'Palavra-passe alterada com sucesso' });
+    res.json({ message: successMessages.PASSWORD_CHANGED });
 
   } catch (error) {
     console.error('Erro ao alterar password:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 

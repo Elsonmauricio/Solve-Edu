@@ -22,10 +22,7 @@ app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/solveedu', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/solveedu')
 .then(() => {
   console.log('✅ Conectado à base de dados MongoDB');
   console.log(`📊 Base de dados: ${mongoose.connection.db.databaseName}`);

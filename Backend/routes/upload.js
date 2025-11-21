@@ -1,6 +1,7 @@
 const express = require('express');
 const { uploadAvatar, uploadSolutionFiles, uploadChallengeFiles, handleUploadError } = require('../middleware/upload');
 const { auth } = require('../middleware/auth');
+const { httpStatus, errorMessages, successMessages } = require('../utils/constants');
 
 const router = express.Router();
 
@@ -8,7 +9,7 @@ const router = express.Router();
 router.post('/avatar', auth, uploadAvatar, handleUploadError, (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ message: 'Nenhum ficheiro enviado' });
+      return res.status(httpStatus.BAD_REQUEST).json({ message: 'Nenhum ficheiro enviado' });
     }
 
     const fileUrl = `/uploads/avatars/${req.file.filename}`;
@@ -21,7 +22,7 @@ router.post('/avatar', auth, uploadAvatar, handleUploadError, (req, res) => {
 
   } catch (error) {
     console.error('Erro no upload do avatar:', error);
-    res.status(500).json({ message: 'Erro ao carregar avatar' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -29,7 +30,7 @@ router.post('/avatar', auth, uploadAvatar, handleUploadError, (req, res) => {
 router.post('/solution', auth, uploadSolutionFiles, handleUploadError, (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ message: 'Nenhum ficheiro enviado' });
+      return res.status(httpStatus.BAD_REQUEST).json({ message: 'Nenhum ficheiro enviado' });
     }
 
     const files = req.files.map(file => ({
@@ -47,7 +48,7 @@ router.post('/solution', auth, uploadSolutionFiles, handleUploadError, (req, res
 
   } catch (error) {
     console.error('Erro no upload de ficheiros:', error);
-    res.status(500).json({ message: 'Erro ao carregar ficheiros' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -55,7 +56,7 @@ router.post('/solution', auth, uploadSolutionFiles, handleUploadError, (req, res
 router.post('/challenge', auth, uploadChallengeFiles, handleUploadError, (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ message: 'Nenhum ficheiro enviado' });
+      return res.status(httpStatus.BAD_REQUEST).json({ message: 'Nenhum ficheiro enviado' });
     }
 
     const fileUrl = `/uploads/challenges/${req.file.filename}`;
@@ -69,7 +70,7 @@ router.post('/challenge', auth, uploadChallengeFiles, handleUploadError, (req, r
 
   } catch (error) {
     console.error('Erro no upload do ficheiro:', error);
-    res.status(500).json({ message: 'Erro ao carregar ficheiro' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 

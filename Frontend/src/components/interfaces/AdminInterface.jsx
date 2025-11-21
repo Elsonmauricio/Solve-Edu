@@ -7,46 +7,11 @@ import { QuantumText } from '../ui/QuantumText';
 
 // Define o componente AdminInterface, que recebe uma função 'onBack' como propriedade.
 export const AdminInterface = ({ onBack }) => {
-  // Dados estáticos para as estatísticas globais do painel.
-  const globalStats = [
-    { icon: '👥', value: '1,247', label: 'Total Utilizadores Quânticos', color: 'gray' },
-    { icon: '🎯', value: '127', label: 'Desafios Quânticos Ativos', color: 'gray' },
-    { icon: '✅', value: '89', label: 'Projetos Quânticos Concluídos', color: 'gray' },
-    { icon: '💰', value: '€45,600', label: 'Volume Total Quântico', color: 'gray' }
-  ];
-
-  // Dados estáticos para a atividade recente.
-  const recentActivity = [
-    {
-      title: 'Nova empresa registada: TechStart Quântica Lda',
-      time: 'Há 2 horas',
-      type: 'new'
-    },
-    {
-      title: 'Projeto concluído: Sistema de Inventário Quântico',
-      time: 'Há 5 horas',
-      type: 'completed'
-    },
-    {
-      title: '15 novos estudantes quânticos registados',
-      time: 'Hoje',
-      type: 'registration'
-    }
-  ];
-
-  // Dados estáticos para os alertas do sistema.
-  const systemAlerts = [
-    '3 desafios quânticos expiram em 24 horas',
-    '2 utilizadores reportaram problemas técnicos quânticos',
-    '1 empresa quântica pendente de aprovação'
-  ];
-
-  // Dados estáticos para as ações rápidas.
-  const quickActions = [
-    '👥 GERIR UTILIZADORES QUÂNTICOS',
-    '🎯 MODERAR DESAFIOS QUÂNTICOS', 
-    '📊 RELATÓRIOS QUÂNTICOS'
-  ];
+  // TODO: Fetch data from an API
+  const globalStats = [];
+  const recentActivity = [];
+  const systemAlerts = [];
+  const quickActions = [];
 
   // Retorna o JSX que define a estrutura e o conteúdo da interface do administrador.
   return (
@@ -60,9 +25,9 @@ export const AdminInterface = ({ onBack }) => {
       >
         <div>
           <h2 className="text-5xl font-black text-gray-700 mb-4">
-            <QuantumText>⚙️ Painel Administrativo Quântico</QuantumText>
+            <QuantumText>⚙️ Painel Administrativo</QuantumText>
           </h2>
-          <p className="text-gray-600 text-xl">Gestão Completa da Plataforma Quântica</p>
+          <p className="text-gray-600 text-xl">Gestão Completa da Plataforma</p>
         </div>
         <NeoButton onClick={onBack}>← VOLTAR</NeoButton>
       </motion.div>
@@ -109,7 +74,7 @@ export const AdminInterface = ({ onBack }) => {
         >
           <MorphicCard className="p-10 glow-effect">
             <h3 className="text-4xl font-black mb-8 text-gray-900 quantum-text">
-              📊 Atividade Quântica Recente
+              📊 Atividade Recente
             </h3>
             
             <div className="space-y-6">
@@ -153,7 +118,7 @@ export const AdminInterface = ({ onBack }) => {
         >
           <MorphicCard className="p-10 text-center glow-effect liquid-animation">
             <h3 className="text-4xl font-black mb-8 quantum-text">
-              🛠️ Gestão Quântica Rápida
+              🛠️ Gestão Rápida
             </h3>
             
             <div className="space-y-6">
@@ -182,7 +147,7 @@ export const AdminInterface = ({ onBack }) => {
       >
         <MorphicCard className="p-8 border-2 border-red-200 bg-red-50 glow-effect">
           <h3 className="text-3xl font-black text-red-800 mb-6 quantum-text">
-            🚨 Alertas Quânticos do Sistema
+            🚨 Alertas do Sistema
           </h3>
           
           <div className="space-y-4 text-lg">

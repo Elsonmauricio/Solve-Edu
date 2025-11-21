@@ -1,12 +1,18 @@
 // Importa a biblioteca 'framer-motion' para animações.
 import { motion } from 'framer-motion';
+// --- IMPLEMENTAÇÃO AUTH0 ---
+import { useAuth0 } from '@auth0/auth0-react';
 // Importa componentes de UI personalizados.
 import { MorphicCard } from '../ui/MorphicCard';
 import { NeoButton } from '../ui/NeoButton';
 import { QuantumText } from '../ui/QuantumText';
 
 // Define o componente StudentInterface, que recebe uma função 'onBack' como propriedade.
-export const StudentInterface = ({ onBack }) => {
+export const StudentInterface = ({ onBack, onNavigate }) => {
+  // --- IMPLEMENTAÇÃO AUTH0 ---
+  // Obtém informações do utilizador e a função de logout.
+  const { user, logout } = useAuth0();
+
   // Mapeamento de cores para classes de CSS, para uso dinâmico nos estilos.
   const colorClasses = {
     blue: 'text-blue-600',
@@ -15,45 +21,10 @@ export const StudentInterface = ({ onBack }) => {
     gray: 'text-gray-600'
   };
 
-  // Dados estáticos para as estatísticas do estudante.
-  const stats = [
-    { icon: '📚', value: '3', label: 'Projetos Quânticos Ativos', color: 'blue' },
-    { icon: '✅', value: '7', label: 'Projetos Concluídos', color: 'green' },
-    { icon: '⭐', value: '4.8', label: 'Avaliação Quântica', color: 'teal' },
-    { icon: '🏆', value: '€1,200', label: 'Total Ganho', color: 'blue' }
-  ];
-
-  // Dados estáticos para os desafios recomendados ao estudante.
-  const recommendedChallenges = [
-    {
-      category: '💻 Tecnologia Quântica',
-      title: 'App de Gestão Escolar Quântica',
-      description: 'Desenvolver uma aplicação revolucionária para gestão de horários e notas',
-      price: '€400',
-      status: 'active'
-    },
-    {
-      category: '🌱 Sustentabilidade',
-      title: 'Sistema de Reciclagem Quântica',
-      description: 'Criar solução revolucionária para otimizar processos de reciclagem',
-      price: 'Estágio',
-      status: 'active'
-    }
-  ];
-
-  // Dados estáticos para os projetos do estudante.
-  const myProjects = [
-    {
-      title: 'Sistema de Reservas Online Quântico',
-      client: 'Hotel Central - Em Progresso Quântico (75%)',
-      status: 'active'
-    },
-    {
-      title: 'App de Delivery Quântico',
-      client: 'DeliveryFast - Concluído com Sucesso',
-      status: 'completed'
-    }
-  ];
+  // TODO: Fetch data from an API
+  const stats = [];
+  const recommendedChallenges = [];
+  const myProjects = [];
 
   // Retorna o JSX que define a estrutura e o conteúdo da interface do estudante.
   return (
@@ -67,11 +38,19 @@ export const StudentInterface = ({ onBack }) => {
       >
         <div>
           <h2 className="text-5xl font-black text-blue-600 mb-4">
-            <QuantumText>🎓 Dashboard Quântico do Estudante</QuantumText>
+            <QuantumText> Dashboard do Estudante</QuantumText>
           </h2>
-          <p className="text-gray-600 text-xl">Bem-vindo ao futuro, João Silva!</p>
+          {/* Exibe o nome do utilizador vindo do Auth0, com um fallback. */}
+          <p className="text-gray-600 text-xl">Bem-vindo ao futuro, {user?.name || 'Estudante'}!</p>
         </div>
-        <NeoButton onClick={onBack}>← VOLTAR</NeoButton>
+        <div className="flex items-center space-x-4">
+          <NeoButton onClick={() => onNavigate('perfil')}>Meu Perfil</NeoButton>
+          <NeoButton onClick={() => onNavigate('submissao-pap')}>Submeter PAP</NeoButton>
+          {/* Botão de Logout que redireciona para a página inicial após o logout. */}
+          <NeoButton onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}>
+            Sair
+          </NeoButton>
+        </div>
       </motion.div>
 
       {/* Seção de estatísticas. */}
@@ -109,7 +88,7 @@ export const StudentInterface = ({ onBack }) => {
         transition={{ duration: 0.6, delay: 0.4 }}
       >
         <h3 className="text-4xl font-black text-gray-900 mb-10">
-          <QuantumText>🎯 Desafios Quânticos Recomendados</QuantumText>
+          <QuantumText>🎯 Desafios Recomendados</QuantumText>
         </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -137,7 +116,7 @@ export const StudentInterface = ({ onBack }) => {
                   <span className="text-green-600 font-black text-xl">
                     {challenge.price}
                   </span>
-                  <NeoButton>Candidatar</NeoButton>
+                  <NeoButton onClick={() => onNavigate('desafio')}>Candidatar</NeoButton>
                 </div>
               </MorphicCard>
             </motion.div>
@@ -153,7 +132,7 @@ export const StudentInterface = ({ onBack }) => {
       >
         <MorphicCard className="p-10 glow-effect">
           <h3 className="text-4xl font-black mb-10 text-gray-900">
-            <QuantumText>📋 Os Meus Projetos Quânticos</QuantumText>
+            <QuantumText>📋 Os Meus Projetos </QuantumText>
           </h3>
           
           <div className="space-y-6">

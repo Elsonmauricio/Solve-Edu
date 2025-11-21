@@ -1,6 +1,7 @@
 const express = require('express');
 const Challenge = require('../models/Challenge');
 const { auth, optionalAuth } = require('../middleware/auth');
+const { httpStatus, errorMessages, successMessages } = require('../utils/constants');
 
 const router = express.Router();
 
@@ -51,7 +52,7 @@ router.get('/', optionalAuth, async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao obter desafios:', error);
-    res.status(500).json({ message: 'Erro ao carregar desafios' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -62,7 +63,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
       .populate('company', 'name companyProfile avatar');
 
     if (!challenge) {
-      return res.status(404).json({ message: 'Desafio não encontrado' });
+      return res.status(httpStatus.NOT_FOUND).json({ message: errorMessages.NOT_FOUND });
     }
 
     // Incrementar visualizações
@@ -73,7 +74,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao obter desafio:', error);
-    res.status(500).json({ message: 'Erro ao carregar desafio' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -81,7 +82,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     if (req.user.userType !== 'company') {
-      return res.status(403).json({ message: 'Apenas empresas podem criar desafios' });
+      return res.status(httpStatus.FORBIDDEN).json({ message: 'Apenas empresas podem criar desafios' });
     }
 
     const challengeData = {
@@ -94,17 +95,17 @@ router.post('/', auth, async (req, res) => {
     
     await challenge.populate('company', 'name companyProfile avatar');
 
-    res.status(201).json(challenge);
+    res.status(httpStatus.CREATED).json(challenge);
 
   } catch (error) {
     console.error('Erro ao criar desafio:', error);
     
     if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({ message: 'Dados inválidos', errors });
+      return res.status(httpStatus.BAD_REQUEST).json({ message: errorMessages.INVALID_DATA, errors });
     }
     
-    res.status(500).json({ message: 'Erro ao criar desafio' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -114,11 +115,11 @@ router.put('/:id', auth, async (req, res) => {
     const challenge = await Challenge.findById(req.params.id);
 
     if (!challenge) {
-      return res.status(404).json({ message: 'Desafio não encontrado' });
+      return res.status(httpStatus.NOT_FOUND).json({ message: errorMessages.NOT_FOUND });
     }
 
     if (challenge.company.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Não tem permissão para editar este desafio' });
+      return res.status(httpStatus.FORBIDDEN).json({ message: 'Não tem permissão para editar este desafio' });
     }
 
     Object.assign(challenge, req.body);
@@ -129,7 +130,7 @@ router.put('/:id', auth, async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao atualizar desafio:', error);
-    res.status(500).json({ message: 'Erro ao atualizar desafio' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -139,19 +140,19 @@ router.delete('/:id', auth, async (req, res) => {
     const challenge = await Challenge.findById(req.params.id);
 
     if (!challenge) {
-      return res.status(404).json({ message: 'Desafio não encontrado' });
+      return res.status(httpStatus.NOT_FOUND).json({ message: errorMessages.NOT_FOUND });
     }
 
     if (challenge.company.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Não tem permissão para eliminar este desafio' });
+      return res.status(httpStatus.FORBIDDEN).json({ message: 'Não tem permissão para eliminar este desafio' });
     }
 
     await Challenge.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Desafio eliminado com sucesso' });
+    res.json({ message: successMessages.ITEM_DELETED });
 
   } catch (error) {
     console.error('Erro ao eliminar desafio:', error);
-    res.status(500).json({ message: 'Erro ao eliminar desafio' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -169,7 +170,7 @@ router.get('/company/:companyId', async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao obter desafios da empresa:', error);
-    res.status(500).json({ message: 'Erro ao carregar desafios' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 

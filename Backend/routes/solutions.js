@@ -2,6 +2,7 @@ const express = require('express');
 const Solution = require('../models/Solution');
 const Challenge = require('../models/Challenge');
 const { auth } = require('../middleware/auth');
+const { httpStatus, errorMessages, successMessages } = require('../utils/constants');
 
 const router = express.Router();
 
@@ -9,7 +10,7 @@ const router = express.Router();
 router.post('/', auth, async (req, res) => {
   try {
     if (req.user.userType !== 'student') {
-      return res.status(403).json({ message: 'Apenas estudantes podem submeter soluções' });
+      return res.status(httpStatus.FORBIDDEN).json({ message: 'Apenas estudantes podem submeter soluções' });
     }
 
     const solutionData = {
@@ -29,17 +30,17 @@ router.post('/', auth, async (req, res) => {
     await solution.populate('challenge', 'title company');
     await solution.populate('student', 'name studentProfile avatar');
 
-    res.status(201).json(solution);
+    res.status(httpStatus.CREATED).json(solution);
 
   } catch (error) {
     console.error('Erro ao submeter solução:', error);
     
     if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({ message: 'Dados inválidos', errors });
+      return res.status(httpStatus.BAD_REQUEST).json({ message: errorMessages.INVALID_DATA, errors });
     }
     
-    res.status(500).json({ message: 'Erro ao submeter solução' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -54,7 +55,7 @@ router.get('/challenge/:challengeId', auth, async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao obter soluções:', error);
-    res.status(500).json({ message: 'Erro ao carregar soluções' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -69,7 +70,7 @@ router.get('/student/:studentId', async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao obter soluções do estudante:', error);
-    res.status(500).json({ message: 'Erro ao carregar soluções' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -80,12 +81,12 @@ router.put('/:id/feedback', auth, async (req, res) => {
       .populate('challenge');
 
     if (!solution) {
-      return res.status(404).json({ message: 'Solução não encontrada' });
+      return res.status(httpStatus.NOT_FOUND).json({ message: errorMessages.NOT_FOUND });
     }
 
     // Verificar se o utilizador é a empresa dona do desafio
     if (solution.challenge.company.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Não tem permissão para avaliar esta solução' });
+      return res.status(httpStatus.FORBIDDEN).json({ message: 'Não tem permissão para avaliar esta solução' });
     }
 
     solution.feedback = {
@@ -105,7 +106,7 @@ router.put('/:id/feedback', auth, async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao avaliar solução:', error);
-    res.status(500).json({ message: 'Erro ao avaliar solução' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -116,7 +117,7 @@ router.put('/:id/status', auth, async (req, res) => {
       .populate('challenge');
 
     if (!solution) {
-      return res.status(404).json({ message: 'Solução não encontrada' });
+      return res.status(httpStatus.NOT_FOUND).json({ message: errorMessages.NOT_FOUND });
     }
 
     // Verificar permissões
@@ -124,7 +125,7 @@ router.put('/:id/status', auth, async (req, res) => {
     const isStudentOwner = solution.student.toString() === req.user._id.toString();
 
     if (!isCompanyOwner && !isStudentOwner) {
-      return res.status(403).json({ message: 'Não tem permissão para atualizar esta solução' });
+      return res.status(httpStatus.FORBIDDEN).json({ message: 'Não tem permissão para atualizar esta solução' });
     }
 
     solution.status = req.body.status;
@@ -134,7 +135,7 @@ router.put('/:id/status', auth, async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao atualizar status:', error);
-    res.status(500).json({ message: 'Erro ao atualizar solução' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -144,19 +145,19 @@ router.delete('/:id', auth, async (req, res) => {
     const solution = await Solution.findById(req.params.id);
 
     if (!solution) {
-      return res.status(404).json({ message: 'Solução não encontrada' });
+      return res.status(httpStatus.NOT_FOUND).json({ message: errorMessages.NOT_FOUND });
     }
 
     if (solution.student.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Não tem permissão para eliminar esta solução' });
+      return res.status(httpStatus.FORBIDDEN).json({ message: 'Não tem permissão para eliminar esta solução' });
     }
 
     await Solution.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Solução eliminada com sucesso' });
+    res.json({ message: successMessages.ITEM_DELETED });
 
   } catch (error) {
     console.error('Erro ao eliminar solução:', error);
-    res.status(500).json({ message: 'Erro ao eliminar solução' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 

@@ -6,50 +6,11 @@ import { NeoButton } from '../ui/NeoButton';
 import { QuantumText } from '../ui/QuantumText';
 
 // Define o componente SchoolInterface, que recebe uma função 'onBack' como propriedade.
-export const SchoolInterface = ({ onBack }) => {
-  // Dados estáticos para as estatísticas da escola.
-  const stats = [
-    { icon: '👨‍🎓', value: '156', label: 'Estudantes Quânticos Ativos', color: 'teal' },
-    { icon: '📚', value: '89', label: 'PAPs Quânticos em Curso', color: 'blue' },
-    { icon: '🤝', value: '23', label: 'Parcerias Quânticas Ativas', color: 'green' },
-    { icon: '🏆', value: '94%', label: 'Taxa de Sucesso Quântico', color: 'teal' }
-  ];
-
-  // Dados estáticos para os estudantes recentes.
-  const recentStudents = [
-    {
-      name: 'João Silva',
-      project: 'Projeto: Sistema de Reservas Quântico - Em Progresso',
-      status: 'active'
-    },
-    {
-      name: 'Maria Santos',
-      project: 'Projeto: App Mobile Quântico - Concluído',
-      status: 'completed'
-    }
-  ];
-
-  // Dados estáticos para os PAPs (Provas de Aptidão Profissional) em destaque.
-  const featuredPAPs = [
-    {
-      title: 'Sistema de Gestão Escolar Quântico',
-      student: 'Ana Costa - 12º Ano',
-      company: 'Empresa: EduTech Solutions Quântica',
-      color: 'teal'
-    },
-    {
-      title: 'App de Sustentabilidade Quântica',
-      student: 'Pedro Oliveira - 12º Ano',
-      company: 'Empresa: GreenTech Quântica',
-      color: 'blue'
-    },
-    {
-      title: 'Plataforma E-commerce Quântica',
-      student: 'Sofia Martins - 12º Ano',
-      company: 'Empresa: ShopOnline Quântica',
-      color: 'green'
-    }
-  ];
+export const SchoolInterface = ({ onBack, onNavigate }) => {
+  // TODO: Fetch data from an API
+  const stats = [];
+  const recentStudents = [];
+  const featuredPAPs = [];
 
   // Retorna o JSX que define a estrutura e o conteúdo da interface da escola.
   return (
@@ -63,11 +24,14 @@ export const SchoolInterface = ({ onBack }) => {
       >
         <div>
           <h2 className="text-5xl font-black text-teal-600 mb-4">
-            <QuantumText>🏫 Portal Quântico da Escola</QuantumText>
+            <QuantumText>🏫 Portal da Escola</QuantumText>
           </h2>
-          <p className="text-gray-600 text-xl">Escola Secundária de Tecnologia Quântica</p>
+          <p className="text-gray-600 text-xl">Escola Secundária de Tecnologia</p>
         </div>
-        <NeoButton onClick={onBack}>← VOLTAR</NeoButton>
+        <div className="flex items-center space-x-4">
+          <NeoButton onClick={() => onNavigate('perfil')}>Perfil da Escola</NeoButton>
+          <NeoButton onClick={onBack}>← VOLTAR</NeoButton>
+        </div>
       </motion.div>
 
       {/* Seção de estatísticas. */}
@@ -112,7 +76,7 @@ export const SchoolInterface = ({ onBack }) => {
         >
           <MorphicCard className="p-10 glow-effect">
             <h3 className="text-4xl font-black mb-8 text-gray-900 quantum-text">
-              👥 Estudantes Quânticos Recentes
+              👥 Estudantes Recentes
             </h3>
             
             <div className="space-y-6">
@@ -156,12 +120,12 @@ export const SchoolInterface = ({ onBack }) => {
         >
           <MorphicCard className="p-10 text-center glow-effect liquid-animation">
             <h3 className="text-4xl font-black mb-6 quantum-text">
-              🤝 Novas Parcerias Quânticas
+              🤝 Novas Parcerias
             </h3>
             <p className="mb-8 text-xl text-gray-700 leading-relaxed">
               Conecte os seus estudantes com empresas parceiras do futuro
             </p>
-            <NeoButton>EXPLORAR PARCERIAS QUÂNTICAS</NeoButton>
+            <NeoButton>EXPLORAR PARCERIAS</NeoButton>
           </MorphicCard>
         </motion.div>
       </motion.div>
@@ -174,7 +138,7 @@ export const SchoolInterface = ({ onBack }) => {
       >
         <MorphicCard className="p-10 glow-effect">
           <h3 className="text-4xl font-black mb-10 text-gray-900 quantum-text">
-            🌟 PAPs Quânticos em Destaque
+            🌟 PAPs em Destaque
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

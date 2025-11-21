@@ -3,71 +3,30 @@ import { motion } from 'framer-motion';
 // Importa componentes de UI personalizados.
 import { MorphicCard } from '../ui/MorphicCard';
 import { NeoButton } from '../ui/NeoButton';
-import { QuantumText } from '../ui/QuantumText';
+import { GradientText } from '../ui/GradientText';
 
 // Define o componente HomeInterface, que recebe uma função 'onInterfaceChange' como propriedade.
-export const HomeInterface = ({ onInterfaceChange }) => {
-  // Dados para os cartões de acesso, cada um representando um tipo de usuário.
+export const HomeInterface = ({ onInterfaceChange, onNavigate }) => {
+  
+  // --- IMPLEMENTAÇÃO ---
+  // Agora os dados dos cartões estão aqui. Em um projeto real, isso viria de uma API.
   const accessCards = [
-    {
-      id: 'estudante',
-      emoji: '🎓',
-      title: 'ESTUDANTE',
-      description: 'EXPLORE DESAFIOS QUÂNTICOS E DESENVOLVA PROJETOS REVOLUCIONÁRIOS',
-      color: 'blue',
-      buttonText: 'ACESSO ESTUDANTE'
-    },
-    {
-      id: 'empresa',
-      emoji: '🏢',
-      title: 'EMPRESA',
-      description: 'PUBLIQUE DESAFIOS INOVADORES E ENCONTRE TALENTOS QUÂNTICOS',
-      color: 'green',
-      buttonText: 'ACESSO EMPRESA'
-    },
-    {
-      id: 'escola',
-      emoji: '🏫',
-      title: 'ESCOLA',
-      description: 'GERIR ESTUDANTES E CRIAR PARCERIAS TECNOLÓGICAS AVANÇADAS',
-      color: 'teal',
-      buttonText: 'ACESSO ESCOLA'
-    },
-    {
-      id: 'admin',
-      emoji: '⚙️',
-      title: 'ADMIN',
-      description: 'CONTROLE TOTAL DA MATRIZ QUÂNTICA E MONITORIZAÇÃO AVANÇADA',
-      color: 'gray',
-      buttonText: 'ACESSO ADMIN'
-    }
+    { id: 'estudante', title: 'Estudante', description: 'Encontre desafios, desenvolva suas habilidades e construa seu futuro.', buttonText: 'Entrar como Estudante', color: 'blue' },
+    { id: 'empresa', title: 'Empresa', description: 'Publique desafios, encontre talentos e impulsione a inovação.', buttonText: 'Entrar como Empresa', color: 'green' },
+    { id: 'escola', title: 'Escola', description: 'Acompanhe seus alunos, gerencie parcerias e promova o sucesso.', buttonText: 'Entrar como Escola', color: 'teal' },
+    { id: 'admin', title: 'Admin', description: 'Gerencie a plataforma, visualize estatísticas e controle tudo.', buttonText: 'Acessar Painel', color: 'gray' }
   ];
 
-  // Dados para a seção de funcionalidades da plataforma.
   const features = [
-    {
-      emoji: '🎯',
-      title: 'DESAFIOS REAIS',
-      description: 'PROBLEMAS AUTÊNTICOS DAS EMPRESAS DO FUTURO QUÂNTICO',
-      color: 'green'
-    },
-    {
-      emoji: '💡',
-      title: 'SOLUÇÕES INOVADORAS',
-      description: 'PAPs COM IMPACTO REVOLUCIONÁRIO NO MERCADO GLOBAL',
-      color: 'blue'
-    },
-    {
-      emoji: '🤝',
-      title: 'CONEXÕES VALIOSAS',
-      description: 'NETWORKING QUÂNTICO ENTRE ESTUDANTES E EMPRESAS',
-      color: 'teal'
-    }
+    {  title: 'Inovação Aberta', description: 'Conecte problemas reais a soluções criativas de estudantes talentosos.', color: 'blue' },
+    {  title: 'Desenvolvimento', description: 'Ganhe experiência prática e construa um portfólio impressionante.', color: 'green' },
+    {  title: 'Parcerias', description: 'Crie pontes entre o mundo acadêmico e o mercado de trabalho.', color: 'teal' }
   ];
+  // --------------------
 
   // Retorna o JSX que define a estrutura e o conteúdo da página inicial.
   return (
-    <section className="quantum-bg text-gray-900 py-40 pt-48 relative overflow-hidden min-h-screen flex items-center">
+    <section className="animated-bg text-gray-900 py-40 pt-48 relative overflow-hidden min-h-screen flex items-center">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center relative z-10">
         <motion.div 
           className="space-y-12"
@@ -76,27 +35,16 @@ export const HomeInterface = ({ onInterfaceChange }) => {
           transition={{ duration: 0.8 }} // Duração da animação.
         >
           {/* Título principal (Hero Title). */}
-          <motion.h2 
+          <h2 
             className="text-7xl md:text-9xl font-black leading-tight mb-16"
-            initial={{ opacity: 0, scale: 0.5 }} // Animação inicial: invisível e menor.
-            animate={{ opacity: 1, scale: 1 }} // Anima para: visível e no tamanho original.
-            transition={{ duration: 1, delay: 0.2 }} // Duração e atraso da animação.
           >
-            <QuantumText>CONECTAMOS</QuantumText>
-            <motion.span 
+            <GradientText>CONECTAMOS</GradientText>
+            <span 
               className="block text-transparent bg-clip-text bg-gradient-to-r from-green-500 via-blue-500 to-teal-500"
-              animate={{ 
-                backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] // Anima a posição do gradiente.
-              }}
-              transition={{ 
-                duration: 3, 
-                repeat: Infinity, // Repete a animação infinitamente.
-                ease: "easeInOut"
-              }}
             >
               O FUTURO
-            </motion.span>
-          </motion.h2>
+            </span>
+          </h2>
 
           {/* Descrição principal (Hero Description). */}
           <motion.p 
@@ -105,9 +53,9 @@ export const HomeInterface = ({ onInterfaceChange }) => {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8, delay: 0.4 }}
           >
-            <span className="text-green-500 font-bold">🚀</span> TRANSFORME SEUS PAPs EM SOLUÇÕES REVOLUCIONÁRIAS 
+            <span className="text-green-500 font-bold"></span> TRANSFORME SEUS PAPs EM SOLUÇÕES REVOLUCIONÁRIAS 
             <span className="block mt-6">
-              <span className="text-blue-500 font-bold">💎</span> CONECTE TALENTO COM INOVAÇÃO QUÂNTICA
+              <span className="text-blue-500 font-bold"></span> CONECTE TALENTO COM INOVAÇÃO
             </span>
           </motion.p>
 
@@ -132,7 +80,7 @@ export const HomeInterface = ({ onInterfaceChange }) => {
                   liquid
                 >
                   <motion.div 
-                    className="text-9xl mb-10 quantum-text"
+                    className="text-9xl mb-10 gradient-text"
                     whileHover={{ scale: 1.25 }} // Aumenta o tamanho do emoji ao passar o mouse.
                     transition={{ duration: 0.7 }}
                   >
@@ -151,7 +99,7 @@ export const HomeInterface = ({ onInterfaceChange }) => {
                     {card.buttonText}
                   </NeoButton>
 
-                  {/* Indicadores visuais quânticos. */}
+                  {/* Indicadores visuais. */}
                   <motion.div
                     className={`absolute top-6 right-6 w-6 h-6 bg-${card.color}-500 rounded-full glow-effect`}
                     animate={{ opacity: [0.3, 1, 0.3] }} // Animação de pulsar.
@@ -184,7 +132,7 @@ export const HomeInterface = ({ onInterfaceChange }) => {
               >
                 <MorphicCard className="p-10 relative group glow-effect text-center">
                   <motion.div 
-                    className="text-8xl mb-8 quantum-text"
+                    className="text-8xl mb-8 gradient-text"
                     whileHover={{ scale: 1.25 }} // Aumenta o tamanho ao passar o mouse.
                     transition={{ duration: 0.5 }}
                   >

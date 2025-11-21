@@ -1,6 +1,7 @@
 const express = require('express');
 const Message = require('../models/Message');
 const { auth } = require('../middleware/auth');
+const { httpStatus, errorMessages, successMessages } = require('../utils/constants');
 
 const router = express.Router();
 
@@ -22,11 +23,11 @@ router.post('/', auth, async (req, res) => {
     await message.populate('receiver', 'name avatar userType');
     await message.populate('challenge', 'title');
 
-    res.status(201).json(message);
+    res.status(httpStatus.CREATED).json(message);
 
   } catch (error) {
     console.error('Erro ao enviar mensagem:', error);
-    res.status(500).json({ message: 'Erro ao enviar mensagem' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -95,7 +96,7 @@ router.get('/conversations', auth, async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao obter conversas:', error);
-    res.status(500).json({ message: 'Erro ao carregar conversas' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -132,7 +133,7 @@ router.get('/conversation/:otherUserId', auth, async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao obter mensagens:', error);
-    res.status(500).json({ message: 'Erro ao carregar mensagens' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -156,7 +157,7 @@ router.put('/read', auth, async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao marcar mensagens como lidas:', error);
-    res.status(500).json({ message: 'Erro ao atualizar mensagens' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -172,7 +173,7 @@ router.get('/unread-count', auth, async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao obter contagem de mensagens:', error);
-    res.status(500).json({ message: 'Erro ao carregar contagem' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 

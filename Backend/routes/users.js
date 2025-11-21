@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Challenge = require('../models/Challenge');
 const Solution = require('../models/Solution');
 const { auth } = require('../middleware/auth');
+const { httpStatus, errorMessages } = require('../utils/constants');
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ router.get('/profile', auth, async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao obter perfil:', error);
-    res.status(500).json({ message: 'Erro ao carregar perfil' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -41,7 +42,7 @@ router.put('/profile', auth, async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao atualizar perfil:', error);
-    res.status(500).json({ message: 'Erro ao atualizar perfil' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -52,14 +53,14 @@ router.get('/:id', async (req, res) => {
       .select('-password -email');
 
     if (!user) {
-      return res.status(404).json({ message: 'Utilizador não encontrado' });
+      return res.status(httpStatus.NOT_FOUND).json({ message: errorMessages.NOT_FOUND });
     }
 
     res.json(user);
 
   } catch (error) {
     console.error('Erro ao obter perfil público:', error);
-    res.status(500).json({ message: 'Erro ao carregar perfil' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -70,7 +71,7 @@ router.get('/:id/stats', async (req, res) => {
     const user = await User.findById(userId);
 
     if (!user) {
-      return res.status(404).json({ message: 'Utilizador não encontrado' });
+      return res.status(httpStatus.NOT_FOUND).json({ message: errorMessages.NOT_FOUND });
     }
 
     let stats = {};
@@ -115,7 +116,7 @@ router.get('/:id/stats', async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao obter estatísticas:', error);
-    res.status(500).json({ message: 'Erro ao carregar estatísticas' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -154,7 +155,7 @@ router.get('/', async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao pesquisar utilizadores:', error);
-    res.status(500).json({ message: 'Erro na pesquisa' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 

@@ -3,15 +3,16 @@ const Challenge = require('../models/Challenge');
 const Solution = require('../models/Solution');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
+const { httpStatus, errorMessages } = require('../utils/constants');
 
 const router = express.Router();
 
 // Analytics gerais da plataforma (apenas admin)
 router.get('/platform', auth, async (req, res) => {
   try {
-    // Verificar se é admin (podes adicionar role de admin depois)
-    if (req.user.userType !== 'company') {
-      return res.status(403).json({ message: 'Acesso não autorizado' });
+    // Verificar se é admin
+    if (req.user.userType !== 'admin') {
+      return res.status(httpStatus.FORBIDDEN).json({ message: errorMessages.UNAUTHORIZED });
     }
 
     const totalUsers = await User.countDocuments();
@@ -56,7 +57,7 @@ router.get('/platform', auth, async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao obter analytics:', error);
-    res.status(500).json({ message: 'Erro ao carregar analytics' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
@@ -64,7 +65,7 @@ router.get('/platform', auth, async (req, res) => {
 router.get('/company', auth, async (req, res) => {
   try {
     if (req.user.userType !== 'company') {
-      return res.status(403).json({ message: 'Apenas empresas podem aceder a estas analytics' });
+      return res.status(httpStatus.FORBIDDEN).json({ message: 'Apenas empresas podem aceder a estas analytics' });
     }
 
     const companyId = req.user._id;
@@ -132,7 +133,7 @@ router.get('/company', auth, async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao obter analytics da empresa:', error);
-    res.status(500).json({ message: 'Erro ao carregar analytics' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: errorMessages.INTERNAL_SERVER_ERROR });
   }
 });
 
