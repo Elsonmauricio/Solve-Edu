@@ -1,0 +1,382 @@
+import React from 'react';
+import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import { useApp } from '../../context/AppContext';
+import StatsCard from '../ui/StatsCard';
+import UserBadge from '../ui/UserBadge';
+import ProblemCard from '../ui/ProblemCard';
+import { 
+  Target, 
+  Users, 
+  TrendingUp, 
+  Euro,
+  Plus,
+  Eye,
+  MessageCircle,
+  Bell,
+  Settings,
+  CheckCircle,
+  Clock
+} from 'lucide-react';
+
+const CompanyDashboard = () => {
+  const { problems, solutions } = useApp();
+
+  const companyStats = {
+    user: {
+      name: "TechRetail Lda",
+      role: "Empresa",
+      company: "TechRetail Lda",
+      level: "Parceiro",
+      isVerified: true,
+      problemsPosted: 12,
+      solutionsAccepted: 8
+    },
+    stats: [
+      {
+        title: "Desafios Publicados",
+        value: "12",
+        change: 15,
+        icon: Target,
+        color: "blue"
+      },
+      {
+        title: "Candidaturas Recebidas",
+        value: "45",
+        change: 25,
+        icon: Users,
+        color: "green"
+      },
+      {
+        title: "Soluções Aceites",
+        value: "8",
+        change: 10,
+        icon: CheckCircle,
+        color: "teal"
+      },
+      {
+        title: "Total em Recompensas",
+        value: "€3,500",
+        change: 18,
+        icon: Euro,
+        color: "purple"
+      }
+    ]
+  };
+
+  const myProblems = problems.filter(p => p.company === "TechRetail Lda");
+  const pendingApplications = solutions.filter(s => s.status === "Em Análise").slice(0, 3);
+
+  return (
+    <div className="min-h-screen bg-gray-50 pt-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <motion.div
+          className="mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-black text-gray-900 mb-2">
+                Dashboard da Empresa
+              </h1>
+              <p className="text-lg text-gray-600">
+                Gerencie os seus desafios e acompanhe as candidaturas
+              </p>
+            </div>
+            <div className="flex space-x-3 mt-4 lg:mt-0">
+              <Link
+                to="/create-problem"
+                className="bg-gradient-to-r from-solve-blue to-solve-purple text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-200 flex items-center space-x-2"
+              >
+                <Plus size={20} />
+                <span>Novo Desafio</span>
+              </Link>
+              <button className="flex items-center space-x-2 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:border-gray-400 transition-colors">
+                <Bell size={20} />
+              </button>
+            </div>
+          </div>
+        </motion.div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-3 space-y-8">
+            {/* Stats Grid */}
+            <motion.div
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
+              {companyStats.stats.map((stat, index) => (
+                <StatsCard
+                  key={stat.title}
+                  title={stat.title}
+                  value={stat.value}
+                  change={stat.change}
+                  icon={stat.icon}
+                  color={stat.color}
+                  delay={index * 0.1}
+                />
+              ))}
+            </motion.div>
+
+            {/* Pending Applications */}
+            <motion.div
+              className="bg-white rounded-2xl shadow-lg border border-gray-200"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+            >
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-gray-900">Candidaturas Pendentes</h2>
+                  <Link
+                    to="/solutions"
+                    className="text-solve-blue hover:text-solve-purple font-medium"
+                  >
+                    Ver todas
+                  </Link>
+                </div>
+              </div>
+              
+              <div className="p-6">
+                {pendingApplications.length > 0 ? (
+                  <div className="space-y-4">
+                    {pendingApplications.map((solution, index) => (
+                      <div
+                        key={solution.id}
+                        className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-solve-blue transition-colors"
+                      >
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-900">{solution.title}</h4>
+                          <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
+                            <span>{solution.student}</span>
+                            <span>•</span>
+                            <span>{solution.school}</span>
+                            <span>•</span>
+                            <span className="text-yellow-600 font-medium">Em Análise</span>
+                          </div>
+                        </div>
+                        <div className="flex space-x-2">
+                          <button className="px-4 py-2 bg-solve-blue text-white rounded-lg font-medium hover:bg-solve-purple transition-colors">
+                            Avaliar
+                          </button>
+                          <button className="p-2 border border-gray-300 rounded-lg text-gray-600 hover:border-gray-400 transition-colors">
+                            <MessageCircle size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <CheckCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      Nenhuma candidatura pendente
+                    </h3>
+                    <p className="text-gray-600">
+                      Todas as candidaturas foram analisadas.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+
+            {/* My Problems */}
+            <motion.div
+              className="bg-white rounded-2xl shadow-lg border border-gray-200"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.6 }}
+            >
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-gray-900">Os Meus Desafios</h2>
+                  <Link
+                    to="/problems"
+                    className="text-solve-blue hover:text-solve-purple font-medium"
+                  >
+                    Ver todos
+                  </Link>
+                </div>
+              </div>
+              
+              <div className="p-6">
+                {myProblems.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {myProblems.slice(0, 4).map((problem, index) => (
+                      <ProblemCard key={problem.id} problem={problem} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Target className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      Ainda não publicou desafios
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Comece por publicar o seu primeiro desafio para a comunidade.
+                    </p>
+                    <Link
+                      to="/create-problem"
+                      className="bg-solve-blue text-white px-6 py-3 rounded-xl font-medium hover:bg-solve-purple transition-colors"
+                    >
+                      Criar Primeiro Desafio
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* User Profile */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 1 }}
+            >
+              <UserBadge user={companyStats.user} showStats={true} />
+            </motion.div>
+
+            {/* Quick Actions */}
+            <motion.div
+              className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 1.2 }}
+            >
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Ações Rápidas</h3>
+              
+              <div className="space-y-3">
+                <Link
+                  to="/create-problem"
+                  className="flex items-center space-x-3 p-3 border border-gray-200 rounded-xl hover:border-solve-blue hover:bg-blue-50 transition-colors group"
+                >
+                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Plus className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <span className="text-gray-700 group-hover:text-solve-blue font-medium">
+                    Novo Desafio
+                  </span>
+                </Link>
+                
+                <Link
+                  to="/solutions"
+                  className="flex items-center space-x-3 p-3 border border-gray-200 rounded-xl hover:border-solve-teal hover:bg-teal-50 transition-colors group"
+                >
+                  <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center">
+                    <Eye className="w-4 h-4 text-teal-600" />
+                  </div>
+                  <span className="text-gray-700 group-hover:text-solve-teal font-medium">
+                    Ver Candidaturas
+                  </span>
+                </Link>
+                
+                <button className="flex items-center space-x-3 p-3 border border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-colors group w-full text-left">
+                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <Users className="w-4 h-4 text-purple-600" />
+                  </div>
+                  <span className="text-gray-700 group-hover:text-purple-600 font-medium">
+                    Gerir Equipa
+                  </span>
+                </button>
+              </div>
+            </motion.div>
+
+            {/* Recent Activity */}
+            <motion.div
+              className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 1.4 }}
+            >
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Atividade Recente</h3>
+              
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-700">Solução aceite para "Sistema de Inventário"</p>
+                    <p className="text-xs text-gray-500">Há 1 dia</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Plus className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-700">Novo desafio publicado</p>
+                    <p className="text-xs text-gray-500">Há 3 dias</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                    <Users className="w-4 h-4 text-orange-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-700">5 novas candidaturas recebidas</p>
+                    <p className="text-xs text-gray-500">Há 1 semana</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Performance Metrics */}
+            <motion.div
+              className="bg-gradient-to-r from-solve-teal to-solve-blue rounded-2xl p-6 text-white"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 1.6 }}
+            >
+              <h3 className="text-lg font-semibold mb-4">Métricas de Performance</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Taxa de Aceitação</span>
+                    <span>67%</span>
+                  </div>
+                  <div className="w-full bg-white/20 rounded-full h-2">
+                    <div className="bg-white h-2 rounded-full" style={{ width: '67%' }}></div>
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Tempo Médio de Resposta</span>
+                    <span>3.2 dias</span>
+                  </div>
+                  <div className="w-full bg-white/20 rounded-full h-2">
+                    <div className="bg-white h-2 rounded-full" style={{ width: '80%' }}></div>
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Satisfação dos Estudantes</span>
+                    <span>4.5/5</span>
+                  </div>
+                  <div className="w-full bg-white/20 rounded-full h-2">
+                    <div className="bg-white h-2 rounded-full" style={{ width: '90%' }}></div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CompanyDashboard;

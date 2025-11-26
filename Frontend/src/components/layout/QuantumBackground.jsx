@@ -1,36 +1,61 @@
-// Importa a biblioteca 'framer-motion' para criar animações fluidas.
+import React from 'react';
 import { motion } from 'framer-motion';
 
-// Define o componente funcional 'QuantumBackground'.
-// Este componente é responsável por criar um plano de fundo animado e dinâmico.
 const QuantumBackground = () => {
-  // O componente retorna um elemento 'div' animado pela framer-motion.
   return (
     <motion.div
-      // Classes de CSS para estilização:
-      // 'quantum-bg': Uma classe personalizada que provavelmente define um gradiente ou imagem de fundo.
-      // 'fixed': Mantém o plano de fundo fixo na tela, mesmo com a rolagem da página.
-      // 'inset-0': Faz o elemento ocupar todo o espaço do seu container pai (neste caso, a viewport).
-      // '-z-10': Coloca o plano de fundo atrás de todos os outros conteúdos da página (z-index negativo).
-      className="quantum-bg fixed inset-0 -z-10"
-      
-      // A propriedade 'animate' define a animação que será executada.
+      className="fixed inset-0 -z-10 bg-gradient-to-br from-blue-50 via-white to-purple-50"
       animate={{
-        // Anima a posição do plano de fundo ('backgroundPosition').
-        // O array de valores cria um ciclo, movendo a posição do fundo através dos cantos da tela.
-        // A sequência é: centro-esquerda -> topo-direita -> baixo-direita -> baixo-esquerda -> volta ao centro-esquerda.
-        backgroundPosition: ['0% 50%', '100% 0%', '100% 100%', '0% 100%', '0% 50%']
+        backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'],
       }}
-      
-      // A propriedade 'transition' configura como a animação se comporta.
       transition={{
-        duration: 15,       // A animação completa leva 15 segundos para terminar um ciclo.
-        repeat: Infinity,   // A animação se repetirá infinitamente.
-        ease: "easeInOut"   // A função de aceleração 'easeInOut' torna o movimento suave no início e no fim.
+        duration: 20,
+        repeat: Infinity,
+        ease: "linear"
       }}
-    />
+    >
+      {/* Animated gradient orbs */}
+      <motion.div
+        className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-20"
+        animate={{
+          scale: [1, 1.2, 1],
+          x: [0, 100, 0],
+          y: [0, -50, 0],
+        }}
+        transition={{
+          duration: 15,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+      />
+      <motion.div
+        className="absolute top-1/2 right-1/4 w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-20"
+        animate={{
+          scale: [1.2, 1, 1.2],
+          x: [0, -100, 0],
+          y: [0, 50, 0],
+        }}
+        transition={{
+          duration: 20,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+      />
+      <motion.div
+        className="absolute bottom-1/4 left-1/2 w-80 h-80 bg-teal-200 rounded-full mix-blend-multiply filter blur-xl opacity-20"
+        animate={{
+          scale: [1, 1.1, 1],
+          x: [0, 50, 0],
+          y: [0, -100, 0],
+        }}
+        transition={{
+          duration: 18,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+      />
+    </motion.div>
   );
 };
 
-// Exporta o componente para que possa ser usado em outras partes da aplicação.
 export default QuantumBackground;

@@ -1,83 +1,145 @@
-// Importa a biblioteca 'framer-motion' para animações.
-import { motion } from 'framer-motion';
-// --- IMPLEMENTAÇÃO AUTH0 ---
-import { useAuth0 } from '@auth0/auth0-react';
-// Importa o componente de botão personalizado 'NeoButton'.
-import { NeoButton } from '../ui/NeoButton';
-// Importa o componente de texto personalizado 'QuantumText'.
-import { QuantumText } from '../ui/QuantumText';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Link, useLocation } from 'react-router-dom';
+import { Menu, X, Search, User, Briefcase, GraduationCap } from 'lucide-react';
 
-// Exporta o componente funcional 'Header'.
-export const Header = ({ currentInterface, onInterfaceChange }) => {
-  // --- IMPLEMENTAÇÃO AUTH0 ---
-  // Obtém as funções de login e logout, e o estado de autenticação.
-  const { loginWithRedirect, logout, isAuthenticated, user } = useAuth0();
+const Header = () => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const location = useLocation();
 
-  // O componente retorna um cabeçalho (header) estático.
+  const navigation = [
+    { name: 'Problemas', href: '/problems', icon: Search },
+    { name: 'Soluções', href: '/solutions', icon: Briefcase },
+    { name: 'Como Funciona', href: '/how-it-works', icon: GraduationCap },
+    { name: 'Comunidade', href: '/community', icon: User },
+  ];
+
   return (
-    // O 'header' é um elemento de cabeçalho HTML estilizado.
-    <header 
-      // Classes de CSS para estilização: Posição fixa no topo, largura total, alta ordem de empilhamento (z-index), e um estilo customizado 'holographic-interface'.
-      className="fixed w-full z-50 holographic-interface"
+    <motion.header 
+      className="fixed w-full z-50 bg-white/90 backdrop-blur-md border-b border-gray-200/50"
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
     >
-      {/* Div para um efeito de grade quântica no fundo do cabeçalho. */}
-      <div className="quantum-grid" />
-      
-      {/* Container principal do conteúdo do cabeçalho, com largura máxima e preenchimento (padding). */}
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        {/* Container flexível para alinhar os itens do cabeçalho (logo e navegação). */}
-        <div className="flex justify-between items-center h-24 relative">
-          
-          {/* Seção do Logo */}
-          <motion.div 
-            // Container para o logo, usando flexbox para alinhar itens.
-            className="flex items-center"
-            // Animação ao passar o mouse: Aumenta a escala do logo em 5%.
-            whileHover={{ scale: 1.05 }}
-          >
-            {/* Div para o logo que se transforma, sem animações contínuas. */}
-            <div
-              className="morphing-logo"
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          {/* Logo */}
+          <Link to="/" className="flex items-center space-x-3">
+            <motion.div
+              className="w-10 h-10 bg-gradient-to-r from-solve-blue to-solve-purple rounded-xl flex items-center justify-center"
+              whileHover={{ scale: 1.05, rotate: 5 }}
             >
-              {/* Componente de texto customizado para o nome do site. */}
-              <QuantumText size="lg">🌊 SOLVE EDU</QuantumText>
+              <span className="text-white font-bold text-lg">S4E</span>
+            </motion.div>
+            <div>
+              <h1 className="text-xl font-black bg-gradient-to-r from-solve-blue to-solve-purple bg-clip-text text-transparent">
+                SolveEdu
+              </h1>
+              <p className="text-xs text-gray-500">Conectando Talentos & Desafios</p>
             </div>
-          </motion.div>
+          </Link>
 
-          {/* Seção de Navegação */}
-          {/* Mostra botões diferentes dependendo se o utilizador está autenticado ou não. */}
-          {isAuthenticated ? (
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-3">
-                {/* Exibe a imagem de perfil do utilizador */}
-                <img
-                  src={user.picture}
-                  alt={user.name}
-                  className="w-12 h-12 rounded-full border-2 border-blue-300 object-cover"
-                />
-                {/* Exibe o nome do utilizador */}
-                <span className="text-lg font-semibold text-gray-700 hidden md:block">
-                  {user.name}
-                </span>
-              </div>
-              <NeoButton variant="secondary" onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}>
-                SAIR
-              </NeoButton>
-            </div>
-          ) : (
-            <div className="flex items-center space-x-8">
-              {/* Botão para "ENTRAR", com um estilo secundário. */}
-              <NeoButton variant="secondary" onClick={() => loginWithRedirect()}>
-                ENTRAR
-              </NeoButton>
-              {/* Botão para "REGISTAR", que leva diretamente para a tela de registo. */}
-              <NeoButton onClick={() => loginWithRedirect({ screen_hint: 'signup' })}>
-                REGISTAR
-              </NeoButton>
-            </div>
-          )}
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center space-x-8">
+            {navigation.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.href;
+              
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    isActive
+                      ? 'text-solve-blue bg-blue-50 border border-blue-200'
+                      : 'text-gray-600 hover:text-solve-blue hover:bg-gray-50'
+                  }`}
+                >
+                  <Icon size={16} />
+                  <span>{item.name}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Auth Buttons */}
+          <div className="hidden md:flex items-center space-x-4">
+            <Link
+              to="/student-dashboard"
+              className="px-4 py-2 text-sm font-medium text-solve-blue hover:text-solve-purple transition-colors"
+            >
+              Sou Estudante
+            </Link>
+            <Link
+              to="/company-dashboard"
+              className="px-6 py-2 bg-gradient-to-r from-solve-blue to-solve-purple text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200"
+            >
+              Sou Empresa
+            </Link>
+          </div>
+
+          {/* Mobile menu button */}
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100"
+          >
+            {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
+
+        {/* Mobile Navigation */}
+        <AnimatePresence>
+          {isMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="md:hidden border-t border-gray-200"
+            >
+              <div className="py-4 space-y-2">
+                {navigation.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.href;
+                  
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      onClick={() => setIsMenuOpen(false)}
+                      className={`flex items-center space-x-3 px-3 py-3 rounded-lg text-base font-medium transition-all duration-200 ${
+                        isActive
+                          ? 'text-solve-blue bg-blue-50 border border-blue-200'
+                          : 'text-gray-600 hover:text-solve-blue hover:bg-gray-50'
+                      }`}
+                    >
+                      <Icon size={18} />
+                      <span>{item.name}</span>
+                    </Link>
+                  );
+                })}
+                <div className="pt-4 border-t border-gray-200 space-y-2">
+                  <Link
+                    to="/student-dashboard"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block px-3 py-3 text-base font-medium text-solve-blue hover:bg-blue-50 rounded-lg"
+                  >
+                    Sou Estudante
+                  </Link>
+                  <Link
+                    to="/company-dashboard"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block px-3 py-3 text-base font-medium bg-gradient-to-r from-solve-blue to-solve-purple text-white rounded-lg"
+                  >
+                    Sou Empresa
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-    </header>
+    </motion.header>
   );
 };
+
+export default Header;

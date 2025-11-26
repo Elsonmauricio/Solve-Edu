@@ -10,10 +10,6 @@ import App from './App.jsx';
 // Importa os estilos globais da aplicação, que serão aplicados em todo o site.
 import './styles/globals.css';
 
-// --- IMPLEMENTAÇÃO AUTH0 ---
-const domain = "dev-v203qjqv035ipllk.us.auth0.com";
-const clientId = "6FMCXLGIc4uvUh4NkO3EVFEDYOrbbXWH";
-
 // 'ReactDOM.createRoot()' cria uma "raiz" de renderização do React no elemento da DOM com o id 'root'.
 // Este elemento 'root' geralmente está no arquivo 'index.html'.
 // '.render()' é chamado na raiz para renderizar um componente React dentro dela.
@@ -23,8 +19,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   // Funciona apenas em modo de desenvolvimento.
   <React.StrictMode>
     <Auth0Provider
-      domain={domain}
-      clientId={clientId}
+      domain={import.meta.env.VITE_AUTH0_DOMAIN}
+      clientId={import.meta.env.VITE_AUTH0_CLIENT_ID}
       authorizationParams={{ redirect_uri: window.location.origin }}
     >
       <App />
