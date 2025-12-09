@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: solveedu-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: solveedu_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - solveedu-network
+
+  adminer:
+    image: adminer:latest
+    container_name: solveedu-adminer
+    ports:
+      - "8080:8080"
+    networks:
+      - solveedu-network
+
+volumes:
+  postgres_data:
+
+networks:
+  solveedu-network:
+    driver: bridge

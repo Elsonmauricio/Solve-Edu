@@ -1,0 +1,137 @@
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import dotenv from 'dotenv';
+import morgan from 'morgan';
+import http from 'http';
+import { Server } from 'socket.io';
+
+// Import routes
+import authRoutes from './routes/auth.routes.js';
+import problemsRoutes from './routes/problems.routes.js';
+import solutionsRoutes from './routes/solutions.routes.js';
+import usersRoutes from './routes/users.routes.js';
+import adminRoutes from './routes/admin.routes.js';
+
+// Import middleware
+import { errorHandler } from './middleware/error.middleware.js';
+
+// Load environment variables
+dotenv.config();
+
+// Initialize Express app
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true,
+  },
+});
+
+// Security middleware
+app.use(helmet());
+
+// CORS configuration
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true,
+}));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Muitas requisições deste IP. Tente novamente mais tarde.',
+});
+app.use('/api/', limiter);
+
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Logging middleware
+if (process.env.NODE_ENV === 'development') {
+  app.use(morgan('dev'));
+}
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    version: '1.0.0',
+  });
+});
+
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/problems', problemsRoutes);
+app.use('/api/solutions', solutionsRoutes);
+app.use('/api/users', usersRoutes);
+app.use('/api/admin', adminRoutes);
+
+// WebSocket for real-time notifications
+io.on('connection', (socket) => {
+  console.log('New client connected:', socket.id);
+
+  // Join user to their room
+  socket.on('join', (userId) => {
+    socket.join(`user:${userId}`);
+    console.log(`User ${userId} joined their room`);
+  });
+
+  // Handle solution submission notifications
+  socket.on('solutionSubmitted', (data) => {
+    const { companyId, solutionId, problemTitle } = data;
+    io.to(`user:${companyId}`).emit('newSolution', {
+      solutionId,
+      problemTitle,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // Handle solution review notifications
+  socket.on('solutionReviewed', (data) => {
+    const { studentId, solutionId, status } = data;
+    io.to(`user:${studentId}`).emit('solutionStatusUpdate', {
+      solutionId,
+      status,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
+
+// Error handling middleware (should be last)
+app.use(errorHandler);
+
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.originalUrl} not found`,
+  });
+});
+
+// Start server
+const PORT = process.env.PORT || 5000;
+
+server.listen(PORT, () => {
+  console.log(`🚀 Server running in ${process.env.NODE_ENV || 'development'} mode`);
+  console.log(`📡 API available at http://localhost:${PORT}/api`);
+  console.log(`🔌 WebSocket server running on port ${PORT}`);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Promise Rejection:', err);
+  server.close(() => process.exit(1));
+});
+
+export { io };

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Search, User, Briefcase, GraduationCap } from 'lucide-react';
+import logo from '../../assets/logo.png';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -23,20 +24,20 @@ const Header = () => {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
           <Link to="/" className="flex items-center space-x-3">
-            <motion.div
-              className="w-10 h-10 bg-gradient-to-r from-solve-blue to-solve-purple rounded-xl flex items-center justify-center"
-              whileHover={{ scale: 1.05, rotate: 5 }}
-            >
-              <span className="text-white font-bold text-lg">S4E</span>
-            </motion.div>
-            <div>
-              <h1 className="text-xl font-black bg-gradient-to-r from-solve-blue to-solve-purple bg-clip-text text-transparent">
-                SolveEdu
-              </h1>
-              <p className="text-xs text-gray-500">Conectando Talentos & Desafios</p>
-            </div>
+            {/* Logo */}
+              <motion.div
+                className="w-10 h-10 bg-gradient-to-r from-solve-blue to-solve-purple rounded-xl flex items-center justify-center"
+                whileHover={{ scale: 1.05, rotate: 5 }}
+              >
+                <img src={logo} alt="SolveEdu Logo" />
+              </motion.div>
+              <div>
+                <h1 className="text-xl font-black bg-gradient-to-r from-solve-blue to-solve-purple bg-clip-text text-transparent">
+                  SolveEdu
+                </h1>
+                <p className="text-xs text-gray-500">Conectando Talentos & Desafios</p>
+              </div>
           </Link>
 
           {/* Desktop Navigation */}
