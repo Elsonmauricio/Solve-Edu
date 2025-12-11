@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["fullTextIndex"]
 }
 
 datasource db {
@@ -22,8 +23,9 @@ model User {
   level         String?       @default("Iniciante")
   
   // Relationships
-  problems      Problem[]
-  solutions     Solution[]
+  studentProfile  StudentProfile? @relation("UserToStudentProfile")
+  companyProfile  CompanyProfile? @relation("UserToCompanyProfile")
+
   notifications Notification[]
   
   // Timestamps
@@ -37,7 +39,7 @@ model User {
 model StudentProfile {
   id           String        @id @default(cuid())
   userId       String        @unique
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User          @relation("UserToStudentProfile", fields: [userId], references: [id], onDelete: Cascade)
   
   school       String?
   course       String?
@@ -56,7 +58,7 @@ model StudentProfile {
 model CompanyProfile {
   id              String        @id @default(cuid())
   userId          String        @unique
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User          @relation("UserToCompanyProfile", fields: [userId], references: [id], onDelete: Cascade)
   
   companyName     String
   companySize     String?
@@ -79,7 +81,7 @@ model Problem {
   company       CompanyProfile @relation(fields: [companyId], references: [id], onDelete: Cascade)
   
   category      ProblemCategory
-  difficulty    DifficultyLevel @default(MEDIUM)
+  difficulty    DifficultyLevel @default(INTERMEDIATE)
   tags          String[]
   
   requirements  String[]
@@ -101,7 +103,6 @@ model Problem {
   @@index([companyId])
   @@index([category])
   @@index([status])
-  @@fulltext([title, description, tags])
 }
 
 model Solution {
