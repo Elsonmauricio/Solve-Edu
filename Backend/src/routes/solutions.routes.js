@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { body, query } from 'express-validator';
 import { SolutionController } from '../controllers/solutions.controller.js';
-import { authenticate } from '../middleware/auth.middleware.js';
+// Importa o novo middleware de autenticação compatível com Auth0
+import { authenticate } from '../middleware/auth0.middleware.js';
 
 const router = Router();
 

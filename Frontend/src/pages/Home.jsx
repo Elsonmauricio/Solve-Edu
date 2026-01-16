@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Target, Users, Trophy, Star, Zap } from 'lucide-react';
+import { solutionsService } from '../services/solutions.service';
 
 const Home = () => {
   const features = [
@@ -31,12 +32,29 @@ const Home = () => {
     }
   ];
 
-  const stats = [
-    { number: '500+', label: 'Problemas Resolvidos' },
+  const [stats, setStats] = useState([
+    { number: '0+', label: 'Soluções Aceites' },
     { number: '200+', label: 'Empresas Parceiras' },
     { number: '10K+', label: 'Estudantes Ativos' },
     { number: '€50K+', label: 'Em Recompensas' }
-  ];
+  ]);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await solutionsService.getStats();
+        if (response.success) {
+          setStats(prevStats => [
+            { number: `${response.data.accepted}+`, label: 'Soluções Aceites' },
+            ...prevStats.slice(1)
+          ]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch stats:", error);
+      }
+    };
+    fetchStats();
+  }, []);
 
   return (
     <div className="pt-16">

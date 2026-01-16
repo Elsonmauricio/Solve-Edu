@@ -1,110 +1,34 @@
-import { useState, useEffect } from 'react';
+import { useAuth0 } from '@auth0/auth0-react';
 import { useApp } from '../context/AppContext';
 
 export const useAuth = () => {
-  const { user, dispatch } = useApp();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const { user } = useApp();
+  const { 
+    loginWithRedirect, 
+    logout: auth0Logout, 
+    isLoading,
+    error: auth0Error
+  } = useAuth0();
 
-  const login = async (email, password, userType) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Mock user data based on type
-      const userData = userType === 'student' 
-        ? {
-            id: 1,
-            name: "João Silva",
-            email: email,
-            role: "Estudante",
-            school: "Universidade do Porto",
-            level: "Avançado",
-            isVerified: true,
-            solutionsCount: 8,
-            rating: 4.8
-          }
-        : {
-            id: 2,
-            name: "TechRetail Lda",
-            email: email,
-            role: "Empresa",
-            company: "TechRetail Lda",
-            level: "Parceiro",
-            isVerified: true,
-            problemsPosted: 12,
-            solutionsAccepted: 8
-          };
+  // Redireciona para a página de login do Auth0
+  const login = () => loginWithRedirect();
 
-      dispatch({
-        type: 'SET_USER',
-        payload: userData
-      });
+  // Redireciona para a página de registo do Auth0
+  const register = () => loginWithRedirect({ 
+    authorizationParams: { screen_hint: 'signup' } 
+  });
 
-      // Store in localStorage (in real app, this would be a token)
-      localStorage.setItem('solveedu_user', JSON.stringify(userData));
-
-      return userData;
-    } catch (err) {
-      setError('Credenciais inválidas');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Realiza o logout e redireciona para a home
   const logout = () => {
-    dispatch({
-      type: 'SET_USER',
-      payload: null
+    auth0Logout({ 
+      logoutParams: { returnTo: window.location.origin } 
     });
-    localStorage.removeItem('solveedu_user');
   };
-
-  const register = async (userData) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // In a real app, this would create the user in the backend
-      const newUser = {
-        ...userData,
-        id: Date.now(),
-        isVerified: false,
-        solutionsCount: 0,
-        rating: 0
-      };
-
-      return newUser;
-    } catch (err) {
-      setError('Erro no registo');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Check for existing session on mount
-  useEffect(() => {
-    const savedUser = localStorage.getItem('solveedu_user');
-    if (savedUser) {
-      dispatch({
-        type: 'SET_USER',
-        payload: JSON.parse(savedUser)
-      });
-    }
-  }, [dispatch]);
 
   return {
     user,
-    loading,
-    error,
+    loading: isLoading,
+    error: auth0Error,
     login,
     logout,
     register,

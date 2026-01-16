@@ -2,6 +2,7 @@ import { validationResult } from 'express-validator';
 import { SolutionModel } from '../models/Solution.model.js';
 import { ProblemModel } from '../models/Problem.model.js';
 import { NotificationModel } from '../models/Notification.model.js';
+import prisma from '../lib/prisma.js'; // Correção: Importação default (sem chaves)
 
 export class SolutionController {
   static async createSolution(req, res) {
@@ -31,7 +32,8 @@ export class SolutionController {
       }
 
       // Check if student has already submitted a solution
-      const existingSolution = await prisma.solution.findFirst({
+      // Correção: Usar 'prisma.solution' diretamente, pois SolutionModel não tem o método findFirst estático
+      const existingSolution = await prisma.solution.findFirst({ 
         where: {
           problemId,
           studentId,

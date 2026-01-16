@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { solutionsService } from '../services/solutions.service';
 
 export const useSolutions = () => {
   const { solutions, dispatch } = useApp();
@@ -11,26 +12,32 @@ export const useSolutions = () => {
     setError(null);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call real API - Nota: create requer problemId como primeiro argumento
+      const response = await solutionsService.create(solutionData.problemId, solutionData);
       
-      const newSolution = {
-        ...solutionData,
-        id: Date.now(),
-        status: 'Em Análise',
-        submittedAt: new Date().toISOString().split('T')[0],
-        views: 0
-      };
-
       dispatch({
         type: 'ADD_SOLUTION',
-        payload: newSolution
+        payload: response.data || response
       });
 
-      return newSolution;
+      return response.data || response;
     } catch (err) {
       setError('Erro ao submeter solução');
       throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Busca uma solução específica diretamente da API
+  const fetchSolution = async (id) => {
+    setLoading(true);
+    try {
+      const response = await solutionsService.getById(id);
+      return response.data || response;
+    } catch (err) {
+      setError('Erro ao carregar solução');
+      return null;
     } finally {
       setLoading(false);
     }
@@ -48,17 +55,30 @@ export const useSolutions = () => {
     return solutions.filter(solution => solution.student === student);
   };
 
-  const updateSolutionStatus = (solutionId, status) => {
-    const updatedSolutions = solutions.map(solution => 
-      solution.id === solutionId 
-        ? { ...solution, status }
-        : solution
-    );
+  const updateSolutionStatus = async (solutionId, status, feedback = null) => {
+    setLoading(true);
+    try {
+      // Chama a API real para atualizar/avaliar a solução
+      const response = await solutionsService.review(solutionId, { status, feedback });
+      const updatedSolution = response.data || response;
 
-    dispatch({
-      type: 'SET_SOLUTIONS',
-      payload: updatedSolutions
-    });
+      // Atualiza o estado local com a resposta da API
+      const updatedSolutions = solutions.map(solution => 
+        solution.id === solutionId ? updatedSolution : solution
+      );
+
+      dispatch({
+        type: 'SET_SOLUTIONS',
+        payload: updatedSolutions
+      });
+      
+      return updatedSolution;
+    } catch (err) {
+      setError('Erro ao atualizar status da solução');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
   };
 
   return {
@@ -66,6 +86,7 @@ export const useSolutions = () => {
     loading,
     error,
     createSolution,
+    fetchSolution,
     getSolutionById,
     getSolutionsByProblem,
     getSolutionsByStudent,

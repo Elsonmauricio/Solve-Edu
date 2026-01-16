@@ -7,6 +7,7 @@ import ReactDOM from 'react-dom/client';
 import { Auth0Provider } from '@auth0/auth0-react';
 // Importa o componente principal da aplicação, o 'App'.
 import App from './App.jsx';
+import { AppProvider } from './context/AppContext';
 // Importa os estilos globais da aplicação, que serão aplicados em todo o site.
 import './styles/globals.css';
 
@@ -21,9 +22,14 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <Auth0Provider
       domain={import.meta.env.VITE_AUTH0_DOMAIN}
       clientId={import.meta.env.VITE_AUTH0_CLIENT_ID}
-      authorizationParams={{ redirect_uri: window.location.origin }}
+      authorizationParams={{
+        redirect_uri: window.location.origin,
+        audience: import.meta.env.VITE_AUTH0_AUDIENCE, // Adicionar Audience
+      }}
     >
-      <App />
+      <AppProvider>
+        <App />
+      </AppProvider>
     </Auth0Provider>
   </React.StrictMode>,
 );

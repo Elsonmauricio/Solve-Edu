@@ -810,35 +810,81 @@ export class AdminController {
   static async getLogs(req, res) {
     try {
       const { type, page = 1, limit = 50 } = req.query;
-      const skip = (page - 1) * limit;
+      const limitNum = parseInt(limit);
+      const pageNum = parseInt(page);
 
-      // In a real application, you would query from a proper logging system
-      // This is a simplified version
-      const logs = [
-        {
-          id: 1,
-          type: 'USER_REGISTER',
-          message: 'New user registered: João Silva',
-          timestamp: new Date().toISOString(),
-          data: { userId: '123', email: 'joao@example.com' },
-        },
-        {
-          id: 2,
-          type: 'SOLUTION_SUBMITTED',
-          message: 'Solution submitted for problem: Sistema de Inventário',
-          timestamp: new Date(Date.now() - 3600000).toISOString(),
-          data: { solutionId: '456', problemId: '789' },
-        },
-      ];
+      // Buscar eventos recentes de várias tabelas para simular um log de sistema unificado
+      const [recentUsers, recentProblems, recentSolutions] = await Promise.all([
+        prisma.user.findMany({
+          take: limitNum,
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, name: true, email: true, role: true, createdAt: true }
+        }),
+        prisma.problem.findMany({
+          take: limitNum,
+          orderBy: { createdAt: 'desc' },
+          include: { company: { include: { user: { select: { name: true } } } } }
+        }),
+        prisma.solution.findMany({
+          take: limitNum,
+          orderBy: { submittedAt: 'desc' },
+          include: { 
+            student: { include: { user: { select: { name: true } } } },
+            problem: { select: { title: true } }
+          }
+        })
+      ]);
+
+      // Normalizar dados para formato de Log
+      const userLogs = recentUsers.map(u => ({
+        id: `user-${u.id}`,
+        type: 'USER_REGISTER',
+        message: `Novo utilizador registado: ${u.name} (${u.role})`,
+        timestamp: u.createdAt,
+        data: { userId: u.id, email: u.email }
+      }));
+
+      const problemLogs = recentProblems.map(p => ({
+        id: `prob-${p.id}`,
+        type: 'PROBLEM_CREATED',
+        message: `Novo desafio criado: "${p.title}" por ${p.company?.user?.name || 'Empresa'}`,
+        timestamp: p.createdAt,
+        data: { problemId: p.id }
+      }));
+
+      const solutionLogs = recentSolutions.map(s => ({
+        id: `sol-${s.id}`,
+        type: 'SOLUTION_SUBMITTED',
+        message: `Solução submetida: "${s.title}" por ${s.student?.user?.name || 'Estudante'} para "${s.problem?.title}"`,
+        timestamp: s.submittedAt,
+        data: { solutionId: s.id }
+      }));
+
+      // Combinar e ordenar
+      let allLogs = [...userLogs, ...problemLogs, ...solutionLogs];
+
+      // Filtrar por tipo se solicitado
+      if (type) {
+        allLogs = allLogs.filter(log => log.type === type);
+      }
+
+      // Ordenar por data (mais recente primeiro)
+      allLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      // Paginação em memória
+      const total = allLogs.length;
+      const startIndex = (pageNum - 1) * limitNum;
+      const endIndex = startIndex + limitNum;
+      const paginatedLogs = allLogs.slice(startIndex, endIndex);
 
       res.json({
         success: true,
         data: {
-          logs,
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total: logs.length,
-          totalPages: 1,
+          logs: paginatedLogs,
+          page: pageNum,
+          limit: limitNum,
+          total,
+          totalPages: Math.ceil(total / limitNum) || 1,
         }
       });
 

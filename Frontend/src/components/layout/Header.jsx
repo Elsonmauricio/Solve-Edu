@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Search, User, Briefcase, GraduationCap } from 'lucide-react';
+import { useAuth0 } from '@auth0/auth0-react';
+import { Menu, X, Search, User, Briefcase, GraduationCap, LogOut } from 'lucide-react';
 import logo from '../../assets/logo.png';
 
 const Header = () => {
+  const { loginWithRedirect, logout, isAuthenticated, user } = useAuth0();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -65,18 +67,40 @@ const Header = () => {
 
           {/* Auth Buttons */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link
-              to="/student-dashboard"
-              className="px-4 py-2 text-sm font-medium text-solve-blue hover:text-solve-purple transition-colors"
-            >
-              Sou Estudante
-            </Link>
-            <Link
-              to="/company-dashboard"
-              className="px-6 py-2 bg-gradient-to-r from-solve-blue to-solve-purple text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200"
-            >
-              Sou Empresa
-            </Link>
+            {isAuthenticated ? (
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <img 
+                    src={user?.picture} 
+                    alt={user?.name} 
+                    className="w-8 h-8 rounded-full border border-gray-200"
+                  />
+                  <span className="text-sm font-medium text-gray-700">{user?.name}</span>
+                </div>
+                <button
+                  onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+                  className="p-2 text-gray-500 hover:text-red-600 transition-colors"
+                  title="Sair"
+                >
+                  <LogOut size={20} />
+                </button>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => loginWithRedirect({ authorizationParams: { screen_hint: 'signup' } })}
+                  className="px-4 py-2 text-sm font-medium text-solve-blue hover:text-solve-purple transition-colors"
+                >
+                  Sou Estudante
+                </button>
+                <button
+                  onClick={() => loginWithRedirect()}
+                  className="px-6 py-2 bg-gradient-to-r from-solve-blue to-solve-purple text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200"
+                >
+                  Sou Empresa
+                </button>
+              </>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -119,20 +143,30 @@ const Header = () => {
                   );
                 })}
                 <div className="pt-4 border-t border-gray-200 space-y-2">
-                  <Link
-                    to="/student-dashboard"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="block px-3 py-3 text-base font-medium text-solve-blue hover:bg-blue-50 rounded-lg"
-                  >
-                    Sou Estudante
-                  </Link>
-                  <Link
-                    to="/company-dashboard"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="block px-3 py-3 text-base font-medium bg-gradient-to-r from-solve-blue to-solve-purple text-white rounded-lg"
-                  >
-                    Sou Empresa
-                  </Link>
+                  {isAuthenticated ? (
+                    <button
+                      onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+                      className="w-full text-left px-3 py-3 text-base font-medium text-red-600 hover:bg-red-50 rounded-lg flex items-center space-x-2"
+                    >
+                      <LogOut size={18} />
+                      <span>Sair</span>
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => { setIsMenuOpen(false); loginWithRedirect(); }}
+                        className="block w-full text-left px-3 py-3 text-base font-medium text-solve-blue hover:bg-blue-50 rounded-lg"
+                      >
+                        Sou Estudante
+                      </button>
+                      <button
+                        onClick={() => { setIsMenuOpen(false); loginWithRedirect(); }}
+                        className="block w-full text-left px-3 py-3 text-base font-medium bg-gradient-to-r from-solve-blue to-solve-purple text-white rounded-lg"
+                      >
+                        Sou Empresa
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </motion.div>

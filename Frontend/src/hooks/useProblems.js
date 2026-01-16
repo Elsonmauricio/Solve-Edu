@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { problemsService } from '../services/problems.service';
 
 export const useProblems = () => {
   const { problems, filteredProblems, dispatch } = useApp();
@@ -11,22 +12,16 @@ export const useProblems = () => {
     setError(null);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call real API
+      const response = await problemsService.create(problemData);
       
-      const newProblem = {
-        ...problemData,
-        id: Date.now(),
-        solutionsCount: 0,
-        createdAt: new Date().toISOString().split('T')[0]
-      };
-
       dispatch({
         type: 'ADD_PROBLEM',
-        payload: newProblem
+        // Assumindo que a API retorna o objeto criado em response.data
+        payload: response.data || response
       });
 
-      return newProblem;
+      return response.data || response;
     } catch (err) {
       setError('Erro ao criar problema');
       throw err;
@@ -35,6 +30,22 @@ export const useProblems = () => {
     }
   };
 
+  // Busca um problema específico diretamente da API (dados frescos)
+  const fetchProblem = async (id) => {
+    setLoading(true);
+    try {
+      const response = await problemsService.getById(id);
+      return response.data || response;
+    } catch (err) {
+      console.error(err);
+      setError('Erro ao carregar detalhes do desafio');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Busca do estado local (cache)
   const getProblemById = (id) => {
     return problems.find(problem => problem.id === parseInt(id));
   };
@@ -53,6 +64,7 @@ export const useProblems = () => {
     loading,
     error,
     createProblem,
+    fetchProblem,
     getProblemById,
     getProblemsByCompany,
     getProblemsByCategory

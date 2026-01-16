@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { solutionsService } from '../services/solutions.service';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import UserBadge from '../components/ui/UserBadge';
@@ -14,35 +15,52 @@ import {
 } from 'lucide-react';
 
 const Community = () => {
-  const topStudents = [
-    {
-      name: "Maria Santos",
-      role: "Estudante",
-      school: "Universidade do Porto",
-      level: "Expert",
-      isVerified: true,
-      solutionsCount: 15,
-      rating: 4.9
-    },
-    {
-      name: "João Silva", 
-      role: "Estudante",
-      school: "Instituto Superior Técnico",
-      level: "Avançado",
-      isVerified: true,
-      solutionsCount: 12,
-      rating: 4.8
-    },
-    {
-      name: "Ana Costa",
-      role: "Estudante", 
-      school: "Universidade de Coimbra",
-      level: "Avançado",
-      isVerified: true,
-      solutionsCount: 10,
-      rating: 4.7
-    }
-  ];
+  const [communityStats, setCommunityStats] = useState({
+    activeMembers: 2847,
+    activeDiscussions: 156,
+    acceptedSolutions: 0
+  });
+  const [topStudents, setTopStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCommunityData = async () => {
+      try {
+        const [statsRes, topSolutionsRes] = await Promise.all([
+          solutionsService.getStats(),
+          solutionsService.getTopSolutions()
+        ]);
+
+        if (statsRes.success) {
+          setCommunityStats(prev => ({
+            ...prev,
+            acceptedSolutions: statsRes.data.accepted
+          }));
+        }
+
+        if (topSolutionsRes.success) {
+          const students = topSolutionsRes.data.map(solution => ({
+            name: solution.student.user.name,
+            role: "Estudante",
+            school: solution.student.school || "Universidade",
+            level: "Nível " + (solution.student.year || 1),
+            isVerified: true,
+            solutionsCount: 1, 
+            rating: solution.rating || 0
+          }));
+          // Remover duplicados (caso o mesmo estudante tenha várias soluções no top)
+          const uniqueStudents = Array.from(new Map(students.map(s => [s.name, s])).values()).slice(0, 3);
+          setTopStudents(uniqueStudents);
+        }
+      } catch (error) {
+        console.error("Error fetching community data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCommunityData();
+  }, []);
 
   const topCompanies = [
     {
@@ -155,19 +173,19 @@ const Community = () => {
             >
               <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 text-center">
                 <Users className="w-8 h-8 text-blue-600 mx-auto mb-3" />
-                <div className="text-2xl font-bold text-gray-900">2,847</div>
+                <div className="text-2xl font-bold text-gray-900">{communityStats.activeMembers}</div>
                 <div className="text-gray-600">Membros Ativos</div>
               </div>
               
               <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 text-center">
                 <MessageCircle className="w-8 h-8 text-green-600 mx-auto mb-3" />
-                <div className="text-2xl font-bold text-gray-900">156</div>
+                <div className="text-2xl font-bold text-gray-900">{communityStats.activeDiscussions}</div>
                 <div className="text-gray-600">Discussões Ativas</div>
               </div>
               
               <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 text-center">
                 <Award className="w-8 h-8 text-purple-600 mx-auto mb-3" />
-                <div className="text-2xl font-bold text-gray-900">89</div>
+                <div className="text-2xl font-bold text-gray-900">{communityStats.acceptedSolutions}</div>
                 <div className="text-gray-600">Soluções Aceites</div>
               </div>
             </motion.div>
@@ -195,9 +213,13 @@ const Community = () => {
               
               <div className="p-6">
                 <div className="space-y-4">
-                  {topStudents.map((student, index) => (
-                    <UserBadge key={student.name} user={student} showStats={true} />
-                  ))}
+                  {loading ? (
+                    <div className="text-center text-gray-500 py-4">A carregar...</div>
+                  ) : (
+                    topStudents.map((student, index) => (
+                      <UserBadge key={student.name} user={student} showStats={true} />
+                    ))
+                  )}
                 </div>
               </div>
             </motion.div>
