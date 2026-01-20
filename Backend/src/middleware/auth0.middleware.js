@@ -28,24 +28,39 @@ export const syncUser = async (req, res, next) => {
 
     // Se o utilizador não existir na base de dados, cria-o.
     if (!user) {
-      // O papel (role) pode ser extraído de custom claims no token do Auth0.
-      // Isto requer a criação de uma "Action" ou "Rule" no painel do Auth0.
-      const role = req.auth.payload['https://solveedu.com/roles']?.[0] || 'STUDENT';
-
-      user = await prisma.user.create({
-        data: {
-          auth0Id,
-          email: req.auth.payload.email,
-          name: req.auth.payload.name || req.auth.payload.nickname,
-          avatar: req.auth.payload.picture,
-          role: role.toUpperCase(),
-          isVerified: req.auth.payload.email_verified || false,
-          // Cria automaticamente o perfil correspondente
-          ...(role.toUpperCase() === 'STUDENT' && { studentProfile: { create: {} } }),
-          ...(role.toUpperCase() === 'COMPANY' && { companyProfile: { create: {} } }),
-        },
-        include: { studentProfile: true, companyProfile: true }
+      const email = req.auth.payload.email;
+      
+      // Tenta encontrar pelo email para evitar duplicados (Link Account)
+      const existingUser = await prisma.user.findUnique({
+        where: { email }
       });
+
+      if (existingUser) {
+        // Se o email já existe, atualizamos o auth0Id para vincular a conta
+        user = await prisma.user.update({
+          where: { id: existingUser.id },
+          data: { auth0Id },
+          include: { studentProfile: true, companyProfile: true }
+        });
+      } else {
+        // Se não existe nem por ID nem por Email, cria um novo
+        const role = req.auth.payload['https://solveedu.com/roles']?.[0] || 'STUDENT';
+
+        user = await prisma.user.create({
+          data: {
+            auth0Id,
+            email,
+            name: req.auth.payload.name || req.auth.payload.nickname,
+            avatar: req.auth.payload.picture,
+            role: role.toUpperCase(),
+            isVerified: req.auth.payload.email_verified || false,
+            // Cria automaticamente o perfil correspondente
+            ...(role.toUpperCase() === 'STUDENT' && { studentProfile: { create: {} } }),
+            ...(role.toUpperCase() === 'COMPANY' && { companyProfile: { create: {} } }),
+          },
+          include: { studentProfile: true, companyProfile: true }
+        });
+      }
     }
 
     // Anexa a informação do utilizador da TUA base de dados ao objeto `req`.

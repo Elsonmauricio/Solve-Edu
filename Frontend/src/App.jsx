@@ -22,6 +22,7 @@ import SolutionDetail from './components/solutions/SolutionDetail';
 import CreateProblem from './components/problems/CreateProblem';
 import SubmitSolution from './components/solutions/SubmitSolution';
 import './styles/globals.css';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 
 function App() {
   const { getAccessTokenSilently, isAuthenticated, isLoading, user } = useAuth0();
@@ -107,11 +108,40 @@ function App() {
             <Route path="/solutions/:id" element={<SolutionDetail />} />
             <Route path="/how-it-works" element={<HowItWorks />} />
             <Route path="/community" element={<Community />} />
-            <Route path="/student-dashboard" element={<StudentDashboard />} />
-            <Route path="/company-dashboard" element={<CompanyDashboard />} />
-            <Route path="/admin-dashboard" element={<AdminDashboard />} />
-            <Route path="/create-problem" element={<CreateProblem />} />
-            <Route path="/submit-solution/:id" element={<SubmitSolution />} />
+            
+            {/* Rotas Protegidas */}
+            <Route 
+              path="/student-dashboard" 
+              element={
+                <ProtectedRoute>
+                  <StudentDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/company-dashboard" 
+              element={
+                <ProtectedRoute>
+                  <CompanyDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin-dashboard" 
+              element={
+                <ProtectedRoute>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/create-problem" 
+              element={<ProtectedRoute><CreateProblem /></ProtectedRoute>} 
+            />
+            <Route 
+              path="/submit-solution/:id" 
+              element={<ProtectedRoute><SubmitSolution /></ProtectedRoute>} 
+            />
           </Routes>
         </main>
         <Footer />
