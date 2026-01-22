@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useApp } from './context/AppContext';
 import { setAuthToken } from './services/api';
@@ -23,6 +23,24 @@ import CreateProblem from './components/problems/CreateProblem';
 import SubmitSolution from './components/solutions/SubmitSolution';
 import './styles/globals.css';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+
+// Componente para gerir o redirecionamento inicial
+const RootRedirect = () => {
+  const { isAuthenticated, isLoading, user } = useAuth0();
+
+  if (isLoading) return <MoonLoader />;
+
+  if (isAuthenticated && user) {
+    // Lê a role do token (namespace deve corresponder à Action do Auth0)
+    const role = user['https://solveedu.com/roles']?.[0] || 'STUDENT';
+    
+    if (role === 'COMPANY') return <Navigate to="/company-dashboard" replace />;
+    if (role === 'ADMIN') return <Navigate to="/admin-dashboard" replace />;
+    return <Navigate to="/student-dashboard" replace />;
+  }
+
+  return <Home />;
+};
 
 function App() {
   const { getAccessTokenSilently, isAuthenticated, isLoading, user } = useAuth0();
@@ -77,13 +95,14 @@ function App() {
   // Sincronizar Utilizador Auth0 com o Contexto
   useEffect(() => {
     if (isAuthenticated && user) {
+      const role = user['https://solveedu.com/roles']?.[0] || 'STUDENT';
       dispatch({
         type: 'SET_USER',
         payload: {
           name: user.name,
           email: user.email,
           avatar: user.picture,
-          role: 'STUDENT', // Podes ajustar isto para vir do Auth0 metadata se configurado
+          role: role,
           isVerified: user.email_verified
         }
       });
@@ -101,7 +120,7 @@ function App() {
         <Header />
         <main>
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<RootRedirect />} />
             <Route path="/problems" element={<Problems />} />
             <Route path="/problems/:id" element={<ProblemDetail />} />
             <Route path="/solutions" element={<Solutions />} />
