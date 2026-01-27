@@ -1,5 +1,5 @@
 import { validationResult } from 'express-validator';
-import prisma from '../config/database.js';
+import prisma from '../lib/prisma.js';
 
 export class AdminController {
   static async getDashboardStats(req, res) {
@@ -900,23 +900,20 @@ export class AdminController {
   static async createAnnouncement(req, res) {
     try {
       const { title, message, type, targetUsers } = req.body;
+      const adminUserId = req.userId;
 
-      // In a real application, you would:
       // 1. Store the announcement in the database
-      // 2. Send notifications to target users
-      // 3. Possibly send emails
-
-      const announcement = {
-        id: Date.now(),
+      const announcement = await prisma.announcement.create({
+        data: {
         title,
         message,
         type,
         targetUsers,
-        createdAt: new Date().toISOString(),
-        createdBy: req.userId,
-      };
+        authorId: adminUserId,
+        }
+      });
 
-      // Create notifications for all users or specific targets
+      // 2. Create notifications for all users or specific targets
       if (targetUsers === 'ALL') {
         // This would be batched in production
         const users = await prisma.user.findMany({
@@ -924,6 +921,7 @@ export class AdminController {
         });
 
         // Create notifications (simplified - would be batched in production)
+        // A sua lógica de notificação já está boa, vamos mantê-la.
         for (const user of users) {
           await prisma.notification.create({
             data: {

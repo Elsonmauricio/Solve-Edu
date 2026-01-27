@@ -10,6 +10,7 @@ async function main() {
   await prisma.notification.deleteMany();
   await prisma.solution.deleteMany();
   await prisma.problem.deleteMany();
+  await prisma.schoolProfile.deleteMany();
   await prisma.companyProfile.deleteMany();
   await prisma.studentProfile.deleteMany();
   await prisma.user.deleteMany();
@@ -17,11 +18,11 @@ async function main() {
   console.log('🗑️  Cleared existing data');
 
   // Create admin user
-  const adminPassword = await bcrypt.hash('admin123', 10);
+  // const adminPassword = await bcrypt.hash('admin123', 10); // Senha não é necessária com Auth0
   const admin = await prisma.user.create({
     data: {
       email: 'admin@solveedu.pt',
-      password: adminPassword,
+      // password: adminPassword, // O login será via Auth0, o password local não é usado.
       name: 'Administrador',
       role: 'ADMIN',
       isVerified: true,
@@ -52,12 +53,12 @@ async function main() {
   const createdCompanies = [];
 
   for (const companyData of companies) {
-    const hashedPassword = await bcrypt.hash(companyData.password, 10);
+    // const hashedPassword = await bcrypt.hash(companyData.password, 10);
     
     const user = await prisma.user.create({
       data: {
         email: companyData.email,
-        password: hashedPassword,
+        // password: hashedPassword,
         name: companyData.name,
         role: 'COMPANY',
         isVerified: true,
@@ -79,6 +80,28 @@ async function main() {
     createdCompanies.push({ user, profile: companyProfile });
   }
 
+  // Create school user
+  const schoolUser = await prisma.user.create({
+    data: {
+      email: 'epfundao@solveedu.pt',
+      name: 'Escola Profissional do Fundão',
+      role: 'SCHOOL',
+      isVerified: true,
+      level: 'Parceiro Educacional',
+    },
+  });
+
+  const schoolProfile = await prisma.schoolProfile.create({
+    data: {
+      userId: schoolUser.id,
+      schoolName: 'Escola Profissional do Fundão',
+      city: 'Fundão',
+      country: 'Portugal',
+    },
+  });
+
+  console.log('🏫 Created school user and profile');
+
   // Create student users
   const students = [
     {
@@ -88,6 +111,7 @@ async function main() {
       school: 'Universidade do Porto',
       course: 'Engenharia Informática',
       year: 3,
+      schoolProfileId: null, // Not associated with a seeded school
       skills: ['JavaScript', 'React', 'Node.js', 'Python'],
     },
     {
@@ -97,6 +121,7 @@ async function main() {
       school: 'Instituto Superior Técnico',
       course: 'Ciência de Computadores',
       year: 2,
+      schoolProfileId: schoolProfile.id, // Associated with EPF
       skills: ['Python', 'Machine Learning', 'Data Science'],
     },
   ];
@@ -104,12 +129,12 @@ async function main() {
   const createdStudents = [];
 
   for (const studentData of students) {
-    const hashedPassword = await bcrypt.hash(studentData.password, 10);
+    // const hashedPassword = await bcrypt.hash(studentData.password, 10);
     
     const user = await prisma.user.create({
       data: {
         email: studentData.email,
-        password: hashedPassword,
+        // password: hashedPassword,
         name: studentData.name,
         role: 'STUDENT',
         isVerified: true,
@@ -123,6 +148,7 @@ async function main() {
         school: studentData.school,
         course: studentData.course,
         year: studentData.year,
+        schoolProfileId: studentData.schoolProfileId,
         skills: studentData.skills,
         githubUrl: 'https://github.com/' + studentData.name.toLowerCase().replace(' ', ''),
         linkedinUrl: 'https://linkedin.com/in/' + studentData.name.toLowerCase().replace(' ', ''),

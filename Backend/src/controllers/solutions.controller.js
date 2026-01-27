@@ -3,6 +3,7 @@ import { SolutionModel } from '../models/Solution.model.js';
 import { ProblemModel } from '../models/Problem.model.js';
 import { NotificationModel } from '../models/Notification.model.js';
 import prisma from '../lib/prisma.js'; // Correção: Importação default (sem chaves)
+import { storageService } from '../services/storage.service.js';
 
 export class SolutionController {
   static async createSolution(req, res) {
@@ -47,11 +48,20 @@ export class SolutionController {
         });
       }
 
+      // 1. Upload do ficheiro para o Supabase (se existir)
+      let fileUrls = [];
+      if (req.file) {
+        // Faz o upload para o bucket 'solutions'
+        const url = await storageService.uploadFile(req.file, 'solutions');
+        if (url) fileUrls.push(url);
+      }
+
       // Create solution
       const solutionData = {
         ...req.body,
         studentId,
         status: 'PENDING_REVIEW',
+        files: fileUrls, // Guarda o URL do ficheiro no array de ficheiros
         submittedAt: new Date(),
       };
 

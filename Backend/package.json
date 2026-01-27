@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.4.1",
+    "@supabase/supabase-js": "^2.91.1",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^1.41.0",
     "cors": "^2.8.5",
@@ -27,7 +28,8 @@
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.7",
     "prisma": "^5.4.1",
-    "socket.io": "^4.7.2"
+    "socket.io": "^4.7.2",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

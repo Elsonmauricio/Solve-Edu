@@ -57,6 +57,7 @@ export const syncUser = async (req, res, next) => {
             // Cria automaticamente o perfil correspondente
             ...(role.toUpperCase() === 'STUDENT' && { studentProfile: { create: {} } }),
             ...(role.toUpperCase() === 'COMPANY' && { companyProfile: { create: {} } }),
+            ...(role.toUpperCase() === 'SCHOOL' && { schoolProfile: { create: {} } }),
           },
           include: { studentProfile: true, companyProfile: true }
         });
@@ -65,12 +66,16 @@ export const syncUser = async (req, res, next) => {
 
     // Anexa a informação do utilizador da TUA base de dados ao objeto `req`.
     req.userId = user.id;
+    req.userName = user.name; // Adicionado para estar disponível nos controllers
     req.userRole = user.role;
     if (user.role === 'STUDENT' && user.studentProfile) {
       req.studentId = user.studentProfile.id;
     }
     if (user.role === 'COMPANY' && user.companyProfile) {
       req.companyId = user.companyProfile.id;
+    }
+    if (user.role === 'SCHOOL' && user.schoolProfile) {
+      req.schoolId = user.schoolProfile.id;
     }
 
     next();

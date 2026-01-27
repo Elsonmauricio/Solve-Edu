@@ -1,174 +1,151 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
-  previewFeatures = ["fullTextIndex"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id            String        @id @default(cuid())
-  email         String        @unique
-  password      String
-  name          String
-  avatar        String?
-  bio           String?
-  phone         String?
-  role          UserRole      @default(STUDENT)
-  userType      UserType      @default(USER)
-  isVerified    Boolean       @default(false)
-  isActive      Boolean       @default(true)
-  level         String?       @default("Iniciante")
-  
-  // Relationships
-  studentProfile  StudentProfile? @relation("UserToStudentProfile")
-  companyProfile  CompanyProfile? @relation("UserToCompanyProfile")
-
-  notifications Notification[]
-  
-  // Timestamps
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  
-  @@index([email])
-  @@index([role])
+  id             String           @id @default(cuid())
+  auth0Id        String?          @unique
+  email          String           @unique
+  name           String
+  avatar         String?
+  bio            String?          @db.Text
+  role           Role
+  isVerified     Boolean          @default(false)
+  isActive       Boolean          @default(true)
+  level          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  studentProfile StudentProfile?
+  companyProfile CompanyProfile?
+  schoolProfile  SchoolProfile?
+  notifications  Notification[]
+  announcements  Announcement[]
 }
 
 model StudentProfile {
-  id           String        @id @default(cuid())
-  userId       String        @unique
-  user         User          @relation("UserToStudentProfile", fields: [userId], references: [id], onDelete: Cascade)
-  
-  school       String?
-  course       String?
-  year         Int?
-  skills       String[]
-  portfolioUrl String?
-  githubUrl    String?
-  linkedinUrl  String?
-  
-  solutions    Solution[]
-  
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id              String    @id @default(cuid())
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String    @unique
+  school          String?
+  course          String?
+  year            Int?
+  skills          String[]
+  githubUrl       String?
+  linkedinUrl     String?
+  solutions       Solution[]
+  schoolProfile   SchoolProfile? @relation(fields: [schoolProfileId], references: [id], onUpdate: NoAction, onDelete: SetNull)
+  schoolProfileId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model CompanyProfile {
-  id              String        @id @default(cuid())
-  userId          String        @unique
-  user            User          @relation("UserToCompanyProfile", fields: [userId], references: [id], onDelete: Cascade)
-  
-  companyName     String
-  companySize     String?
-  industry        String?
-  website         String?
-  description     String?
-  logo           String?
-  
-  problems        Problem[]
-  
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id          String    @id @default(cuid())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String    @unique
+  companyName String
+  industry    String?
+  description String?   @db.Text
+  companySize String?
+  website     String?
+  problems    Problem[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model SchoolProfile {
+  id         String           @id @default(cuid())
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String           @unique
+  schoolName String
+  city       String?
+  country    String?
+  students   StudentProfile[]
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
 }
 
 model Problem {
-  id            String        @id @default(cuid())
-  title         String
-  description   String
-  companyId     String
-  company       CompanyProfile @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  
-  category      ProblemCategory
-  difficulty    DifficultyLevel @default(INTERMEDIATE)
-  tags          String[]
-  
-  requirements  String[]
-  reward        String?
-  rewardType    RewardType?
-  deadline      DateTime
-  
-  status        ProblemStatus  @default(ACTIVE)
-  isFeatured    Boolean        @default(false)
-  
-  // Metadata
-  views         Int           @default(0)
-  solutions     Solution[]
-  
-  // Timestamps
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  
-  @@index([companyId])
-  @@index([category])
-  @@index([status])
+  id           String          @id @default(cuid())
+  title        String
+  description  String          @db.Text
+  company      CompanyProfile  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId    String
+  category     ProblemCategory
+  difficulty   Difficulty
+  tags         String[]
+  requirements String[]
+  reward       String
+  rewardType   RewardType
+  deadline     DateTime
+  status       ProblemStatus   @default(DRAFT)
+  isFeatured   Boolean         @default(false)
+  views        Int             @default(0)
+  solutions    Solution[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 }
 
 model Solution {
-  id            String        @id @default(cuid())
-  title         String
-  description   String
-  problemId     String
-  problem       Problem       @relation(fields: [problemId], references: [id], onDelete: Cascade)
-  studentId     String
-  student       StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  
-  status        SolutionStatus @default(PENDING_REVIEW)
-  technologies  String[]
-  githubUrl     String?
-  demoUrl       String?
-  documentation String?
-  
-  // Files
-  files         String[]
-  
-  // Ratings
-  rating        Float?
-  feedback      String?
-  
-  // Metadata
-  views         Int           @default(0)
-  likes         Int           @default(0)
-  
-  // Timestamps
-  submittedAt   DateTime      @default(now())
-  reviewedAt    DateTime?
-  updatedAt     DateTime      @updatedAt
-  
-  @@index([problemId])
-  @@index([studentId])
-  @@index([status])
+  id           String         @id @default(cuid())
+  title        String
+  description  String         @db.Text
+  problem      Problem        @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  problemId    String
+  student      StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId    String
+  technologies String[]
+  githubUrl    String?
+  demoUrl      String?
+  files        String[]       @default([])
+  status       SolutionStatus @default(PENDING_REVIEW)
+  rating       Float?
+  feedback     String?        @db.Text
+  likes        Int            @default(0)
+  views        Int            @default(0)
+  submittedAt  DateTime       @default(now())
+  reviewedAt   DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 }
 
 model Notification {
-  id          String        @id @default(cuid())
-  userId      String
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  type        NotificationType
-  title       String
-  message     String
-  data        Json?
-  
-  isRead      Boolean       @default(false)
-  createdAt   DateTime      @default(now())
-  
-  @@index([userId, isRead])
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  type      String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  data      Json?
+  createdAt DateTime @default(now())
 }
 
-// Enums
-enum UserRole {
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  message     String   @db.Text
+  type        String // e.g., 'INFO', 'WARNING', 'SUCCESS', 'ERROR'
+  targetUsers String // e.g., 'ALL', 'STUDENTS', 'COMPANIES', 'SCHOOLS'
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId    String
+  createdAt   DateTime @default(now())
+}
+
+enum Role {
   STUDENT
   COMPANY
   ADMIN
-  MENTOR
-}
-
-enum UserType {
-  USER
-  VERIFIED
-  PREMIUM
+  SCHOOL
 }
 
 enum ProblemCategory {
@@ -182,7 +159,7 @@ enum ProblemCategory {
   ENGINEERING
 }
 
-enum DifficultyLevel {
+enum Difficulty {
   BEGINNER
   INTERMEDIATE
   ADVANCED
@@ -191,35 +168,22 @@ enum DifficultyLevel {
 enum RewardType {
   MONEY
   INTERNSHIP
-  PRIZE
-  CERTIFICATE
-  JOB_OFFER
+  MENTORSHIP
+  VOUCHER
+  OTHER
 }
 
 enum ProblemStatus {
   DRAFT
   ACTIVE
-  IN_PROGRESS
-  COMPLETED
   EXPIRED
   ARCHIVED
+  COMPLETED
 }
 
 enum SolutionStatus {
-  DRAFT
   PENDING_REVIEW
-  UNDER_REVIEW
   ACCEPTED
   REJECTED
   NEEDS_REVISION
-  AWARDED
-}
-
-enum NotificationType {
-  SOLUTION_SUBMITTED
-  SOLUTION_REVIEWED
-  PROBLEM_EXPIRING
-  NEW_MESSAGE
-  SYSTEM_UPDATE
-  AWARD_RECEIVED
 }

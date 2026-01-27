@@ -1,6 +1,6 @@
 import { validationResult } from 'express-validator';
 import { UserModel, StudentProfileModel, CompanyProfileModel } from '../models/User.model.js';
-import prisma from '../config/database.js';
+import prisma from '../lib/prisma.js';
 
 export class UserController {
   static async getUserProfile(req, res) {
