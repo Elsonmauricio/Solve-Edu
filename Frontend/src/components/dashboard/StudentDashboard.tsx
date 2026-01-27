@@ -32,8 +32,8 @@ const StudentDashboard = () => {
 
   // 2. Calcular estatísticas reais
   const submittedCount = mySolutions.length;
-  const acceptedCount = mySolutions.filter(s => s.status === 'Aceite' || s.status === 'Accepted').length;
-  const ongoingCount = mySolutions.filter(s => s.status === 'Em Análise' || s.status === 'PENDING_REVIEW').length;
+  const acceptedCount = mySolutions.filter(s => s.status === 'Aceite').length;
+  const ongoingCount = mySolutions.filter(s => s.status === 'Em Análise').length;
   
   // Calcular rating médio (se existir propriedade rating)
   const ratings = mySolutions.map(s => s.rating || 0).filter(r => r > 0);

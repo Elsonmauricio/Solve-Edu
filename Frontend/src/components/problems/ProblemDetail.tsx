@@ -148,16 +148,16 @@ const ProblemDetail: React.FC = () => {
                   </div>
                   <div className="flex-1">
                     <h1 className="text-3xl font-black text-gray-900 mb-2">
-                      {problem!.title}
+                      {displayProblem!.title}
                     </h1>
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center space-x-2">
                         <Building size={16} className="text-gray-400" />
-                        <span className="text-gray-600 font-medium">{typeof problem!.company === 'string' ? problem!.company : (problem!.company as any)?.companyName || 'Empresa'}</span>
+                        <span className="text-gray-600 font-medium">{typeof displayProblem!.company === 'string' ? displayProblem!.company : (displayProblem!.company as any)?.companyName || 'Empresa'}</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Calendar size={16} className="text-gray-400" />
-                        <span className="text-gray-500 text-sm">Publicado em {problem!.createdAt}</span>
+                        <span className="text-gray-500 text-sm">Publicado em {displayProblem!.createdAt}</span>
                       </div>
                     </div>
                   </div>
@@ -165,13 +165,13 @@ const ProblemDetail: React.FC = () => {
 
                 {/* Tags */}
                 <div className="flex flex-wrap gap-2 mb-6">
-                  <span className={`px-4 py-2 rounded-full text-sm font-medium ${getDifficultyColor(problem!.difficulty || 'Fácil')}`}>
-                    {problem!.difficulty || 'Fácil'}}
+                  <span className={`px-4 py-2 rounded-full text-sm font-medium ${getDifficultyColor(displayProblem!.difficulty || 'Fácil')}`}>
+                    {displayProblem!.difficulty || 'Fácil'}
                   </span>
-                  <span className={`px-4 py-2 rounded-full text-sm font-medium ${getCategoryColor(problem!.category || 'Geral')}`}>
-                    {problem!.category || 'Geral'}}
+                  <span className={`px-4 py-2 rounded-full text-sm font-medium ${getCategoryColor(displayProblem!.category || 'Geral')}`}>
+                    {displayProblem!.category || 'Geral'}
                   </span>
-                  {problem!.tags.map((tag: string) => (
+                  {displayProblem!.tags.map((tag: string) => (
                     <span key={tag} className="px-4 py-2 rounded-full text-sm font-medium text-gray-600 bg-gray-100">
                       {tag}
                     </span>
@@ -194,7 +194,7 @@ const ProblemDetail: React.FC = () => {
             <div className="prose max-w-none mb-8">
               <h3 className="text-xl font-semibold text-gray-900 mb-4">Descrição do Desafio</h3>
               <p className="text-gray-700 leading-relaxed text-lg">
-                {problem!.description}
+                {displayProblem!.description}
               </p>
             </div>
 
@@ -202,7 +202,7 @@ const ProblemDetail: React.FC = () => {
             <div className="mb-8">
               <h3 className="text-xl font-semibold text-gray-900 mb-4">Requisitos Técnicos</h3>
               <ul className="space-y-3">
-                {problem!.requirements.map((requirement: string, index: number) => (
+                {displayProblem!.requirements.map((requirement: string, index: number) => (
                   <li key={index} className="flex items-center space-x-3">
                     <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
                     <span className="text-gray-700">{requirement}</span>
@@ -254,7 +254,7 @@ const ProblemDetail: React.FC = () => {
                   <Clock className="w-5 h-5 text-gray-400" />
                   <span className="text-gray-700">Prazo</span>
                 </div>
-                <span className="font-semibold text-gray-900">{problem!.deadline}</span>
+                <span className="font-semibold text-gray-900">{displayProblem!.deadline}</span>
               </div>
 
               <div className="flex items-center justify-between">
@@ -265,13 +265,13 @@ const ProblemDetail: React.FC = () => {
                 <span className="font-semibold text-gray-900">{solutionsCount}</span>
               </div>
 
-              {problem!.reward && (
+              {displayProblem!.reward && (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <Euro className="w-5 h-5 text-gray-400" />
                     <span className="text-gray-700">Recompensa</span>
                   </div>
-                  <span className="font-semibold text-green-600">{problem!.reward}</span>
+                  <span className="font-semibold text-green-600">{displayProblem!.reward}</span>
                 </div>
               )}
 
@@ -280,8 +280,8 @@ const ProblemDetail: React.FC = () => {
                   <Target className="w-5 h-5 text-gray-400" />
                   <span className="text-gray-700">Dificuldade</span>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getDifficultyColor(problem!.difficulty || 'Fácil')}`}>
-                  {problem!.difficulty || 'Fácil'}}
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getDifficultyColor(displayProblem!.difficulty || 'Fácil')}`}>
+                  {displayProblem!.difficulty || 'Fácil'}
                 </span>
               </div>
             </div>
@@ -301,7 +301,7 @@ const ProblemDetail: React.FC = () => {
             </p>
             
             <Link
-              to={`/submit-solution/${problem!.id}`}
+              to={`/submit-solution/${displayProblem!.id}`}
               className="block w-full bg-white text-solve-blue text-center py-3 rounded-xl font-semibold hover:bg-gray-100 transition-colors mb-3"
             >
               Submeter Solução
@@ -326,7 +326,7 @@ const ProblemDetail: React.FC = () => {
                 <Building className="text-gray-600" size={24} />
               </div>
               <div>
-                <h4 className="font-semibold text-gray-900">{typeof problem!.company === 'string' ? problem!.company : (problem!.company as any)?.companyName || 'Empresa'}</h4>
+                <h4 className="font-semibold text-gray-900">{typeof displayProblem!.company === 'string' ? displayProblem!.company : (displayProblem!.company as any)?.companyName || 'Empresa'}</h4>
                 <p className="text-sm text-gray-600">Parceira desde 2024</p>
               </div>
             </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Github, Twitter, Linkedin, Heart } from 'lucide-react';
+import logo from '../../assets/Logo.png';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -72,8 +73,13 @@ const Footer = () => {
               viewport={{ once: true }}
             >
             <Link to="/" className="flex items-center space-x-3 mb-4">
+             {/* Logo */}
               <div className="w-10 h-10 bg-gradient-to-r from-solve-blue to-solve-purple rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold text-lg">S4E</span>
+                <motion.div
+                  whileHover={{ scale: 1.05, rotate: 5 }}
+                >
+                  <img src={logo} alt="SolveEdu Logo" />
+                </motion.div>
               </div>
               <div>
                 <h3 className="text-xl font-black text-white">SolveEdu</h3>
