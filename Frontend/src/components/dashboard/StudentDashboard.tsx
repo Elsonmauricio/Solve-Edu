@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { solutionsService } from '../../services/solution.service';
 import StatsCard from '../ui/StatsCard';
+import { studentService } from '../../services/student.service'; // Assumindo que este serviço existe
 import UserBadge from '../ui/UserBadge';
+import { Solution, Problem } from '../../types';
 import SolutionCard from '../ui/SolutionCard';
+import { problemsService } from '../../services/problems.service';
 import { 
   Target, 
   Award, 
@@ -20,27 +24,67 @@ import {
 } from 'lucide-react';
 
 const StudentDashboard = () => {
-  const { solutions, problems, user } = useApp();
-
-  // 1. Filtrar soluções do estudante logado
-  const mySolutions = solutions.filter(s => {
-    if (typeof s.student === 'string') {
-      return s.student === user?.name;
-    }
-    return s.student?.user?.name === user?.name;
+  const { user } = useApp();
+  const [stats, setStats] = useState({
+    submittedCount: 0,
+    acceptedCount: 0,
+    ongoingCount: 0,
+    averageRating: "0"
   });
+  const [mySolutions, setMySolutions] = useState<Solution[]>([]);
+  const [activeProblems, setActiveProblems] = useState<Problem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // 2. Calcular estatísticas reais
-  const submittedCount = mySolutions.length;
-  const acceptedCount = mySolutions.filter(s => s.status === 'Aceite').length;
-  const ongoingCount = mySolutions.filter(s => s.status === 'Em Análise').length;
-  
-  // Calcular rating médio (se existir propriedade rating)
-  const ratings = mySolutions.map(s => s.rating || 0).filter(r => r > 0);
-  const averageRating = ratings.length > 0 
-    ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) 
-    : "0";
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setIsLoading(true);
+        const response = await studentService.getDashboardStats();
+        if (response.success) {
+          setStats({
+            submittedCount: response.data.submittedCount,
+            acceptedCount: response.data.acceptedCount,
+            ongoingCount: response.data.ongoingCount,
+            averageRating: response.data.averageRating.toString()
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch student dashboard stats:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
+    const fetchMySolutions = async () => {
+      try {
+        // O backend filtra automaticamente para o estudante logado
+        const response = await solutionsService.getAll({ limit: 3, sortBy: 'submittedAt', sortOrder: 'desc' });
+        if (response.success) {
+          setMySolutions(response.data.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch student solutions:", error);
+      }
+    };
+
+    const fetchRecommendedProblems = async () => {
+      try {
+        // Busca os problemas mais populares ou recentes como recomendação
+        const response = await problemsService.getAll({ limit: 3, sortBy: 'views', sortOrder: 'desc' });
+        if (response.success) {
+          setActiveProblems(response.data.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch recommended problems:", error);
+      }
+    };
+
+    fetchStats();
+    fetchMySolutions();
+    fetchRecommendedProblems();
+  }, []);
+
+  // Os dados do UserBadge agora vêm do `user` do contexto e das `stats` do estado
   const studentStats = {
     user: {
       id: user?.id || "unknown",
@@ -49,42 +93,40 @@ const StudentDashboard = () => {
       school: user?.school || "Escola não definida",
       level: user?.level || "Iniciante",
       isVerified: user?.isVerified,
-      solutionsCount: submittedCount,
-      rating: parseFloat(averageRating)
+      solutionsCount: stats.submittedCount,
+      rating: parseFloat(stats.averageRating)
     },
     stats: [
       {
         title: "Soluções Submetidas",
-        value: submittedCount.toString(),
+        value: isLoading ? '...' : stats.submittedCount.toString(),
         change: 0,
         icon: Target,
         color: "blue"
       },
       {
         title: "Soluções Aceites",
-        value: acceptedCount.toString(),
+        value: isLoading ? '...' : stats.acceptedCount.toString(),
         change: 0,
         icon: Award,
         color: "green"
       },
       {
         title: "Projetos em Curso",
-        value: ongoingCount.toString(),
+        value: isLoading ? '...' : stats.ongoingCount.toString(),
         change: 0,
         icon: Clock,
         color: "orange"
       },
       {
         title: "Rating Médio",
-        value: `${averageRating}/5`,
+        value: isLoading ? '...' : `${stats.averageRating}/5`,
         change: 0,
         icon: Star,
         color: "purple"
       }
     ]
   };
-
-  const activeProblems = problems.slice(0, 3);
 
   return (
     <div className="min-h-screen bg-gray-50 pt-16">

@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useApp } from '../../context/AppContext';
 import SolutionCard from '../ui/SolutionCard';
 import { Filter, Search, X } from 'lucide-react';
 import { Problem, Solution } from '../../types';
+import { solutionsService } from '../../services/solution.service';
+import { useApp } from '../../context/AppContext'; // Still needed for problems list in filter
+import MoonLoader from '../common/MoonLoader';
 
 interface Filters {
   searchQuery: string;
@@ -12,9 +14,12 @@ interface Filters {
 }
 
 const SolutionList = () => {
-  const context = useApp();
-  const solutions = (context.solutions || []) as Solution[];
-  const problems = (context.problems || []) as Problem[];
+  const { problems } = useApp(); // Keep for filter dropdown
+  const [solutions, setSolutions] = useState<Solution[]>([]);
+  const [pagination, setPagination] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [filters, setFilters] = React.useState<Filters>({
     searchQuery: '',
     status: '',
@@ -22,6 +27,34 @@ const SolutionList = () => {
   });
 
   const statusOptions = ['Em Análise', 'Aceite', 'Rejeitada', 'Revisão Solicitada'];
+
+  useEffect(() => {
+    const fetchSolutions = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const activeFilters = Object.entries(filters).reduce((acc, [key, value]) => {
+          if (value) acc[key] = value;
+          return acc;
+        }, {} as any);
+
+        const response = await solutionsService.getAll(activeFilters);
+        if (response.success) {
+          setSolutions(response.data.data);
+          setPagination(response.data.pagination);
+        } else {
+          throw new Error(response.message || 'Falha ao carregar soluções.');
+        }
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSolutions();
+  }, [filters]);
 
   const handleFilterChange = (key: keyof Filters, value: string) => {
     setFilters(prev => ({
@@ -37,20 +70,6 @@ const SolutionList = () => {
       problemId: ''
     });
   };
-
-  const filteredSolutions = solutions.filter((solution: Solution) => {
-    const matchesSearch = !filters.searchQuery || 
-      solution.title.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
-      solution.description.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
-      (typeof solution.student === 'string' 
-        ? solution.student.toLowerCase().includes(filters.searchQuery.toLowerCase())
-        : false);
-
-    const matchesStatus = !filters.status || solution.status === filters.status;
-    const matchesProblem = !filters.problemId || solution.problemId === parseInt(filters.problemId);
-
-    return matchesSearch && matchesStatus && matchesProblem;
-  });
 
   const hasActiveFilters = filters.searchQuery || filters.status || filters.problemId;
 
@@ -140,13 +159,19 @@ const SolutionList = () => {
       {/* Results Count */}
       <div className="flex items-center justify-between mb-6">
         <p className="text-gray-600">
-          {filteredSolutions.length} soluç{filteredSolutions.length !== 1 ? 'ões' : 'ão'} encontrada{filteredSolutions.length !== 1 ? 's' : ''}
+          {isLoading ? 'A carregar...' : 
+            `${pagination?.total || 0} soluç${pagination?.total !== 1 ? 'ões' : 'ão'} encontrada${pagination?.total !== 1 ? 's' : ''}`
+          }
         </p>
       </div>
 
       {/* Solutions Grid */}
       <AnimatePresence mode="wait">
-        {filteredSolutions.length > 0 ? (
+        {isLoading ? (
+          <MoonLoader />
+        ) : error ? (
+          <div className="text-center py-12 text-red-500">{error}</div>
+        ) : solutions.length > 0 ? (
           <motion.div
             key="solutions-grid"
             initial={{ opacity: 0 }}
@@ -155,7 +180,7 @@ const SolutionList = () => {
             transition={{ duration: 0.3 }}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredSolutions.map((solution: Solution, index: number) => (
+            {solutions.map((solution: Solution, index: number) => (
               <SolutionCard
                 key={solution.id}
                 solution={solution}

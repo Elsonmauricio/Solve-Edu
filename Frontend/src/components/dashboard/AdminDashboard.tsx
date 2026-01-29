@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useAuth0 } from '@auth0/auth0-react';
-import { useApp } from '../../context/AppContext';
-import { adminService, AdminStats } from '../../services/admin.service';
+import { Link } from 'react-router-dom';
+import { adminService } from '../../services/admin.service';
+import { problemsService } from '../../services/problems.service';
+import { solutionsService } from '../../services/solution.service';
 import StatsCard from '../ui/StatsCard';
+import { Problem, Solution } from '../../types';
 import { 
   Users, 
   Target, 
@@ -14,7 +16,9 @@ import {
   Settings,
   Shield,
   BarChart3,
-  LucideIcon
+  LucideIcon,
+  Clock,
+  FileText
 } from 'lucide-react';
 
 // Interfaces para tipagem
@@ -26,141 +30,97 @@ interface StatCard {
   color: string;
 }
 
-interface ActivityItem {
-  type: 'user' | 'problem' | 'solution' | 'report';
-  message: string;
-  time: string;
-  color: string;
-}
-
-interface AppContext {
-  problems: any[];
-  solutions: any[];
-  stats: any;
+// Interface local baseada na resposta do admin.controller.js
+interface DashboardData {
+  users: { total: number; newToday: number };
+  problems: { active: number; newToday: number };
+  solutions: { total: number; newToday: number };
+  platform: { acceptanceRate: number };
 }
 
 const AdminDashboard: React.FC = () => {
-  const { problems, solutions, stats } = useApp() as AppContext;
-  const { getAccessTokenSilently } = useAuth0();
-  const [adminStats, setAdminStats] = useState<StatCard[]>([]);
+  const [stats, setStats] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingLists, setIsLoadingLists] = useState(true);
+  const [recentProblems, setRecentProblems] = useState<Problem[]>([]);
+  const [pendingSolutions, setPendingSolutions] = useState<Solution[]>([]);
 
-  // Carregar estatísticas do dashboard
   useEffect(() => {
-    const loadAdminStats = async () => {
+    const fetchAdminStats = async () => {
       try {
         setIsLoading(true);
-        const token = await getAccessTokenSilently();
-        const response = await adminService.getDashboardStats(token);
-        
-        if (response.success && response.data) {
-          const data = response.data as AdminStats;
-          setAdminStats([
-            {
-              title: "Total de Utilizadores",
-              value: data.users.total.toString(),
-              change: data.users.newToday,
-              icon: Users,
-              color: "blue"
-            },
-            {
-              title: "Desafios Ativos",
-              value: data.problems.active.toString(),
-              change: data.problems.newToday,
-              icon: Target,
-              color: "green"
-            },
-            {
-              title: "Soluções Submetidas",
-              value: data.solutions.total.toString(),
-              change: 0,
-              icon: CheckCircle,
-              color: "teal"
-            },
-            {
-              title: "Taxa de Aceitação",
-              value: `${data.platform.acceptanceRate.toFixed(1)}%`,
-              change: 0,
-              icon: TrendingUp,
-              color: "orange"
-            }
-          ]);
+        const response = await adminService.getDashboardStats();
+        if (response.success) {
+          setStats(response.data);
         }
       } catch (error) {
-        console.error("Erro ao carregar estatísticas do admin:", error);
-        // Usar valores padrão em caso de erro
-        setAdminStats([
-          {
-            title: "Total de Utilizadores",
-            value: "N/A",
-            change: 0,
-            icon: Users,
-            color: "blue"
-          },
-          {
-            title: "Desafios Ativos",
-            value: problems.length.toString(),
-            change: 0,
-            icon: Target,
-            color: "green"
-          },
-          {
-            title: "Soluções Submetidas",
-            value: solutions.length.toString(),
-            change: 0,
-            icon: CheckCircle,
-            color: "teal"
-          },
-          {
-            title: "Problemas Reportados",
-            value: "0",
-            change: 0,
-            icon: AlertTriangle,
-            color: "orange"
-          }
-        ]);
+        console.error("Failed to fetch admin stats:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadAdminStats();
-  }, [getAccessTokenSilently]);
+    const fetchLists = async () => {
+      try {
+        setIsLoadingLists(true);
+        const [problemsRes, solutionsRes] = await Promise.all([
+          problemsService.getAll({ limit: 3, sortBy: 'createdAt', sortOrder: 'desc' }),
+          solutionsService.getAll({ status: 'PENDING_REVIEW', limit: 5 })
+        ]);
 
-  const recentActivity: ActivityItem[] = [
+        if (problemsRes.success) {
+          setRecentProblems(problemsRes.data.data);
+        }
+        if (solutionsRes.success) {
+          setPendingSolutions(solutionsRes.data.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch admin lists:", error);
+      } finally {
+        setIsLoadingLists(false);
+      }
+    };
+
+    fetchAdminStats();
+    fetchLists();
+  }, []);
+
+  const statCards: StatCard[] = stats ? [
     {
-      type: "user",
-      message: "Novo estudante registado",
-      time: `Há ${stats?.activeMembers || 0} utilizadores`,
+      title: "Total de Utilizadores",
+      value: stats.users?.total?.toString() ?? '0',
+      change: stats.users?.newToday ?? 0,
+      icon: Users,
       color: "blue"
     },
     {
-      type: "problem", 
-      message: "Desafios ativos na plataforma",
-      time: `${stats?.activeDiscussions || 0} desafios`,
+      title: "Desafios Ativos",
+      value: stats.problems?.active?.toString() ?? '0',
+      change: stats.problems?.newToday ?? 0,
+      icon: Target,
       color: "green"
     },
     {
-      type: "solution",
-      message: "Soluções aceites no total",
-      time: `${stats?.acceptedSolutions || 0} soluções`, 
+      title: "Soluções Submetidas",
+      value: stats.solutions?.total?.toString() ?? '0',
+      change: stats.solutions?.newToday ?? 0,
+      icon: CheckCircle,
       color: "teal"
     },
     {
-      type: "report",
-      message: "Soluções pendentes de revisão",
-      time: "Aguardando moderação",
+      title: "Taxa de Aceitação",
+      value: `${(stats.platform?.acceptanceRate ?? 0).toFixed(1)}%`,
+      change: 0,
+      icon: TrendingUp,
       color: "orange"
     }
+  ] : [
+    // Fallback data using general context if full stats are not available
+    { title: "Total de Utilizadores", value: isLoading ? "..." : "0", change: 0, icon: Users, color: "blue" },
+    { title: "Desafios Ativos", value: isLoading ? "..." : "0", change: 0, icon: Target, color: "green" },
+    { title: "Soluções Submetidas", value: isLoading ? "..." : "0", change: 0, icon: CheckCircle, color: "teal" },
+    { title: "Taxa de Aceitação", value: isLoading ? "..." : "0%", change: 0, icon: TrendingUp, color: "orange" }
   ];
-
-  // Mapeamento de cores para evitar warnings do Tailwind
-  const colorClassMapping: Record<string, { bg: string; text: string }> = {
-    blue: { bg: 'bg-blue-100', text: 'text-blue-600' },
-    green: { bg: 'bg-green-100', text: 'text-green-600' },
-    teal: { bg: 'bg-teal-100', text: 'text-teal-600' },
-    orange: { bg: 'bg-orange-100', text: 'text-orange-600' }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
@@ -204,20 +164,16 @@ const AdminDashboard: React.FC = () => {
               transition={{ duration: 0.6, delay: 0.2 }}
             >
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {(isLoading ? Array(4).fill(null) : adminStats).map((stat, index) => (
-                stat ? (
-                  <StatsCard
-                    key={stat.title}
-                    title={stat.title}
-                    value={stat.value}
-                    change={stat.change}
-                    icon={stat.icon}
-                    color={stat.color as 'blue' | 'green' | 'orange' | 'purple' | 'teal'}
-                    delay={index * 0.1}
-                  />
-                ) : (
-                  <div key={index} className="bg-gray-200 animate-pulse rounded-2xl h-32"></div>
-                )
+              {statCards.map((stat, index) => (
+                <StatsCard
+                  key={stat.title}
+                  title={stat.title}
+                  value={stat.value}
+                  change={stat.change}
+                  icon={stat.icon}
+                  color={stat.color as 'blue' | 'green' | 'orange' | 'purple' | 'teal'}
+                  delay={index * 0.1}
+                />
               ))}
               </div>
             </motion.div>
@@ -229,71 +185,67 @@ const AdminDashboard: React.FC = () => {
               transition={{ duration: 0.6, delay: 0.4 }}
             >
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <button className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 text-left group">
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
-                  <Users className="w-6 h-6 text-blue-600" />
-                </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Gerir Utilizadores</h3>
-                <p className="text-gray-600 text-sm">Ver e gerir todos os utilizadores da plataforma</p>
-              </button>
+                <Link to="/admin/users" className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 text-left group">
+                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
+                    <Users className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Gerir Utilizadores</h3>
+                  <p className="text-gray-600 text-sm">Ver e gerir todos os utilizadores da plataforma</p>
+                </Link>
 
-              <button className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 text-left group">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-4">
-                  <Target className="w-6 h-6 text-green-600" />
-                </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Moderar Conteúdo</h3>
-                <p className="text-gray-600 text-sm">Rever desafios e soluções submetidas</p>
-              </button>
+                <Link to="/admin/content" className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 text-left group">
+                  <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-4">
+                    <Target className="w-6 h-6 text-green-600" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Moderar Conteúdo</h3>
+                  <p className="text-gray-600 text-sm">Rever desafios e soluções submetidas</p>
+                </Link>
 
-              <button className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 text-left group">
-                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
-                  <BarChart3 className="w-6 h-6 text-purple-600" />
-                </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Analytics</h3>
-                <p className="text-gray-600 text-sm">Estatísticas e métricas da plataforma</p>
-              </button>
+                <Link to="/admin/analytics" className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 text-left group">
+                  <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
+                    <BarChart3 className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Analytics</h3>
+                  <p className="text-gray-600 text-sm">Estatísticas e métricas da plataforma</p>
+                </Link>
               </div>
             </motion.div>
 
-            {/* Recent Activity */}
+            {/* Recent Problems */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.6 }}
             >
               <div className="bg-white rounded-2xl shadow-lg border border-gray-200">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-xl font-semibold text-gray-900">Atividade Recente</h2>
-              </div>
-              
-              <div className="p-6">
-                <div className="space-y-4">
-                  {recentActivity.map((activity, index) => {
-                    const colorClasses = colorClassMapping[activity.color] || colorClassMapping.blue;
-                    
-                    return (
-                      <div
-                        key={index}
-                        className="flex items-center space-x-4 p-4 border border-gray-200 rounded-xl hover:border-gray-300 transition-colors"
-                      >
-                        <div className={`w-10 h-10 ${colorClasses.bg} rounded-xl flex items-center justify-center flex-shrink-0`}>
-                          {activity.type === 'user' && <Users className={`w-5 h-5 ${colorClasses.text}`} />}
-                          {activity.type === 'problem' && <Target className={`w-5 h-5 ${colorClasses.text}`} />}
-                          {activity.type === 'solution' && <CheckCircle className={`w-5 h-5 ${colorClasses.text}`} />}
-                          {activity.type === 'report' && <AlertTriangle className={`w-5 h-5 ${colorClasses.text}`} />}
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-gray-900 font-medium">{activity.message}</p>
-                          <p className="text-gray-500 text-sm">{activity.time}</p>
-                        </div>
-                        <button className="text-gray-400 hover:text-gray-600 transition-colors">
-                          <Eye size={16} />
-                        </button>
-                      </div>
-                    );
-                  })}
+                <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+                  <h2 className="text-xl font-semibold text-gray-900">Desafios Recentes</h2>
+                  <Link to="/problems" className="text-sm font-medium text-solve-blue hover:text-solve-purple">Ver todos</Link>
                 </div>
-              </div>
+                <div className="p-6">
+                  {recentProblems.length > 0 ? (
+                    <div className="space-y-4">
+                      {recentProblems.map(problem => (
+                        <div key={problem.id} className="flex items-center space-x-4">
+                          <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <Target className="w-5 h-5 text-green-600" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-gray-900 font-medium truncate">{problem.title}</p>
+                            <p className="text-gray-500 text-sm">
+                              {typeof problem.company === 'string' ? problem.company : problem.company?.companyName}
+                            </p>
+                          </div>
+                          <Link to={`/problems/${problem.id}`} className="text-gray-400 hover:text-gray-600">
+                            <Eye size={18} />
+                          </Link>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">Nenhum desafio publicado recentemente.</p>
+                  )}
+                </div>
               </div>
             </motion.div>
           </div>
@@ -307,6 +259,7 @@ const AdminDashboard: React.FC = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 1 }}
             >
+              {/* Nota: Os dados de 'Estado do Sistema' são estáticos. Requer um endpoint de health-check no backend. */}
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Estado do Sistema</h3>
               
               <div className="space-y-4">
@@ -338,30 +291,46 @@ const AdminDashboard: React.FC = () => {
               </div>
             </motion.div>
 
-            {/* Alerts */}
+            {/* Pending Moderation */}
             <motion.div
-              {...({ className: "bg-white rounded-2xl p-6 shadow-lg border border-red-200" } as any)}
+              {...({ className: "bg-white rounded-2xl p-6 shadow-lg border border-orange-200" } as any)}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 1.2 }}
             >
-              <h3 className="text-lg font-semibold text-red-800 mb-4">🚨 Alertas do Sistema</h3>
+              <h3 className="text-lg font-semibold text-orange-800 mb-4">Moderação Pendente</h3>
               
-              <div className="space-y-3 text-sm">
-                <div className="text-red-700">
-                  • 3 desafios expiram em 24 horas
+              {pendingSolutions.length > 0 ? (
+                <>
+                  <div className="space-y-4">
+                    {pendingSolutions.slice(0, 2).map(solution => (
+                      <div key={solution.id} className="flex items-start space-x-3">
+                        <FileText className="w-5 h-5 text-orange-500 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-gray-800 text-sm">{solution.title}</p>
+                          <p className="text-xs text-gray-500">
+                            por {typeof solution.student === 'string' ? solution.student : solution.student?.user?.name}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {pendingSolutions.length > 2 && (
+                    <p className="text-xs text-gray-500 mt-3">+ {pendingSolutions.length - 2} mais...</p>
+                  )}
+                  <Link
+                    to="/admin/content"
+                    className="w-full block text-center mt-4 bg-orange-500 text-white py-2 rounded-xl font-medium hover:bg-orange-600 transition-colors"
+                  >
+                    Rever {pendingSolutions.length} Itens
+                  </Link>
+                </>
+              ) : (
+                <div className="text-center py-4">
+                  <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                  <p className="text-sm text-gray-600">Nenhum item pendente de moderação.</p>
                 </div>
-                <div className="text-red-700">
-                  • 2 utilizadores reportaram problemas
-                </div>
-                <div className="text-red-700">
-                  • 1 empresa pendente de aprovação
-                </div>
-              </div>
-              
-              <button className="w-full mt-4 bg-red-600 text-white py-2 rounded-xl font-medium hover:bg-red-700 transition-colors">
-                Resolver Alertas
-              </button>
+              )}
             </motion.div>
 
             {/* Platform Metrics */}
@@ -371,6 +340,7 @@ const AdminDashboard: React.FC = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 1.4 }}
             >
+              {/* Nota: Métricas de plataforma são estáticas para demonstração. */}
               <h3 className="text-lg font-semibold mb-4">Métricas da Plataforma</h3>
               
               <div className="space-y-4">
@@ -413,6 +383,7 @@ const AdminDashboard: React.FC = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 1.6 }}
             >
+              {/* Nota: Secção de segurança é estática para demonstração. */}
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Segurança</h3>
               
               <div className="space-y-3">

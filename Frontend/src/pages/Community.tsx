@@ -10,6 +10,7 @@ import {
   Award,
   Star,
   Zap,
+  //Zap,
   Calendar,
   MapPin
 } from 'lucide-react';
@@ -41,39 +42,32 @@ const Community = () => {
         }
 
         if (topSolutionsRes.success) {
+          // Tipagem mais segura para o retorno da API
           const students: User[] = topSolutionsRes.data
-            .filter((solution: Solution) => solution.student && typeof solution.student === 'object' && (solution.student as any).user)
-            .map((solution: Solution) => {
-              const studentData = solution.student as { id: string; user: { id: string; name: string; avatar?: string }; school?: string; year?: number };
+            .filter((solution: any) => solution.student?.user)
+            .map((solution: any) => {
+              const studentData = solution.student;
+              const userData = studentData.user;
+              
               return {
-                id: studentData.user.id || studentData.id,
-                name: studentData.user.name,
-                avatar: studentData.user.avatar,
+                id: userData?.id || studentData?.id || "unknown",
+                name: userData?.name || "Utilizador Desconhecido",
+                avatar: userData?.avatar,
                 role: "Estudante",
                 school: studentData.school || "Escola não informada",
                 level: "Nível " + (studentData.year || 1),
                 isVerified: true,
-                solutionsCount: 1, // Nota: Isto é uma aproximação. O ideal seria o backend agregar estes dados.
+                solutionsCount: (solution as any)._count?.solutions || 1, // Tenta ler contagem agregada do Prisma se existir
                 rating: solution.rating || 0
               };
             });
-          // Remover duplicados (caso o mesmo estudante tenha várias soluções no top)
-          const uniqueStudents = Array.from(new Map(students.map(s => [s.name, s])).values()).slice(0, 3);
-          setTopStudents(uniqueStudents);
-
-          // Lógica para Top Companies (exemplo, pode ser melhorada no backend)
-          const companyCounts = students.reduce((acc, s) => {
-            // ... Lógica para contar problemas/soluções por empresa
-          }, {});
-        }
-      } catch (error) {
-        console.error("Error fetching community data:", error);
-      } finally {
+          setTopStudents(students);
+        } 
         setLoading(false);
-      }
-    };
+      };
 
-    fetchCommunityData();
+      fetchCommunityData();
+    };
   }, []);
 
   return (

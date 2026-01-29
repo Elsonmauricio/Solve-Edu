@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import StatsCard from '../ui/StatsCard';
 import UserBadge from '../ui/UserBadge';
+import { problemsService } from '../../services/problems.service';
+import { solutionsService } from '../../services/solution.service';
+import { companyService } from '../../services/company.service';
 import ProblemCard from '../ui/ProblemCard';
+import { Problem, Solution } from '../../types';
 import { 
   Target, 
   Users, 
@@ -20,83 +24,101 @@ import {
 } from 'lucide-react';
 
 const CompanyDashboard = () => {
-  const { problems, solutions, user } = useApp();
-
-  // 1. Calcular dados reais primeiro
-  const myProblems = problems.filter(p => {
-    if (typeof p.company === 'string') {
-      return p.company === user?.name;
-    }
-    return p.company?.companyName === user?.name;
+  const { user } = useApp();
+  const [stats, setStats] = useState({
+    activeProblems: 0,
+    totalSolutionsReceived: 0,
+    pendingReviews: 0,
+    solutionsAccepted: 0, // Este pode vir de outro endpoint ou ser calculado
+    totalRewards: 0,
   });
+  const [isLoading, setIsLoading] = useState(true);
+  const [myProblems, setMyProblems] = useState<Problem[]>([]);
+  const [pendingApplications, setPendingApplications] = useState<Solution[]>([]);
 
-  // Filtrar apenas soluções para os meus problemas
-  const mySolutions = solutions.filter(s => 
-    myProblems.some(p => p.id === ((s as any).problemId || (s as any).problem?.id))
-  );
-
-  const pendingCount = mySolutions.filter(s => s.status === "Em Análise").length;
-  const acceptedCount = mySolutions.filter(s => s.status === "Aceite").length;
-
-  // Tentar calcular valor total de recompensas (parse simples de strings como "€500")
-  const totalRewards = mySolutions
-    .filter(s => s.status === "Aceite")
-    .reduce((acc, s) => {
-      const problem = problems.find(p => p.id === ((s as any).problemId || (s as any).problem?.id));
-      if (problem && problem.reward) {
-        const rewardStr = typeof problem.reward === 'string' ? problem.reward : String(problem.reward);
-        const match = rewardStr.match(/(\d+)/); // Extrai apenas números
-        if (match) {
-          return acc + parseInt(match[0]);
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setIsLoading(true);
+        const response = await companyService.getDashboardStats();
+        if (response.success) {
+          setStats(prev => ({ ...prev, ...response.data }));
         }
+      } catch (error) {
+        console.error("Failed to fetch company dashboard stats:", error);
+      } finally {
+        setIsLoading(false);
       }
-      return acc;
-    }, 0);
+    };
+
+    const fetchProblems = async () => {
+      try {
+        // O backend deve filtrar automaticamente para a empresa logada
+        const response = await problemsService.getAll({ limit: 4 });
+        if (response.success) setMyProblems(response.data.data);
+      } catch (error) {
+        console.error("Failed to fetch company problems:", error);
+      }
+    };
+
+    const fetchPending = async () => {
+      try {
+        // O backend deve filtrar automaticamente para a empresa logada
+        const response = await solutionsService.getAll({ status: 'PENDING_REVIEW' });
+        if (response.success) setPendingApplications(response.data.data);
+      } catch (error) {
+        console.error("Failed to fetch pending applications:", error);
+      }
+    };
+
+    fetchStats();
+    fetchProblems();
+    fetchPending();
+  }, []);
+
 
   const companyStats = {
     user: {
       id: user?.id || "unknown",
       name: user?.name || "Empresa",
       role: user?.role || "Empresa" as const,
-      company: user?.company || user?.name || "Empresa",
+      companyName: user?.companyProfile?.companyName || user?.name || "Empresa",
       level: user?.level || "Parceiro",
       isVerified: user?.isVerified,
-      problemsPosted: myProblems.length,
-      solutionsAccepted: acceptedCount
+      problemsPosted: stats.activeProblems,
+      solutionsAccepted: stats.solutionsAccepted,
     },
     stats: [
       {
         title: "Desafios Publicados",
-        value: myProblems.length.toString(),
+        value: isLoading ? '...' : stats.activeProblems.toString(),
         change: 0, // Idealmente, comparar com o mês anterior
         icon: Target,
         color: "blue"
       },
       {
         title: "Candidaturas Recebidas",
-        value: mySolutions.length.toString(),
+        value: isLoading ? '...' : stats.totalSolutionsReceived.toString(),
         change: 0,
         icon: Users,
         color: "green"
       },
       {
         title: "Soluções Aceites",
-        value: acceptedCount.toString(),
+        value: isLoading ? '...' : stats.solutionsAccepted.toString(),
         change: 0,
         icon: CheckCircle,
         color: "teal"
       },
       {
         title: "Total em Recompensas",
-        value: `€${totalRewards}`,
+        value: `€${stats.totalRewards}`, // Este valor deve vir do backend
         change: 0,
         icon: Euro,
         color: "purple"
       }
     ]
   };
-
-  const pendingApplications = mySolutions.filter(s => s.status === "Em Análise").slice(0, 3);
 
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
@@ -156,7 +178,7 @@ const CompanyDashboard = () => {
             </motion.div>
 
             {/* Pending Applications */}
-            <motion.div
+        <motion.div
               {...({ className: "bg-white rounded-2xl shadow-lg border border-gray-200" } as any)}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -238,7 +260,7 @@ const CompanyDashboard = () => {
               
               <div className="p-6">
                 {myProblems.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {myProblems.slice(0, 4).map((problem, index) => (
                       <ProblemCard key={problem.id} problem={problem} />
                     ))}

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
-import { problemsService } from '../../services/problem.service';
+import { problemsService } from '../../services/problems.service';
 import { 
   Clock, 
   Users, 
@@ -19,30 +19,34 @@ import {
   LucideIcon
 } from 'lucide-react';
 
-// Interfaces para tipagem
+// Interfaces alinhadas com o retorno da API (Prisma)
+interface Company {
+  id: string;
+  companyName: string;
+  industry?: string;
+}
+
 interface Problem {
-  id: number;
+  id: number | string; // O ID pode vir como string do backend
   title: string;
   description: string;
-  company: string;
-  createdAt: string;
+  // A API deve retornar o objeto company via 'include'
+  company?: Company | string; 
+  companyId?: string;
+  createdAt: string | Date;
   difficulty: string;
   category: string;
   tags: string[];
   requirements: string[];
   deadline: string;
-  solutionsCount: number | string;
   reward?: string;
 }
 
 const ProblemDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { problems, solutions } = useApp();
-  const [problemDetail, setProblemDetail] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  const problem = problems.find(p => p.id === parseInt(id || '0'));
-  const solutionsCount = problem ? solutions.filter(s => s.problemId === problem.id).length : 0;
+  const [problemDetail, setProblemDetail] = useState<Problem | null>(null);
+  const [isLoading, setIsLoading] = useState(true);  
 
   // Carregar detalhes do problema da API quando o id mudar
   useEffect(() => {
@@ -50,7 +54,7 @@ const ProblemDetail: React.FC = () => {
       if (!id) return;
       try {
         setIsLoading(true);
-        const response = await problemsService.getById(parseInt(id));
+        const response = await problemsService.getById(id);
         if (response.success) {
           setProblemDetail(response.data);
         }
@@ -64,8 +68,23 @@ const ProblemDetail: React.FC = () => {
     loadProblemDetail();
   }, [id]);
 
-  // Usar dados carregados da API ou do contexto
-  const displayProblem = problemDetail || problem;
+  // Priorizar sempre os dados da API. O contexto global será removido.
+  const displayProblem: Problem | null = problemDetail;
+
+  // A contagem de soluções deve vir diretamente da API
+  const solutionsCount = (displayProblem as any)?._count?.solutions ?? 0;
+
+  // Helper para obter nome da empresa de forma segura
+  const getCompanyName = (p: Problem) => {
+    if (!p.company) return 'Empresa Confidencial';
+    if (typeof p.company === 'string') return p.company;
+    return p.company.companyName || (p.company as any).name || 'Empresa Parceira';
+  };
+
+  const formatDate = (date: string | Date) => {
+    if (!date) return '';
+    return new Date(date).toLocaleDateString('pt-PT');
+  };
 
   const getDifficultyColor = (difficulty: string): string => {
     switch (difficulty) {
@@ -148,16 +167,16 @@ const ProblemDetail: React.FC = () => {
                   </div>
                   <div className="flex-1">
                     <h1 className="text-3xl font-black text-gray-900 mb-2">
-                      {displayProblem!.title}
+                      {displayProblem.title}
                     </h1>
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center space-x-2">
                         <Building size={16} className="text-gray-400" />
-                        <span className="text-gray-600 font-medium">{typeof displayProblem!.company === 'string' ? displayProblem!.company : (displayProblem!.company as any)?.companyName || 'Empresa'}</span>
+                        <span className="text-gray-600 font-medium">{getCompanyName(displayProblem)}</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Calendar size={16} className="text-gray-400" />
-                        <span className="text-gray-500 text-sm">Publicado em {displayProblem!.createdAt}</span>
+                        <span className="text-gray-500 text-sm">Publicado em {formatDate(displayProblem.createdAt)}</span>
                       </div>
                     </div>
                   </div>
@@ -165,13 +184,13 @@ const ProblemDetail: React.FC = () => {
 
                 {/* Tags */}
                 <div className="flex flex-wrap gap-2 mb-6">
-                  <span className={`px-4 py-2 rounded-full text-sm font-medium ${getDifficultyColor(displayProblem!.difficulty || 'Fácil')}`}>
-                    {displayProblem!.difficulty || 'Fácil'}
+                  <span className={`px-4 py-2 rounded-full text-sm font-medium ${getDifficultyColor(displayProblem.difficulty || 'Fácil')}`}>
+                    {displayProblem.difficulty || 'Fácil'}
                   </span>
-                  <span className={`px-4 py-2 rounded-full text-sm font-medium ${getCategoryColor(displayProblem!.category || 'Geral')}`}>
-                    {displayProblem!.category || 'Geral'}
+                  <span className={`px-4 py-2 rounded-full text-sm font-medium ${getCategoryColor(displayProblem.category || 'Geral')}`}>
+                    {displayProblem.category || 'Geral'}
                   </span>
-                  {displayProblem!.tags.map((tag: string) => (
+                  {displayProblem.tags?.map((tag: string) => (
                     <span key={tag} className="px-4 py-2 rounded-full text-sm font-medium text-gray-600 bg-gray-100">
                       {tag}
                     </span>
@@ -194,7 +213,7 @@ const ProblemDetail: React.FC = () => {
             <div className="prose max-w-none mb-8">
               <h3 className="text-xl font-semibold text-gray-900 mb-4">Descrição do Desafio</h3>
               <p className="text-gray-700 leading-relaxed text-lg">
-                {displayProblem!.description}
+                {displayProblem.description}
               </p>
             </div>
 
@@ -202,7 +221,7 @@ const ProblemDetail: React.FC = () => {
             <div className="mb-8">
               <h3 className="text-xl font-semibold text-gray-900 mb-4">Requisitos Técnicos</h3>
               <ul className="space-y-3">
-                {displayProblem!.requirements.map((requirement: string, index: number) => (
+                {displayProblem.requirements?.map((requirement: string, index: number) => (
                   <li key={index} className="flex items-center space-x-3">
                     <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
                     <span className="text-gray-700">{requirement}</span>
@@ -254,7 +273,7 @@ const ProblemDetail: React.FC = () => {
                   <Clock className="w-5 h-5 text-gray-400" />
                   <span className="text-gray-700">Prazo</span>
                 </div>
-                <span className="font-semibold text-gray-900">{displayProblem!.deadline}</span>
+                <span className="font-semibold text-gray-900">{formatDate(displayProblem.deadline)}</span>
               </div>
 
               <div className="flex items-center justify-between">
@@ -265,13 +284,13 @@ const ProblemDetail: React.FC = () => {
                 <span className="font-semibold text-gray-900">{solutionsCount}</span>
               </div>
 
-              {displayProblem!.reward && (
+              {displayProblem.reward && (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <Euro className="w-5 h-5 text-gray-400" />
                     <span className="text-gray-700">Recompensa</span>
                   </div>
-                  <span className="font-semibold text-green-600">{displayProblem!.reward}</span>
+                  <span className="font-semibold text-green-600">{displayProblem.reward}</span>
                 </div>
               )}
 
@@ -280,8 +299,8 @@ const ProblemDetail: React.FC = () => {
                   <Target className="w-5 h-5 text-gray-400" />
                   <span className="text-gray-700">Dificuldade</span>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getDifficultyColor(displayProblem!.difficulty || 'Fácil')}`}>
-                  {displayProblem!.difficulty || 'Fácil'}
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getDifficultyColor(displayProblem.difficulty || 'Fácil')}`}>
+                  {displayProblem.difficulty || 'Fácil'}
                 </span>
               </div>
             </div>
@@ -301,7 +320,7 @@ const ProblemDetail: React.FC = () => {
             </p>
             
             <Link
-              to={`/submit-solution/${displayProblem!.id}`}
+              to={`/submit-solution/${displayProblem.id}`}
               className="block w-full bg-white text-solve-blue text-center py-3 rounded-xl font-semibold hover:bg-gray-100 transition-colors mb-3"
             >
               Submeter Solução
@@ -326,7 +345,7 @@ const ProblemDetail: React.FC = () => {
                 <Building className="text-gray-600" size={24} />
               </div>
               <div>
-                <h4 className="font-semibold text-gray-900">{typeof displayProblem!.company === 'string' ? displayProblem!.company : (displayProblem!.company as any)?.companyName || 'Empresa'}</h4>
+                <h4 className="font-semibold text-gray-900">{getCompanyName(displayProblem)}</h4>
                 <p className="text-sm text-gray-600">Parceira desde 2024</p>
               </div>
             </div>

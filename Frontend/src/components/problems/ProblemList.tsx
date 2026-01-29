@@ -1,36 +1,72 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useApp } from '../../context/AppContext';
 import ProblemCard from '../ui/ProblemCard';
 import { Filter, Search, X } from 'lucide-react';
-import { AppFilters } from '../../types';
+import { Problem, Pagination } from '../../types';
+import { problemsService } from '../../services/problems.service';
+import MoonLoader from '../common/MoonLoader';
 
 const ProblemList = () => {
-  const { filteredProblems, filters, dispatch } = useApp();
+  const [problems, setProblems] = useState<Problem[]>([]);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState({
+    search: '',
+    category: '',
+    difficulty: '',
+    // O backend ainda não suporta este filtro.
+    // hasReward: false 
+  });
+
+  useEffect(() => {
+    const fetchProblems = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // Apenas envia filtros que não estão vazios
+        const activeFilters = Object.entries(filters).reduce((acc, [key, value]) => {
+          if (value) acc[key] = value;
+          return acc;
+        }, {} as any);
+
+        const response = await problemsService.getAll(activeFilters);
+        if (response.success) {
+          setProblems(response.data.data); // A API retorna um objeto de paginação
+          setPagination(response.data.pagination);
+        } else {
+          throw new Error(response.message || 'Falha ao carregar desafios.');
+        }
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProblems();
+  }, [filters]);
 
   const categories = ['Tecnologia', 'Sustentabilidade', 'Saúde', 'Educação', 'Negócios'];
   const difficulties = ['Iniciante', 'Intermediário', 'Avançado'];
 
-  const handleFilterChange = (key: keyof AppFilters, value: string | boolean) => {
-    dispatch({
-      type: 'SET_FILTERS',
-      payload: { [key]: value }
-    });
+  const handleFilterChange = (key: keyof typeof filters, value: string | boolean) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value
+    }));
   };
 
   const clearFilters = () => {
-    dispatch({
-      type: 'SET_FILTERS',
-      payload: {
-        category: '',
-        difficulty: '',
-        hasReward: false,
-        searchQuery: ''
-      }
+    setFilters({
+      search: '',
+      category: '',
+      difficulty: '',
     });
   };
 
-  const hasActiveFilters = filters.category || filters.difficulty || filters.hasReward || filters.searchQuery;
+  const hasActiveFilters = filters.search || filters.category || filters.difficulty;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -75,8 +111,8 @@ const ProblemList = () => {
             <input
               type="text"
               placeholder="Pesquisar desafios..."
-              value={filters.searchQuery}
-              onChange={(e) => handleFilterChange('searchQuery', e.target.value)}
+              value={filters.search}
+              onChange={(e) => handleFilterChange('search', e.target.value)}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-solve-blue focus:border-transparent"
             />
           </div>
@@ -109,8 +145,8 @@ const ProblemList = () => {
           <label className="flex items-center space-x-3 p-3 border border-gray-300 rounded-xl hover:bg-gray-50 cursor-pointer">
             <input
               type="checkbox"
-              checked={filters.hasReward}
-              onChange={(e) => handleFilterChange('hasReward', e.target.checked)}
+              // checked={filters.hasReward} // Backend não suporta
+              // onChange={(e) => handleFilterChange('hasReward', e.target.checked)}
               className="w-4 h-4 text-solve-blue focus:ring-solve-blue border-gray-300 rounded"
             />
             <span className="text-gray-700">Apenas com recompensa</span>
@@ -122,7 +158,9 @@ const ProblemList = () => {
       {/* Results Count */}
       <div className="flex items-center justify-between mb-6">
         <p className="text-gray-600">
-          {filteredProblems.length} desafio{filteredProblems.length !== 1 ? 's' : ''} encontrado{filteredProblems.length !== 1 ? 's' : ''}
+          {isLoading ? 'A carregar...' :
+            `${pagination?.total || 0} desafio${pagination?.total !== 1 ? 's' : ''} encontrado${pagination?.total !== 1 ? 's' : ''}`
+          }
         </p>
         
         {/* Sort Options */}
@@ -136,7 +174,11 @@ const ProblemList = () => {
 
       {/* Problems Grid */}
       <AnimatePresence mode="wait">
-        {filteredProblems.length > 0 ? (
+        {isLoading ? (
+          <MoonLoader />
+        ) : error ? (
+          <div className="text-center py-12 text-red-500">{error}</div>
+        ) : problems.length > 0 ? (
           <motion.div
             key="problems-grid"
             initial={{ opacity: 0 }}
@@ -145,7 +187,7 @@ const ProblemList = () => {
             transition={{ duration: 0.3 }}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProblems.map((problem, index) => (
+            {problems.map((problem, index) => (
               <ProblemCard
                 key={problem.id}
                 problem={problem}

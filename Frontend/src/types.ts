@@ -1,4 +1,18 @@
 // User Types
+export interface StudentProfile {
+  id: string;
+  school?: string;
+  course?: string;
+  year?: number;
+  skills?: string[];
+}
+
+export interface CompanyProfile {
+  id: string;
+  companyName?: string;
+  industry?: string;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -16,16 +30,18 @@ export interface User {
   bio?: string;
   location?: string;
   joinedAt?: string;
+  studentProfile?: StudentProfile;
+  companyProfile?: CompanyProfile;
 }
 
 // Problem/Challenge Types
 export interface Problem {
-  id: number;
+  id: string;
   title: string;
   description: string;
   company?: string | { id: string; companyName: string };
   category?: string;
-  difficulty?: 'Fácil' | 'Médio' | 'Difícil' | 'Iniciante' | 'Intermediário' | 'Avançado' | string;
+  difficulty?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'Iniciante' | 'Intermediário' | 'Avançado' | string;
   reward?: number | string;
   status?: 'Aberto' | 'Fechado' | 'Em Análise';
   createdAt?: string;
@@ -38,8 +54,8 @@ export interface Problem {
 
 // Solution Types
 export interface Solution {
-  id: number;
-  problemId: number;
+  id: string;
+  problemId: string;
   title: string;
   description: string;
   student: string | {
@@ -54,7 +70,7 @@ export interface Solution {
   };
   school?: string;
   submittedAt?: string;
-  status: 'Em Análise' | 'Aceite' | 'Rejeitada' | 'Revisão Solicitada';
+  status: 'PENDING_REVIEW' | 'ACCEPTED' | 'REJECTED' | 'NEEDS_REVISION';
   technologies: string[];
   githubUrl?: string;
   demoUrl?: string;
@@ -93,6 +109,14 @@ export interface ApiResponse<T> {
   data: T;
   message?: string;
   error?: string;
+}
+
+// Pagination type
+export interface Pagination {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 // Stats Types

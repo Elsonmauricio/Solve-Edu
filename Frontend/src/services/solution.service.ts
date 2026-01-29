@@ -1,63 +1,56 @@
 import api from './api';
-import { Solution } from '../types';
+import { Solution, Pagination } from '../types';
 
-interface ApiResponse<T> {
-    success: boolean;
-    data: T;
-    message?: string;
-}
-
-interface PaginatedSolutions {
-    solutions: Solution[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
+interface PaginatedSolutionsResponse {
+  success: boolean;
+  data: {
+    data: Solution[];
+    pagination: Pagination;
+  };
+  message?: string;
 }
 
 export const solutionsService = {
-  // Obter soluções (pode filtrar por problemId ou studentId)
-  getAll: async (params?: any, token?: string | null): Promise<ApiResponse<PaginatedSolutions>> => {
-    const config = token ? { params, headers: { Authorization: `Bearer ${token}` } } : { params };
-    const response = await api.get('/solutions', config);
+  async getAll(params: any = {}): Promise<PaginatedSolutionsResponse> {
+    const response = await api.get('/solutions', { params });
     return response.data;
   },
 
-  // Obter detalhes de uma solução
-  getById: async (id: string | number, token?: string | null): Promise<ApiResponse<Solution>> => {
-    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-    const response = await api.get(`/solutions/${id}`, config);
+  async getById(id: number | string): Promise<{ success: boolean; data: Solution }> {
+    const response = await api.get(`/solutions/${id}`);
     return response.data;
   },
 
-  // Submeter uma nova solução (Requer Token de Estudante)
-  create: async (solutionData: Partial<Solution> | FormData, token: string): Promise<ApiResponse<Solution>> => {
-    const isFormData = solutionData instanceof FormData;
-    
-    const response = await api.post('/solutions', solutionData, {
-      headers: { 
-        Authorization: `Bearer ${token}`,
-        'Content-Type': isFormData ? 'multipart/form-data' : 'application/json'
-      }
-    });
+  // Obtém soluções de um desafio específico (Dashboard da Empresa)
+  async getByProblemId(problemId: number | string): Promise<{ success: boolean; data: Solution[] }> {
+    const response = await api.get(`/problems/${problemId}/solutions`);
     return response.data;
   },
 
-  // Avaliar uma solução (Requer Token de Empresa/Admin)
-  review: async (id: string | number, reviewData: any, token: string): Promise<ApiResponse<Solution>> => {
-    const response = await api.patch(`/admin/solutions/${id}/review`, reviewData, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+  // Obtém soluções do estudante logado
+  async getMySolutions(): Promise<{ success: boolean; data: Solution[] }> {
+    const response = await api.get('/solutions/student/me');
     return response.data;
   },
 
-  getStats: async (): Promise<ApiResponse<{ accepted: number }>> => {
-    const response = await api.get('/solutions/stats'); // Assumindo que este endpoint existe
+  // Atualiza/Avalia uma solução (Empresa avalia aluno)
+  async review(id: number | string, reviewData: any): Promise<{ success: boolean; data: Solution }> {
+    const response = await api.put(`/solutions/${id}`, reviewData);
     return response.data;
   },
 
-  getTopSolutions: async (): Promise<ApiResponse<Solution[]>> => {
-    const response = await api.get('/solutions/top'); // Assumindo que este endpoint existe
+  async create(solutionData: Partial<Solution>): Promise<{ success: boolean; data: Solution }> {
+    const response = await api.post('/solutions', solutionData);
     return response.data;
   },
+
+  async getStats(): Promise<{ success: boolean, data: { accepted: number } }> {
+    const response = await api.get('/solutions/stats');
+    return response.data;
+  },
+
+  async getTopSolutions(): Promise<{ success: boolean, data: Solution[] }> {
+    const response = await api.get('/solutions/top');
+    return response.data;
+  }
 };

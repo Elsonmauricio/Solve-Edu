@@ -4,7 +4,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { useApp } from './context/AppContext';
 import { Toaster } from 'react-hot-toast';
 import { setAuthToken } from './services/api';
-import { problemsService } from './services/problem.service';
+import { problemsService } from './services/problems.service';
 import { solutionsService } from './services/solution.service';
 import { userService } from './services/user.service';
 import { adminService } from './services/admin.service';
@@ -50,109 +50,62 @@ function App() {
   const { dispatch } = useApp();
   const [isDataLoading, setIsDataLoading] = useState(true);
 
-  useEffect(() => {
-    const syncToken = async () => {
-      try {
-        if (isAuthenticated) {
-          const token = await getAccessTokenSilently();
-          setAuthToken(token);
-        } else {
-          setAuthToken(null);
-        }
-      } catch (error) {
-        console.error("Erro ao obter token de autenticação:", error);
-      }
-    };
+  // useEffect(() => {
+  //   const initializeUser = async () => {
+  //     if (isAuthenticated && user) {
+  //       try {
+  //         // 1. Obter e configurar o token de autenticação
+  //         const token = await getAccessTokenSilently();
+  //         setAuthToken(token);
 
-    if (!isLoading) {
-      syncToken();
-    }
-  }, [isAuthenticated, isLoading, getAccessTokenSilently]);
+  //         // 2. Sincronizar utilizador e obter perfil do backend
+  //         // Carregar perfil do utilizador
+  //         const profileRes = await userService.getProfile();
+  //         if (profileRes.success && profileRes.data) {
+  //           const backendUser = profileRes.data;
+  //           // Atualizar o contexto com os dados do nosso backend
+  //           dispatch({
+  //             type: 'SET_USER',
+  //             payload: {
+  //               id: backendUser.id,
+  //               name: backendUser.name,
+  //               email: backendUser.email,
+  //               avatar: backendUser.avatar,
+  //               role: backendUser.role,
+  //               isVerified: backendUser.isVerified,
+  //               // Adicionar perfis para acesso fácil
+  //               studentProfile: backendUser.studentProfile,
+  //               companyProfile: backendUser.companyProfile,
+  //             }
+  //           });
 
-  // Carregar Dados Iniciais da API
-  useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        dispatch({ type: 'SET_LOADING', payload: true });
-        
-        const [problemsRes, solutionsRes] = await Promise.all([
-          problemsService.getAll(),
-          solutionsService.getAll()
-        ]);
+  //           // 3. Carregar dados específicos do papel (se aplicável)
+  //           if (backendUser.role === 'ADMIN') {
+  //             const statsRes = await adminService.getDashboardStats();
+  //             if (statsRes.success && statsRes.data) {
+  //               dispatch({ type: 'SET_STATS', payload: statsRes.data });
+  //             }
+  //           }
+  //         } else {
+  //           throw new Error(profileRes.message || 'Falha ao carregar perfil do utilizador.');
+  //         }
+  //       } catch (error) {
+  //         console.error("Erro ao inicializar dados do utilizador:", error);
+  //         // Opcional: fazer logout ou mostrar uma mensagem de erro
+  //       }
+  //     } else {
+  //       // Limpar token se não estiver autenticado
+  //       setAuthToken(null);
+  //     }
+  //     setIsDataLoading(false);
+  //   };
 
-        if (problemsRes.success) {
-          dispatch({ type: 'SET_PROBLEMS', payload: problemsRes.data.problems || [] });
-        }
-
-        if (solutionsRes.success) {
-          dispatch({ type: 'SET_SOLUTIONS', payload: solutionsRes.data.solutions || [] });
-        }
-      } catch (error) {
-        console.error("Erro ao carregar dados iniciais:", error);
-        dispatch({ type: 'SET_ERROR', payload: 'Erro ao carregar dados iniciais' });
-      } finally {
-        dispatch({ type: 'SET_LOADING', payload: false });
-        setIsDataLoading(false);
-      }
-    };
-
-    loadInitialData();
-  }, [dispatch]);
-
-  // Sincronizar Utilizador Auth0 com o Contexto e carregar dados específicos do utilizador
-  useEffect(() => {
-    const loadUserData = async () => {
-      if (isAuthenticated && user) {
-        const role = (user as any)['https://solveedu.com/roles']?.[0] || 'STUDENT';
-        
-        // Atualizar informações do utilizador
-        dispatch({
-          type: 'SET_USER',
-          payload: {
-            id: user.sub || 'unknown',
-            name: user.name || '',
-            email: user.email || '',
-            avatar: user.picture,
-            role: role === 'ADMIN' ? 'Admin' : role === 'COMPANY' ? 'Empresa' : 'Estudante' as const,
-            isVerified: user.email_verified
-          }
-        });
-
-        // Carregar dados específicos baseado no papel
-        try {
-          const token = await getAccessTokenSilently();
-          
-          // Carregar perfil do utilizador
-          const profileRes = await userService.getProfile(token);
-          if (profileRes.success && profileRes.data) {
-            // Dados carregados com sucesso
-            console.log('Perfil carregado:', profileRes.data);
-          }
-
-          // Se for admin, carregar estatísticas do dashboard
-          if (role === 'ADMIN') {
-            const statsRes = await adminService.getDashboardStats(token);
-            if (statsRes.success && statsRes.data) {
-              dispatch({
-                type: 'SET_STATS',
-                payload: {
-                  activeMembers: statsRes.data.users.total,
-                  activeDiscussions: statsRes.data.problems.active,
-                  acceptedSolutions: statsRes.data.solutions.total
-                }
-              });
-            }
-          }
-        } catch (error) {
-          console.error("Erro ao carregar dados específicos do utilizador:", error);
-        }
-      }
-    };
-
-    if (!isLoading && isAuthenticated) {
-      loadUserData();
-    }
-  }, [isAuthenticated, isLoading, user, getAccessTokenSilently, dispatch]);
+  //   if (!isLoading && isAuthenticated) {
+  //     initializeUser();
+  //   } else if (!isLoading) {
+  //     setIsDataLoading(false);
+  //   }
+  // }, [isAuthenticated, isLoading, user, getAccessTokenSilently, dispatch]);
 
   if (isLoading || isDataLoading) {
     return <MoonLoader />;

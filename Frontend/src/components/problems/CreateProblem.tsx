@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useApp } from '../../context/AppContext';
 import { useNavigate } from 'react-router-dom';
-import { useAuth0 } from '@auth0/auth0-react';
-import { problemsService } from '../../services/problem.service';
+import { problemsService } from '../../services/problems.service';
 import { ArrowLeft, Plus, X, Upload, Loader } from 'lucide-react';
 import { Problem } from '../../types';
 import toast from 'react-hot-toast';
@@ -21,9 +19,7 @@ interface FormData {
 }
 
 const CreateProblem = () => {
-  const { dispatch } = useApp();
   const navigate = useNavigate();
-  const { getAccessTokenSilently } = useAuth0();
   const [isLoading, setIsLoading] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({
@@ -93,7 +89,11 @@ const CreateProblem = () => {
 
     try {
       setIsLoading(true);
-      const token = await getAccessTokenSilently();
+
+      // Calcular a data de deadline
+      const deadlineDays = parseInt(formData.deadline.split(' ')[0]);
+      const deadlineDate = new Date();
+      deadlineDate.setDate(deadlineDate.getDate() + deadlineDays);
 
       const problemData: Partial<Problem> = {
         title: formData.title,
@@ -101,23 +101,19 @@ const CreateProblem = () => {
         category: formData.category,
         difficulty: formData.difficulty,
         tags: formData.tags,
-        deadline: formData.deadline,
+        deadline: deadlineDate.toISOString(),
         reward: formData.reward,
         requirements: formData.requirements.filter(req => req.trim()),
       };
 
-      const response = await problemsService.create(problemData, token);
+      // O token é adicionado automaticamente pelo intercetor da API
+      const response = await problemsService.create(problemData);
 
       if (response.success) {
-        dispatch({
-          type: 'ADD_PROBLEM',
-          payload: response.data
-        });
-
         toast.success('Desafio criado com sucesso!');
         navigate('/company-dashboard');
       } else {
-        toast.error(response.message || 'Erro ao criar desafio');
+        toast.error((response as any).message || 'Erro ao criar desafio');
       }
     } catch (error) {
       console.error('Error creating problem:', error);

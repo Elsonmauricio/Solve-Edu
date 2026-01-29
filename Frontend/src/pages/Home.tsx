@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Target, Users, Trophy, Star, Zap, LucideIcon } from 'lucide-react';
-import { solutionsService } from '../services/solutions.service';
+import { solutionsService } from '../services/solution.service';
 
 interface Feature {
   icon: LucideIcon;
@@ -24,6 +24,15 @@ interface StatsResponse {
 }
 
 const Home: React.FC = () => {
+  // Mapeamento de cores para classes Tailwind.
+  // Isto garante que o compilador JIT do Tailwind deteta as classes completas.
+  const colorClasses: { [key: string]: { bg: string; text: string } } = {
+    blue: { bg: 'bg-blue-100', text: 'text-blue-600' },
+    purple: { bg: 'bg-purple-100', text: 'text-purple-600' },
+    teal: { bg: 'bg-teal-100', text: 'text-teal-600' },
+    orange: { bg: 'bg-orange-100', text: 'text-orange-600' },
+  };
+
   const features: Feature[] = [
     {
       icon: Target,
@@ -180,6 +189,7 @@ const Home: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature, index) => {
               const Icon = feature.icon;
+              const colors = colorClasses[feature.color] || { bg: 'bg-gray-100', text: 'text-gray-600' };
               return (
                 <motion.div
                   key={feature.title}
@@ -190,8 +200,8 @@ const Home: React.FC = () => {
                   viewport={{ once: true }}
                   whileHover={{ y: -5 }}
                 >
-                  <div className={`w-12 h-12 bg-${feature.color}-100 rounded-xl flex items-center justify-center mb-6`}>
-                    <Icon className={`text-${feature.color}-600`} size={24} />
+                  <div className={`w-12 h-12 ${colors.bg} rounded-xl flex items-center justify-center mb-6`}>
+                    <Icon className={colors.text} size={24} />
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-4">
                     {feature.title}

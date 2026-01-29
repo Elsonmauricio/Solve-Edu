@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth0 } from '@auth0/auth0-react';
 import { solutionsService } from '../../services/solution.service';
 import { ArrowLeft, Plus, X, Upload, Github, Link as LinkIcon, Loader } from 'lucide-react';
 import { Solution, Problem, User } from '../../types';
@@ -12,7 +11,6 @@ const SubmitSolution = () => {
   const { id } = useParams();
   const { problems, dispatch, user } = useApp();
   const navigate = useNavigate();
-  const { getAccessTokenSilently } = useAuth0();
   const [isLoading, setIsLoading] = useState(false);
 
   const problem = problems.find((p: Problem) => p.id === parseInt(id || '0'));
@@ -68,7 +66,6 @@ const SubmitSolution = () => {
 
     try {
       setIsLoading(true);
-      const token = await getAccessTokenSilently();
 
       const solutionData: Partial<Solution> = {
         title: formData.title,
@@ -81,7 +78,7 @@ const SubmitSolution = () => {
       };
 
       // Enviar para o backend
-      const response = await solutionsService.create(solutionData as any, token);
+      const response = await solutionsService.create(solutionData as any);
 
       if (response.success) {
         // Adicionar ao contexto também para atualização imediata

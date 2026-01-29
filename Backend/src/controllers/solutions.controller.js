@@ -1,9 +1,6 @@
 import { validationResult } from 'express-validator';
-import { SolutionModel } from '../models/Solution.model.js';
-import { ProblemModel } from '../models/Problem.model.js';
-import { NotificationModel } from '../models/Notification.model.js';
-import prisma from '../lib/prisma.js'; // Correção: Importação default (sem chaves)
 import { storageService } from '../services/storage.service.js';
+import prisma from '../lib/prisma.js';
 
 export class SolutionController {
   static async createSolution(req, res) {
@@ -17,7 +14,14 @@ export class SolutionController {
       const { problemId } = req.body;
 
       // Check if problem exists and is active
-      const problem = await ProblemModel.findById(problemId);
+      const problem = await prisma.problem.findUnique({
+        where: { id: problemId },
+        include: {
+          company: {
+            include: { user: true },
+          },
+        },
+      });
       if (!problem) {
         return res.status(404).json({ 
           success: false, 
@@ -33,7 +37,6 @@ export class SolutionController {
       }
 
       // Check if student has already submitted a solution
-      // Correção: Usar 'prisma.solution' diretamente, pois SolutionModel não tem o método findFirst estático
       const existingSolution = await prisma.solution.findFirst({ 
         where: {
           problemId,
@@ -65,20 +68,27 @@ export class SolutionController {
         submittedAt: new Date(),
       };
 
-      const solution = await SolutionModel.create(solutionData);
+      const solution = await prisma.solution.create({
+        data: solutionData
+      });
 
       // Create notification for company
-      await NotificationModel.create({
-        userId: problem.company.user.id,
-        type: 'SOLUTION_SUBMITTED',
-        title: 'Nova Solução Submetida',
-        message: `Uma nova solução foi submetida para o seu desafio "${problem.title}"`,
-        data: {
-          problemId: problem.id,
-          solutionId: solution.id,
-          studentName: req.userName,
-        },
-      });
+      // Nota: A relação para obter o `userId` da empresa precisa de um include
+      if (problem.company?.user?.id) {
+        await prisma.notification.create({
+          data: {
+            userId: problem.company.user.id,
+            type: 'SOLUTION_SUBMITTED',
+            title: 'Nova Solução Submetida',
+            message: `Uma nova solução foi submetida para o seu desafio "${problem.title}"`,
+            data: {
+              problemId: problem.id,
+              solutionId: solution.id,
+              studentName: req.userName,
+            },
+          },
+        });
+      }
 
       res.status(201).json({
         success: true,
@@ -108,22 +118,46 @@ export class SolutionController {
         sortOrder = 'desc',
       } = req.query;
 
-      const filters = {
-        problemId,
-        studentId,
-        status,
-        search,
+      const pageNum = parseInt(page);
+      const limitNum = parseInt(limit);
+      const skip = (pageNum - 1) * limitNum;
+
+      const where = {
+        ...(problemId && { problemId }),
+        ...(studentId && { studentId }),
+        ...(status && { status }),
+        ...(search && {
+          OR: [
+            { title: { contains: search, mode: 'insensitive' } },
+            { description: { contains: search, mode: 'insensitive' } },
+          ],
+        }),
       };
 
-      const pagination = {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        sortBy,
-        sortOrder,
+      const [solutions, total] = await Promise.all([
+        prisma.solution.findMany({
+          where,
+          include: {
+            student: { include: { user: { select: { name: true, avatar: true } } } },
+            problem: { select: { title: true } },
+          },
+          orderBy: { [sortBy]: sortOrder },
+          skip,
+          take: limitNum,
+        }),
+        prisma.solution.count({ where }),
+      ]);
+
+      const result = {
+        data: solutions,
+        pagination: {
+          total,
+          page: pageNum,
+          limit: limitNum,
+          totalPages: Math.ceil(total / limitNum),
+        }
       };
-
-      const result = await SolutionModel.findAll(filters, pagination);
-
+      
       res.json({
         success: true,
         data: result,
@@ -133,7 +167,8 @@ export class SolutionController {
       console.error('Get solutions error:', error);
       res.status(500).json({ 
         success: false, 
-        message: 'Erro ao buscar soluções.' 
+        message: 'Erro ao buscar soluções.',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   }
@@ -142,7 +177,14 @@ export class SolutionController {
     try {
       const { id } = req.params;
 
-      const solution = await SolutionModel.findById(id);
+      const solution = await prisma.solution.findUnique({
+        where: { id },
+        include: {
+          student: { include: { user: true } },
+          problem: { include: { company: { include: { user: true } } } },
+        },
+      });
+
       if (!solution) {
         return res.status(404).json({ 
           success: false, 
@@ -162,9 +204,6 @@ export class SolutionController {
           message: 'Não tem permissão para ver esta solução.' 
         });
       }
-
-      // Increment views
-      await SolutionModel.incrementViews(id);
 
       res.json({
         success: true,
@@ -191,7 +230,10 @@ export class SolutionController {
       const updateData = req.body;
 
       // Check if solution exists
-      const existingSolution = await SolutionModel.findById(id);
+      const existingSolution = await prisma.solution.findUnique({
+        where: { id },
+        include: { student: { include: { user: true } } }
+      });
       if (!existingSolution) {
         return res.status(404).json({ 
           success: false, 
@@ -221,21 +263,27 @@ export class SolutionController {
         });
       }
 
-      const solution = await SolutionModel.update(id, updateData);
+      const solution = await prisma.solution.update({
+        where: { id },
+        data: updateData,
+        include: { student: { include: { user: true } }, problem: true }
+      });
 
       // Create notification if status changed by company/admin
       if (req.userRole !== 'STUDENT' && updateData.status && updateData.status !== existingSolution.status) {
-        await NotificationModel.create({
-          userId: solution.student.user.id,
-          type: 'SOLUTION_REVIEWED',
-          title: 'Solução Avaliada',
-          message: `A sua solução para "${solution.problem.title}" foi ${updateData.status.toLowerCase()}`,
+        await prisma.notification.create({
           data: {
-            problemId: solution.problem.id,
-            solutionId: solution.id,
-            status: updateData.status,
-            feedback: updateData.feedback,
-          },
+            userId: solution.student.user.id,
+            type: 'SOLUTION_REVIEWED',
+            title: 'Solução Avaliada',
+            message: `A sua solução para "${solution.problem.title}" foi ${updateData.status.toLowerCase()}`,
+            data: {
+              problemId: solution.problem.id,
+              solutionId: solution.id,
+              status: updateData.status,
+              feedback: updateData.feedback,
+            },
+          }
         });
       }
 
@@ -259,7 +307,10 @@ export class SolutionController {
       const { id } = req.params;
 
       // Check if solution exists
-      const existingSolution = await SolutionModel.findById(id);
+      const existingSolution = await prisma.solution.findUnique({
+        where: { id },
+        include: { student: { include: { user: true } } }
+      });
       if (!existingSolution) {
         return res.status(404).json({ 
           success: false, 
@@ -279,7 +330,7 @@ export class SolutionController {
         });
       }
 
-      await SolutionModel.delete(id);
+      await prisma.solution.delete({ where: { id } });
 
       res.json({
         success: true,
@@ -299,7 +350,10 @@ export class SolutionController {
     try {
       const studentId = req.studentId || req.params.studentId;
 
-      const solutions = await SolutionModel.findByStudent(studentId);
+      const solutions = await prisma.solution.findMany({
+        where: { studentId },
+        include: { problem: { select: { title: true, category: true } } }
+      });
 
       res.json({
         success: true,
@@ -320,7 +374,10 @@ export class SolutionController {
       const { problemId } = req.params;
 
       // Check if user can view solutions
-      const problem = await ProblemModel.findById(problemId);
+      const problem = await prisma.problem.findUnique({
+        where: { id: problemId },
+        include: { company: { include: { user: true } } }
+      });
       if (!problem) {
         return res.status(404).json({ 
           success: false, 
@@ -339,7 +396,10 @@ export class SolutionController {
         });
       }
 
-      const solutions = await SolutionModel.findByProblem(problemId);
+      const solutions = await prisma.solution.findMany({
+        where: { problemId },
+        include: { student: { include: { user: { select: { name: true, avatar: true } } } } }
+      });
 
       res.json({
         success: true,
@@ -359,7 +419,7 @@ export class SolutionController {
     try {
       const { id } = req.params;
 
-      const solution = await SolutionModel.findById(id);
+      const solution = await prisma.solution.findUnique({ where: { id } });
       if (!solution) {
         return res.status(404).json({ 
           success: false, 
@@ -367,7 +427,10 @@ export class SolutionController {
         });
       }
 
-      await SolutionModel.incrementLikes(id);
+      await prisma.solution.update({
+        where: { id },
+        data: { likes: { increment: 1 } }
+      });
 
       res.json({
         success: true,
@@ -386,7 +449,12 @@ export class SolutionController {
 
   static async getTopSolutions(req, res) {
     try {
-      const solutions = await SolutionModel.getTopSolutions();
+      const solutions = await prisma.solution.findMany({
+        where: { status: 'ACCEPTED' },
+        orderBy: [{ rating: 'desc' }, { likes: 'desc' }],
+        take: 10,
+        include: { student: { include: { user: true } }, problem: true }
+      });
 
       res.json({
         success: true,
@@ -404,7 +472,18 @@ export class SolutionController {
 
   static async getStats(req, res) {
     try {
-      const stats = await SolutionModel.getStats();
+      const [total, accepted, pending] = await Promise.all([
+        prisma.solution.count(),
+        prisma.solution.count({ where: { status: 'ACCEPTED' } }),
+        prisma.solution.count({ where: { status: 'PENDING_REVIEW' } })
+      ]);
+
+      const stats = {
+        total,
+        accepted,
+        pending,
+        acceptanceRate: total > 0 ? (accepted / total) * 100 : 0
+      };
 
       res.json({
         success: true,
