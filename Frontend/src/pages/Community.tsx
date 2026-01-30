@@ -8,13 +8,23 @@ import {
   MessageCircle, 
   TrendingUp, 
   Award,
-  Star,
-  Zap,
-  //Zap,
   Calendar,
-  MapPin
+  Zap
 } from 'lucide-react';
-import { User, Solution } from '../types';
+import { User } from '../types';
+
+// Interfaces para tipar as respostas da API e evitar erros de "unknown"
+interface StatsResponse {
+  success: boolean;
+  data: {
+    accepted: number;
+  };
+}
+
+interface TopSolutionsResponse {
+  success: boolean;
+  data: any[];
+}
 
 const Community = () => {
   const [communityStats, setCommunityStats] = useState({
@@ -23,15 +33,15 @@ const Community = () => {
     acceptedSolutions: 0
   });
   const [topStudents, setTopStudents] = useState<User[]>([]);
-  const [topCompanies, setTopCompanies] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchCommunityData = async () => {
       try {
+        // Cast explícito para garantir que o TypeScript reconhece a estrutura das respostas
         const [statsRes, topSolutionsRes] = await Promise.all([
-          solutionsService.getStats(),
-          solutionsService.getTopSolutions()
+          solutionsService.getStats() as Promise<any>,
+          solutionsService.getTopSolutions() as Promise<any>
         ]);
 
         if (statsRes.success) {
@@ -43,39 +53,47 @@ const Community = () => {
 
         if (topSolutionsRes.success) {
           // Tipagem mais segura para o retorno da API
-          const students: User[] = topSolutionsRes.data
-            .filter((solution: any) => solution.student?.user)
-            .map((solution: any) => {
-              const studentData = solution.student;
-              const userData = studentData.user;
+          const students = topSolutionsRes.data.map((solution: any) => {
+              // Type guard para garantir que 'student' é um objeto com 'user'
+              if (!solution.student || typeof solution.student !== 'object' || !solution.student.user) {
+                return null;
+              }
+
+              const studentData = solution.student; // Agora é um objeto
+              const userData = studentData.user; // Agora é seguro aceder
               
               return {
-                id: userData?.id || studentData?.id || "unknown",
-                name: userData?.name || "Utilizador Desconhecido",
-                avatar: userData?.avatar,
-                role: "Estudante",
+                id: userData.id || studentData.id || "unknown",
+                name: userData.name || "Utilizador Desconhecido",
+                avatar: userData.avatar,
+                role: "STUDENT",
                 school: studentData.school || "Escola não informada",
                 level: "Nível " + (studentData.year || 1),
                 isVerified: true,
-                solutionsCount: (solution as any)._count?.solutions || 1, // Tenta ler contagem agregada do Prisma se existir
+                solutionsCount: 1, // Placeholder, a API não retorna a contagem de soluções por estudante aqui
                 rating: solution.rating || 0
               };
-            });
+            }).filter((user: any) => user !== null) as User[];
           setTopStudents(students);
         } 
         setLoading(false);
-      };
-
-      fetchCommunityData();
+      } catch (error) {
+        console.error("Error fetching community data:", error);
+        setLoading(false);
+      }
     };
-  }, []);
+
+    // CHAMAR a função fetchCommunityData
+    fetchCommunityData();
+  }, []); // O array de dependências vazio garante que isto corre apenas uma vez
 
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <motion.div
-          className="mb-8"
+         {...({ className: "mb-8" } as any)}
+          initialclassName="mb-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -93,7 +111,7 @@ const Community = () => {
           <div className="lg:col-span-2 space-y-8">
             {/* Community Stats */}
             <motion.div
-              className="grid grid-cols-1 md:grid-cols-3 gap-6"
+             {...({ className: "grid grid-cols-1 md:grid-cols-3 gap-6", } as any)}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
@@ -119,7 +137,7 @@ const Community = () => {
 
             {/* Top Students */}
             <motion.div
-              className="bg-white rounded-2xl shadow-lg border border-gray-200"
+             {...({ className: "bg-white rounded-2xl shadow-lg border border-gray-200" } as any)}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
@@ -142,10 +160,12 @@ const Community = () => {
                 <div className="space-y-4">
                   {loading ? (
                     <div className="text-center text-gray-500 py-4">A carregar...</div>
-                  ) : (
+                  ) : topStudents.length > 0 ? (
                     topStudents.map((student, index) => (
-                      <UserBadge key={student.name} user={student} showStats={true} />
+                      <UserBadge key={student.id} user={student} showStats={true} />
                     ))
+                  ) : (
+                    <p className="text-center text-gray-500 py-4">Não foi possível carregar o ranking de estudantes.</p>
                   )}
                 </div>
               </div>
@@ -153,7 +173,7 @@ const Community = () => {
 
             {/* Forum Topics */}
             <motion.div
-              className="bg-white rounded-2xl shadow-lg border border-gray-200"
+             {...({ className: "bg-white rounded-2xl shadow-lg border border-gray-200" } as any)}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.6 }}
@@ -183,7 +203,7 @@ const Community = () => {
           <div className="space-y-6">
             {/* Top Companies */}
             <motion.div
-              className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200"
+             {...({ className: "bg-white rounded-2xl p-6 shadow-lg border border-gray-200" } as any)}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.8 }}
@@ -196,14 +216,14 @@ const Community = () => {
                 {loading ? (
                   <div className="text-center text-gray-500 py-4">A carregar...</div>
                 ) : (
-                  <p className="text-sm text-gray-500">Funcionalidade de ranking de empresas em desenvolvimento.</p>
+                  <p className="text-sm text-gray-500 text-center py-4">Funcionalidade de ranking de empresas em desenvolvimento.</p>
                 )}
               </div>
             </motion.div>
 
             {/* Upcoming Events */}
             <motion.div
-              className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200"
+             {...({ className: "bg-white rounded-2xl p-6 shadow-lg border border-gray-200" } as any)}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 1 }}
@@ -223,7 +243,7 @@ const Community = () => {
 
             {/* Community Guidelines */}
             <motion.div
-              className="bg-gradient-to-r from-solve-blue to-solve-purple rounded-2xl p-6 text-white"
+             {...({ className: "bg-white rounded-2xl p-6 shadow-lg border border-gray-200" } as any)}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 1.2 }}
@@ -232,19 +252,19 @@ const Community = () => {
               
               <ul className="space-y-3 text-sm text-blue-100">
                 <li className="flex items-center space-x-2">
-                  <Zap className="w-4 h-4" />
+                  <Zap size={16} />
                   <span>Seja respeitoso e construtivo</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <Zap className="w-4 h-4" />
+                  <Zap size={16} />
                   <span>Partilhe conhecimento livremente</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <Zap className="w-4 h-4" />
+                  <Zap size={16} />
                   <span>Dê crédito onde é devido</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <Zap className="w-4 h-4" />
+                  <Zap size={16} />
                   <span>Reporte comportamentos inadequados</span>
                 </li>
               </ul>
@@ -256,7 +276,7 @@ const Community = () => {
 
             {/* Quick Actions */}
             <motion.div
-              className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200"
+             {...({ className: "bg-white rounded-2xl p-6 shadow-lg border border-gray-200" } as any)}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 1.4 }}

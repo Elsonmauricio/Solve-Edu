@@ -18,10 +18,10 @@ const createProblemValidation = [
 ];
 
 // Public routes (with optional auth)
-router.get('/', optionalAuth, ProblemController.getProblems);
+router.get('/', optionalAuth, ProblemController.getAllProblems);
 router.get('/active', optionalAuth, ProblemController.getActiveProblems);
 router.get('/featured', optionalAuth, ProblemController.getFeaturedProblems);
-router.get('/:id', optionalAuth, ProblemController.getProblem);
+router.get('/:id', optionalAuth, ProblemController.getProblemById);
 
 // Protected routes
 router.post('/', authenticate(['COMPANY', 'ADMIN']), createProblemValidation, ProblemController.createProblem);

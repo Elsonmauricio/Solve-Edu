@@ -1,6 +1,7 @@
 import { validationResult } from 'express-validator';
 import { storageService } from '../services/storage.service.js';
 import prisma from '../lib/prisma.js';
+import emailService from '../services/email.service.js';
 
 export class SolutionController {
   static async createSolution(req, res) {
@@ -88,6 +89,16 @@ export class SolutionController {
             },
           },
         });
+
+        // Enviar email para a empresa
+        if (problem.company.user.email) {
+          await emailService.sendSolutionSubmittedEmail(
+            problem.company.user.email,
+            req.userName,
+            problem.title,
+            solution.id
+          );
+        }
       }
 
       res.status(201).json({
@@ -285,6 +296,17 @@ export class SolutionController {
             },
           }
         });
+
+        // Enviar email para o estudante
+        if (solution.student?.user?.email) {
+          await emailService.sendSolutionReviewedEmail(
+            solution.student.user.email,
+            solution.student.user.name,
+            solution.problem.title,
+            updateData.status,
+            updateData.feedback
+          );
+        }
       }
 
       res.json({

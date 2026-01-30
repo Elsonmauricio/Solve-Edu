@@ -2,16 +2,16 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
 import { useParams, useNavigate } from 'react-router-dom';
-import { solutionsService } from '../../services/solution.service';
 import { ArrowLeft, Plus, X, Upload, Github, Link as LinkIcon, Loader } from 'lucide-react';
 import { Solution, Problem, User } from '../../types';
 import toast from 'react-hot-toast';
+import { useSolutions, CreateSolutionDto } from '../../hooks/useSolutions';
 
 const SubmitSolution = () => {
   const { id } = useParams();
   const { problems, dispatch, user } = useApp();
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
+  const { createSolution, loading: isLoading } = useSolutions();
 
   const problem = problems.find((p: Problem) => p.id === parseInt(id || '0'));
 
@@ -64,10 +64,9 @@ const SubmitSolution = () => {
     
     if (!problem) return;
 
+    // O hook gere o estado de loading
     try {
-      setIsLoading(true);
-
-      const solutionData: Partial<Solution> = {
+      const solutionData: CreateSolutionDto = {
         title: formData.title,
         description: formData.description,
         problemId: problem.id,
@@ -77,26 +76,12 @@ const SubmitSolution = () => {
         documentation: formData.documentation,
       };
 
-      // Enviar para o backend
-      const response = await solutionsService.create(solutionData as any);
-
-      if (response.success) {
-        // Adicionar ao contexto também para atualização imediata
-        dispatch({
-          type: 'ADD_SOLUTION',
-          payload: response.data
-        });
-
-        toast.success('Solução submetida com sucesso!');
-        navigate('/student-dashboard');
-      } else {
-        toast.error(response.message || 'Erro ao submeter solução');
-      }
+      await createSolution(solutionData);
+      toast.success('Solução submetida com sucesso!');
+      navigate('/student-dashboard');
     } catch (error) {
       console.error('Error submitting solution:', error);
       toast.error('Erro ao submeter solução. Tente novamente.');
-    } finally {
-      setIsLoading(false);
     }
   };
 

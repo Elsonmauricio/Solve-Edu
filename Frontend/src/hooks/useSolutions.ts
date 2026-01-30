@@ -1,7 +1,15 @@
 import { useState, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
-import { solutionsService } from '../services/solutions.service';
-import { Solution } from '../types';
+import { solutionsService } from '../services/solution.service';
+import { Solution } from '../types'; // Importar do ficheiro central
+
+// DTO (Data Transfer Object) para a criação de uma solução
+export interface CreateSolutionDto extends Partial<Omit<Solution, 'id' | 'status' | 'student' | 'submittedAt'>> {
+  problemId: number;
+}
+
+// Status possíveis para uma solução
+export type SolutionStatus = 'DRAFT' | 'PENDING_REVIEW' | 'UNDER_REVIEW' | 'ACCEPTED' | 'REJECTED' | 'NEEDS_REVISION' | 'AWARDED';
 
 export const useSolutions = () => {
   const context = useApp();
@@ -11,7 +19,7 @@ export const useSolutions = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createSolution = useCallback(async (solutionData: Partial<Solution>) => {
+  const createSolution = useCallback(async (solutionData: CreateSolutionDto) => {
     setLoading(true);
     setError(null);
     
@@ -39,7 +47,7 @@ export const useSolutions = () => {
   const fetchSolution = useCallback(async (id: string | number) => {
     setLoading(true);
     try {
-      const response = await solutionsService.getById(id);
+      const response = await solutionsService.getById(Number(id));
       return response.data || response;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao carregar solução';
@@ -50,21 +58,22 @@ export const useSolutions = () => {
     }
   }, []);
 
-  const getSolutionById = useCallback((id: string | number) => {
-    return solutions.find((solution: Solution) => solution.id === parseInt(String(id)));
+  const getSolutionById = useCallback((id: string | number) => { 
+    return solutions.find((solution: Solution) => solution.id === Number(id));
   }, [solutions]);
 
   const getSolutionsByProblem = useCallback((problemId: string | number) => {
-    return solutions.filter((solution: Solution) => solution.problemId === parseInt(String(problemId)));
+    return solutions.filter((solution: Solution) => solution.problemId === Number(problemId));
   }, [solutions]);
 
-  const getSolutionsByStudent = useCallback((student: string) => {
-    return solutions.filter((solution: Solution) => solution.student === student);
+  const getSolutionsByStudent = useCallback((studentId: string) => {
+    // Compara o ID do perfil do estudante
+    return solutions.filter((solution: Solution) => solution.student?.id === studentId);
   }, [solutions]);
 
   const updateSolutionStatus = useCallback(async (
     solutionId: number,
-    status: string,
+    status: SolutionStatus,
     feedback: string | null = null
   ) => {
     setLoading(true);
