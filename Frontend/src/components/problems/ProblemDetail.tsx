@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useApp } from '../../context/AppContext';
 import { problemsService } from '../../services/problems.service';
 import { 
   Clock, 
@@ -44,7 +43,6 @@ interface Problem {
 
 const ProblemDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { problems, solutions } = useApp();
   const [problemDetail, setProblemDetail] = useState<Problem | null>(null);
   const [isLoading, setIsLoading] = useState(true);  
 
@@ -56,7 +54,7 @@ const ProblemDetail: React.FC = () => {
         setIsLoading(true);
         const response = await problemsService.getById(id);
         if (response.success) {
-          setProblemDetail(response.data);
+          setProblemDetail(response.data as unknown as Problem);
         }
       } catch (error) {
         console.error('Erro ao carregar detalhe do problema:', error);

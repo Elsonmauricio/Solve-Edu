@@ -1,5 +1,4 @@
 import { validationResult } from 'express-validator';
-import { UserModel, StudentProfileModel, CompanyProfileModel } from '../models/User.model.js';
 import prisma from '../lib/prisma.js';
 
 export class UserController {
@@ -7,7 +6,11 @@ export class UserController {
     try {
       const userId = req.userId;
 
-      const user = await UserModel.findById(userId);
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { studentProfile: true, companyProfile: true }
+      });
+
       if (!user) {
         return res.status(404).json({ 
           success: false, 
@@ -87,16 +90,24 @@ export class UserController {
       delete updateData.role;
       delete updateData.id;
 
-      const user = await UserModel.update(userId, updateData);
+      const profileData = updateData.profile;
+      delete updateData.profile;
 
-      // Update profile based on role
-      if (updateData.profile) {
+      const prismaUpdateData = { ...updateData };
+
+      if (profileData) {
         if (req.userRole === 'STUDENT') {
-          await StudentProfileModel.update(userId, updateData.profile);
+          prismaUpdateData.studentProfile = { update: profileData };
         } else if (req.userRole === 'COMPANY') {
-          await CompanyProfileModel.update(userId, updateData.profile);
+          prismaUpdateData.companyProfile = { update: profileData };
         }
       }
+
+      const user = await prisma.user.update({
+        where: { id: userId },
+        data: prismaUpdateData,
+        include: { studentProfile: true, companyProfile: true }
+      });
 
       res.json({
         success: true,
@@ -486,7 +497,10 @@ export class UserController {
         delete updateData.role;
       }
 
-      const user = await UserModel.update(id, updateData);
+      const user = await prisma.user.update({
+        where: { id },
+        data: updateData
+      });
 
       res.json({
         success: true,

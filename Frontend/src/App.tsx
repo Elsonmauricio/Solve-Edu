@@ -1,13 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
-import { useApp } from './context/AppContext';
 import { Toaster } from 'react-hot-toast';
-import { setAuthToken } from './services/api';
-import { problemsService } from './services/problems.service';
-import { solutionsService } from './services/solution.service';
-import { userService } from './services/user.service';
-import { adminService } from './services/admin.service';
 import MoonLoader from './components/common/MoonLoader';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
@@ -26,6 +20,7 @@ import CreateProblem from './components/problems/CreateProblem';
 import SubmitSolution from './components/solutions/SubmitSolution';
 import './styles/globals.css';
 import ProtectedRoute from './components/auth/ProtectedRoute'; // Confirmação: Este caminho está correto
+import { useUserInitialization } from './hooks/useUserInitialization';
 
 // Componente para gerir o redirecionamento inicial
 const RootRedirect = () => {
@@ -46,66 +41,9 @@ const RootRedirect = () => {
 };
 
 function App() {
-  const { getAccessTokenSilently, isAuthenticated, isLoading, user } = useAuth0();
-  const { dispatch } = useApp();
-  const [isDataLoading, setIsDataLoading] = useState(true);
-
-  // useEffect(() => {
-  //   const initializeUser = async () => {
-  //     if (isAuthenticated && user) {
-  //       try {
-  //         // 1. Obter e configurar o token de autenticação
-  //         const token = await getAccessTokenSilently();
-  //         setAuthToken(token);
-
-  //         // 2. Sincronizar utilizador e obter perfil do backend
-  //         // Carregar perfil do utilizador
-  //         const profileRes = await userService.getProfile();
-  //         if (profileRes.success && profileRes.data) {
-  //           const backendUser = profileRes.data;
-  //           // Atualizar o contexto com os dados do nosso backend
-  //           dispatch({
-  //             type: 'SET_USER',
-  //             payload: {
-  //               id: backendUser.id,
-  //               name: backendUser.name,
-  //               email: backendUser.email,
-  //               avatar: backendUser.avatar,
-  //               role: backendUser.role,
-  //               isVerified: backendUser.isVerified,
-  //               // Adicionar perfis para acesso fácil
-  //               studentProfile: backendUser.studentProfile,
-  //               companyProfile: backendUser.companyProfile,
-  //             }
-  //           });
-
-  //           // 3. Carregar dados específicos do papel (se aplicável)
-  //           if (backendUser.role === 'ADMIN') {
-  //             const statsRes = await adminService.getDashboardStats();
-  //             if (statsRes.success && statsRes.data) {
-  //               dispatch({ type: 'SET_STATS', payload: statsRes.data });
-  //             }
-  //           }
-  //         } else {
-  //           throw new Error(profileRes.message || 'Falha ao carregar perfil do utilizador.');
-  //         }
-  //       } catch (error) {
-  //         console.error("Erro ao inicializar dados do utilizador:", error);
-  //         // Opcional: fazer logout ou mostrar uma mensagem de erro
-  //       }
-  //     } else {
-  //       // Limpar token se não estiver autenticado
-  //       setAuthToken(null);
-  //     }
-  //     setIsDataLoading(false);
-  //   };
-
-  //   if (!isLoading && isAuthenticated) {
-  //     initializeUser();
-  //   } else if (!isLoading) {
-  //     setIsDataLoading(false);
-  //   }
-  // }, [isAuthenticated, isLoading, user, getAccessTokenSilently, dispatch]);
+  const { isLoading } = useAuth0();
+  // Hook personalizado para inicializar os dados do utilizador
+  const { isDataLoading } = useUserInitialization();
 
   if (isLoading || isDataLoading) {
     return <MoonLoader />;

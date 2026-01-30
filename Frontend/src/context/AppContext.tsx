@@ -1,5 +1,34 @@
 import React, { createContext, useContext, useReducer, ReactNode, Dispatch } from 'react';
-import { AppState, Problem, Solution, User, AppFilters, Stats } from '../types';
+import { Problem, Solution, User } from '../types';
+
+export interface Stats {
+  activeMembers: number;
+  activeDiscussions: number;
+  acceptedSolutions: number;
+}
+
+export interface AppFilters {
+  category: string;
+  difficulty: string;
+  problemId: string;
+  searchQuery: string;
+  status: string;
+  hasReward: boolean;
+}
+
+export interface AppState {
+  problems: Problem[];
+  solutions: Solution[];
+  users: User[];
+  user: User | null;
+  filters: AppFilters;
+  filteredProblems: Problem[];
+  filteredSolutions: Solution[];
+  notifications: any[];
+  stats: Stats;
+  loading: boolean;
+  error: string | null;
+}
 
 type AppAction =
   | { type: 'SET_PROBLEMS'; payload: Problem[] }
@@ -16,6 +45,8 @@ type AppAction =
 
 export interface AppContextType extends AppState {
   dispatch: Dispatch<AppAction>;
+  user: User | null;
+  filters: AppFilters;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -30,7 +61,8 @@ const initialState: AppState = {
     difficulty: '',
     problemId: '',
     searchQuery: '',
-    status: ''
+    status: '',
+    hasReward: false
   },
   filteredProblems: [],
   filteredSolutions: [],
