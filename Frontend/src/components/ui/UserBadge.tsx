@@ -29,11 +29,21 @@ const UserBadge: React.FC<UserBadgeProps> = ({ user, size = 'md', showStats = fa
 
   const getRoleColor = (role: string | undefined) => {
     switch (role) {
-      case 'Estudante': return 'bg-blue-100 text-blue-800';
-      case 'Empresa': return 'bg-green-100 text-green-800';
-      case 'Admin': return 'bg-purple-100 text-purple-800';
-      case 'Mentor': return 'bg-orange-100 text-orange-800';
+      case 'STUDENT': return 'bg-blue-100 text-blue-800';
+      case 'COMPANY': return 'bg-green-100 text-green-800';
+      case 'ADMIN': return 'bg-purple-100 text-purple-800';
+      case 'MENTOR': return 'bg-orange-100 text-orange-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getRoleLabel = (role: string | undefined) => {
+    switch (role) {
+      case 'STUDENT': return 'Estudante';
+      case 'COMPANY': return 'Empresa';
+      case 'ADMIN': return 'Admin';
+      case 'MENTOR': return 'Mentor';
+      default: return role;
     }
   };
 
@@ -63,20 +73,20 @@ const UserBadge: React.FC<UserBadgeProps> = ({ user, size = 'md', showStats = fa
           <h3 className="font-semibold text-gray-900 truncate">
             {user.name}
           </h3>
-          {user.role === 'Estudante' && (user.solutionsCount ?? 0) > 10 && (
+          {user.role === 'STUDENT' && (user.solutionsCount ?? 0) > 10 && (
             <Zap className="w-4 h-4 text-yellow-500" />
           )}
         </div>
         
         <div className="flex items-center space-x-2">
           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
-            {user.role}
+            {getRoleLabel(user.role)}
           </span>
-          <span className="text-xs text-gray-500">{user.school || user.company}</span>
+          <span className="text-xs text-gray-500">{(user as any).school || (user as any).companyName || (user as any).company}</span>
         </div>
 
         {/* Stats */}
-        {showStats && user.role === 'Estudante' && (
+        {showStats && user.role === 'STUDENT' && (
           <div className="flex items-center space-x-4 mt-2 text-xs text-gray-600">
             <div className="flex items-center space-x-1">
               <Trophy className="w-3 h-3" />
@@ -93,15 +103,15 @@ const UserBadge: React.FC<UserBadgeProps> = ({ user, size = 'md', showStats = fa
           </div>
         )}
 
-        {showStats && user.role === 'Empresa' && (
+        {showStats && user.role === 'COMPANY' && (
           <div className="flex items-center space-x-4 mt-2 text-xs text-gray-600">
             <div className="flex items-center space-x-1">
               <Award className="w-3 h-3" />
-              <span>{user.problemsPosted} problemas</span>
+              <span>{(user as any).problemsPosted} problemas</span>
             </div>
             <div className="flex items-center space-x-1">
               <Star className="w-3 h-3 text-yellow-500" />
-              <span>{user.solutionsAccepted} soluções aceites</span>
+              <span>{(user as any).solutionsAccepted} soluções aceites</span>
             </div>
           </div>
         )}

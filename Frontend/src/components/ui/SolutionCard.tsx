@@ -54,9 +54,9 @@ const SolutionCard: React.FC<SolutionCardProps> = ({ solution }) => {
               </h3>
               <div className="flex items-center space-x-2 mt-1">
                 <User size={14} className="text-gray-400" />
-                <span className="text-sm text-gray-500">{typeof solution.student === 'string' ? solution.student : solution.student.user.name}</span>
+                <span className="text-sm text-gray-500">{typeof solution.student === 'string' ? solution.student : solution.student?.user?.name || "Estudante"}</span>
                 <span className="text-gray-300">•</span>
-                <span className="text-sm text-gray-500">{solution.school || (typeof solution.student !== 'string' ? solution.student.school : '')}</span>
+                <span className="text-sm text-gray-500">{(solution as any).school || (typeof solution.student !== 'string' ? solution.student?.school : '')}</span>
               </div>
             </div>
           </div>
@@ -91,7 +91,7 @@ const SolutionCard: React.FC<SolutionCardProps> = ({ solution }) => {
           </div>
           <div className="flex items-center space-x-1">
             <Eye size={14} />
-            <span>{solution.views || 0} visualizações</span>
+            <span>{(solution as any).views || 0} visualizações</span>
           </div>
           {solution.githubUrl && (
             <a

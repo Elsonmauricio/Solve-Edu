@@ -91,7 +91,7 @@ const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
           </div>
           <div className="flex items-center space-x-1">
             <Users size={14} />
-            <span>{problem.solutionsCount} soluções</span>
+            <span>{(problem as any).solutionsCount || (problem as any)._count?.solutions || 0} soluções</span>
           </div>
         </div>
         {problem.reward && (
