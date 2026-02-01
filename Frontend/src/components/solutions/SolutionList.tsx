@@ -13,10 +13,17 @@ interface Filters {
   problemId: string;
 }
 
+interface Pagination {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 const SolutionList = () => {
   const { problems } = useApp(); // Keep for filter dropdown
   const [solutions, setSolutions] = useState<Solution[]>([]);
-  const [pagination, setPagination] = useState(null);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

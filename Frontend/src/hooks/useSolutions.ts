@@ -24,10 +24,7 @@ export const useSolutions = () => {
     setError(null);
     
     try {
-      const response = await solutionsService.create(
-        solutionData.problemId || 0, 
-        solutionData
-      );
+      const response = await solutionsService.create(solutionData);
       
       dispatch({
         type: 'ADD_SOLUTION',

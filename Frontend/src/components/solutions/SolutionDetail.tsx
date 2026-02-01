@@ -46,8 +46,8 @@ interface Problem {
 const SolutionDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const context = useApp();
-  const solutions = (context.solutions || []) as Solution[];
-  const problems = (context.problems || []) as Problem[];
+  const solutions = (context.solutions || []) as unknown as Solution[];
+  const problems = (context.problems || []) as unknown as Problem[];
   const [solutionDetail, setSolutionDetail] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   

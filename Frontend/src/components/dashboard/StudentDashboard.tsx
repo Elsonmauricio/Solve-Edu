@@ -89,13 +89,17 @@ const StudentDashboard = () => {
     user: {
       id: user?.id || "unknown",
       name: user?.name || "Estudante",
-      role: user?.role || "Estudante" as const,
-      school: user?.school || "Escola não definida",
-      level: user?.level || "Iniciante",
+      email: user?.email || "",
+      role: user?.role || "STUDENT",
+      avatar: user?.avatar,
+      school: (user as any)?.studentProfile?.school || (user as any)?.school || "Escola não definida",
+      level: (user as any)?.level || "Iniciante",
       isVerified: user?.isVerified,
+      createdAt: user?.createdAt || new Date().toISOString(),
+      updatedAt: user?.updatedAt || new Date().toISOString(),
       solutionsCount: stats.submittedCount,
       rating: parseFloat(stats.averageRating)
-    },
+    } as any,
     stats: [
       {
         title: "Soluções Submetidas",

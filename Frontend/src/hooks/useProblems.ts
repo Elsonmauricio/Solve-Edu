@@ -54,7 +54,7 @@ export const useProblems = () => {
   }, [problems]);
 
   const getProblemsByCompany = useCallback((company: string) => {
-    return problems.filter((problem: Problem) => problem.company === company);
+    return problems.filter((problem: Problem) => problem.company?.companyName === company);
   }, [problems]);
 
   const getProblemsByCategory = useCallback((category: string) => {

@@ -85,13 +85,13 @@ const CompanyDashboard = () => {
       role: user?.role || "COMPANY",
       avatar: user?.avatar,
       companyName: user?.companyProfile?.companyName || user?.name || "Empresa",
-      level: user?.level || "Parceiro",
+      level: (user as any)?.level || "Parceiro",
       isVerified: user?.isVerified,
       createdAt: user?.createdAt || new Date().toISOString(),
       updatedAt: user?.updatedAt || new Date().toISOString(),
       problemsPosted: stats.activeProblems,
       solutionsAccepted: stats.solutionsAccepted,
-    },
+    } as any,
     stats: [
       {
         title: "Desafios Publicados",
