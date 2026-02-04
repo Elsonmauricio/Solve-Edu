@@ -1,4 +1,4 @@
-import prisma from '../lib/prisma.js';
+import { supabase } from '../lib/supabase.js';
 
 export class SchoolController {
   /**
@@ -9,18 +9,13 @@ export class SchoolController {
       const schoolProfileId = req.schoolId;
 
       const [totalStudents, totalSolutions, acceptedSolutions] = await Promise.all([
-        prisma.studentProfile.count({
-          where: { schoolProfileId },
-        }),
-        prisma.solution.count({
-          where: { student: { schoolProfileId } },
-        }),
-        prisma.solution.count({
-          where: {
-            student: { schoolProfileId },
-            status: 'ACCEPTED',
-          },
-        }),
+        supabase.from('StudentProfile').select('*', { count: 'exact', head: true }).eq('schoolProfileId', schoolProfileId).then(r => r.count),
+        // Join implícito para filtrar soluções de estudantes desta escola
+        supabase.from('Solution').select('student!inner(schoolProfileId)', { count: 'exact', head: true }).eq('student.schoolProfileId', schoolProfileId).then(r => r.count),
+        supabase.from('Solution').select('student!inner(schoolProfileId)', { count: 'exact', head: true })
+          .eq('student.schoolProfileId', schoolProfileId)
+          .eq('status', 'ACCEPTED')
+          .then(r => r.count),
       ]);
 
       res.json({
@@ -48,23 +43,10 @@ export class SchoolController {
     try {
       const schoolProfileId = req.schoolId;
 
-      const students = await prisma.user.findMany({
-        where: {
-          studentProfile: {
-            schoolProfileId,
-          },
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          avatar: true,
-          level: true,
-          studentProfile: {
-            select: { course: true, year: true },
-          },
-        },
-      });
+      const { data: students } = await supabase
+        .from('User')
+        .select('id, name, email, avatar, level, studentProfile:StudentProfile!inner(course, year)')
+        .eq('studentProfile.schoolProfileId', schoolProfileId);
 
       res.json({ success: true, data: students });
     } catch (error) {

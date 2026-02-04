@@ -1,4 +1,4 @@
-import prisma from '../lib/prisma.js';
+import { supabase } from '../lib/supabase.js';
 
 export class StudentController {
   static async getDashboardStats(req, res) {
@@ -20,32 +20,21 @@ export class StudentController {
         ratingStats
       ] = await Promise.all([
         // Total submetido
-        prisma.solution.count({
-          where: { studentId }
-        }),
+        supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('studentId', studentId).then(r => r.count),
         // Total aceites
-        prisma.solution.count({
-          where: { 
-            studentId,
-            status: 'ACCEPTED'
-          }
-        }),
+        supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('studentId', studentId).eq('status', 'ACCEPTED').then(r => r.count),
         // Em análise (Ongoing)
-        prisma.solution.count({
-          where: { 
-            studentId,
-            status: { in: ['PENDING_REVIEW', 'NEEDS_REVISION'] }
-          }
-        }),
+        supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('studentId', studentId).in('status', ['PENDING_REVIEW', 'NEEDS_REVISION']).then(r => r.count),
         // Média de Rating
-        prisma.solution.aggregate({
-          _avg: { rating: true },
-          where: { 
-            studentId,
-            rating: { not: null }
-          }
-        })
+        supabase.from('Solution').select('rating').eq('studentId', studentId).not('rating', 'is', null)
       ]);
+
+      // Calcular média manualmente
+      let averageRating = 0;
+      if (ratingStats.data && ratingStats.data.length > 0) {
+        const sum = ratingStats.data.reduce((a, b) => a + (b.rating || 0), 0);
+        averageRating = parseFloat((sum / ratingStats.data.length).toFixed(1));
+      }
 
       res.json({
         success: true,
@@ -53,7 +42,7 @@ export class StudentController {
           submittedCount,
           acceptedCount,
           ongoingCount,
-          averageRating: ratingStats._avg.rating ? parseFloat(ratingStats._avg.rating.toFixed(1)) : 0
+          averageRating
         }
       });
 

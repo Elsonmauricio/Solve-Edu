@@ -1,5 +1,5 @@
 import { auth } from 'express-oauth2-jwt-bearer';
-import prisma from '../lib/prisma.js';
+import { supabase } from '../lib/supabase.js';
 
 /**
  * Middleware 1: Validar o Access Token do Auth0.
@@ -19,63 +19,135 @@ export const validateAccessToken = auth({
  */
 export const syncUser = async (req, res, next) => {
   const auth0Id = req.auth.payload.sub;
+  
+  // Tentar obter dados do payload do token
+  let email = req.auth.payload.email;
+  let name = req.auth.payload.name;
+  let picture = req.auth.payload.picture;
+  let email_verified = req.auth.payload.email_verified;
+
+  // Se o email não estiver no token (comum em Access Tokens), tentar buscar do endpoint /userinfo
+  if (!email) {
+    try {
+      const accessToken = req.headers.authorization?.split(' ')[1];
+      if (accessToken) {
+        const response = await fetch(`https://${process.env.AUTH0_DOMAIN}/userinfo`, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        
+        if (response.ok) {
+          const userInfo = await response.json();
+          email = userInfo.email;
+          name = userInfo.name || name;
+          picture = userInfo.picture || picture;
+          email_verified = userInfo.email_verified;
+        }
+      }
+    } catch (error) {
+      console.warn('Warning: Could not fetch userinfo from Auth0:', error.message);
+    }
+  }
 
   try {
-    let user = await prisma.user.findUnique({
-      where: { auth0Id },
-      include: { studentProfile: true, companyProfile: true }
-    });
+    // 1. Tentar encontrar o utilizador pelo auth0Id
+    let { data: user, error } = await supabase
+      .from('User')
+      .select('*')
+      .eq('auth0Id', auth0Id)
+      .maybeSingle(); // Usa maybeSingle para evitar erro PGRST116 se não existir
+
 
     // Se o utilizador não existir na base de dados, cria-o.
     if (!user) {
-      const email = req.auth.payload.email;
-      
       // Tenta encontrar pelo email para evitar duplicados (Link Account)
-      const existingUser = await prisma.user.findUnique({
-        where: { email }
-      });
+      let existingUser = null;
+      if (email) {
+        const { data } = await supabase
+          .from('User')
+          .select('*')
+          .eq('email', email)
+          .maybeSingle();
+        existingUser = data;
+      }
 
       if (existingUser) {
         // Se o email já existe, atualizamos o auth0Id para vincular a conta
-        user = await prisma.user.update({
-          where: { id: existingUser.id },
-          data: { auth0Id },
-          include: { studentProfile: true, companyProfile: true }
-        });
+        const { data: updatedUser } = await supabase
+          .from('User')
+          .update({ auth0Id })
+          .eq('id', existingUser.id)
+          .select('*')
+          .single();
+        
+        user = updatedUser;
       } else {
         // Se não existe nem por ID nem por Email, cria um novo
         const role = req.auth.payload['https://solveedu.com/roles']?.[0] || 'STUDENT';
+        console.log(`[Auth0] Creating new user: ${email || 'unknown'} with role: ${role}`);
 
-        user = await prisma.user.create({
-          data: {
+        // Garante um nome mesmo sem email
+        const displayName = name || req.auth.payload.nickname || (email ? email.split('@')[0] : 'Novo Utilizador');
+
+        // Criar utilizador base
+        const { data: newUser, error: createError } = await supabase
+          .from('User')
+          .insert({
             auth0Id,
-            email,
-            name: req.auth.payload.name || req.auth.payload.nickname,
-            avatar: req.auth.payload.picture,
+            email: email || `missing-email-${auth0Id}@placeholder.solveedu.com`, // Fallback para evitar erro de constraint
+            name: displayName,
+            avatar: picture,
             role: role.toUpperCase(),
-            isVerified: req.auth.payload.email_verified || false,
-            // Cria automaticamente o perfil correspondente
-            ...(role.toUpperCase() === 'STUDENT' && { studentProfile: { create: {} } }),
-            ...(role.toUpperCase() === 'COMPANY' && { companyProfile: { create: {} } }),
-            ...(role.toUpperCase() === 'SCHOOL' && { schoolProfile: { create: {} } }),
-          },
-          include: { studentProfile: true, companyProfile: true }
-        });
+            isVerified: email_verified || false
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Error creating user:', createError);
+          throw createError;
+        }
+
+        user = newUser;
+
+        // Criar perfil específico
+        if (role.toUpperCase() === 'STUDENT') {
+           const { data: profile } = await supabase.from('StudentProfile').insert({ userId: user.id }).select().single();
+           user.studentProfile = profile;
+        } else if (role.toUpperCase() === 'COMPANY') {
+           const { data: profile } = await supabase.from('CompanyProfile').insert({ userId: user.id }).select().single();
+           user.companyProfile = profile;
+        }
       }
+    }
+
+    if (!user) {
+      throw new Error('Falha crítica: Utilizador não encontrado nem criado.');
+    }
+
+    // Buscar perfis separadamente para evitar erros de relação
+    let sProfile = null;
+    let cProfile = null;
+
+    if (user.role === 'STUDENT') {
+      const { data } = await supabase.from('StudentProfile').select('*').eq('userId', user.id).maybeSingle();
+      sProfile = data;
+      user.studentProfile = sProfile;
+    } else if (user.role === 'COMPANY') {
+      const { data } = await supabase.from('CompanyProfile').select('*').eq('userId', user.id).maybeSingle();
+      cProfile = data;
+      user.companyProfile = cProfile;
     }
 
     // Anexa a informação do utilizador da TUA base de dados ao objeto `req`.
     req.userId = user.id;
     req.userName = user.name; // Adicionado para estar disponível nos controllers
     req.userRole = user.role;
-    if (user.role === 'STUDENT' && user.studentProfile) {
-      req.studentId = user.studentProfile.id;
+    
+    if (user.role === 'STUDENT' && sProfile) {
+      req.studentId = sProfile.id;
     }
-    if (user.role === 'COMPANY' && user.companyProfile) {
-      req.companyId = user.companyProfile.id;
-    }
-    if (user.role === 'SCHOOL' && user.schoolProfile) {
-      req.schoolId = user.schoolProfile.id;
+    if (user.role === 'COMPANY' && cProfile) {
+      req.companyId = cProfile.id;
     }
 
     next();

@@ -1,4 +1,4 @@
-import prisma from '../lib/prisma.js';
+import { supabase } from '../lib/supabase.js';
 
 export class AuthController {
   // GET /api/auth/me
@@ -7,13 +7,11 @@ export class AuthController {
       // O userId é injetado pelo middleware auth0.middleware.js (função syncUser)
       const userId = req.userId;
 
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        include: {
-          studentProfile: true,
-          companyProfile: true,
-        },
-      });
+      const { data: user, error } = await supabase
+        .from('User')
+        .select('*, studentProfile:StudentProfile(*), companyProfile:CompanyProfile(*)')
+        .eq('id', userId)
+        .single();
 
       if (!user) {
         return res.status(404).json({ 
@@ -50,23 +48,36 @@ export class AuthController {
       if (avatar) userData.avatar = avatar;
       if (bio !== undefined) userData.bio = bio;
 
-      // Atualização aninhada do perfil específico (Prisma Nested Write)
+      // 1. Atualizar User
+      const { data: user, error: userError } = await supabase
+        .from('User')
+        .update(userData)
+        .eq('id', userId)
+        .select('*, studentProfile:StudentProfile(*), companyProfile:CompanyProfile(*)')
+        .single();
+
+      if (userError) throw userError;
+
+      // 2. Atualizar Perfil Específico (Supabase não faz nested update)
       if (profile) {
+        let table = null;
         if (userRole === 'STUDENT') {
-          userData.studentProfile = { update: profile };
+          table = 'StudentProfile';
         } else if (userRole === 'COMPANY') {
-          userData.companyProfile = { update: profile };
+          table = 'CompanyProfile';
+        }
+        
+        if (table) {
+           await supabase.from(table).update(profile).eq('userId', userId);
+           // Recarregar dados atualizados
+           const { data: refreshedUser } = await supabase
+             .from('User')
+             .select('*, studentProfile:StudentProfile(*), companyProfile:CompanyProfile(*)')
+             .eq('id', userId)
+             .single();
+           return res.json({ success: true, message: 'Perfil atualizado!', data: refreshedUser });
         }
       }
-
-      const user = await prisma.user.update({
-        where: { id: userId },
-        data: userData,
-        include: {
-          studentProfile: true,
-          companyProfile: true,
-        },
-      });
 
       res.json({
         success: true,

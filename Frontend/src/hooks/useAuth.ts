@@ -16,12 +16,21 @@ export const useAuth = () => {
 
   // Redireciona para a página de registo do Auth0
   // Aceita 'STUDENT' ou 'COMPANY' como argumento
-  const register = (role: 'STUDENT' | 'COMPANY') => loginWithRedirect({ 
-    authorizationParams: { 
-      screen_hint: 'signup',
-      user_role: role // Passa a role como parâmetro personalizado para o Auth0
-    } 
-  });
+  const register = async (role: 'STUDENT' | 'COMPANY') => {
+    try {
+      // Guardar a intenção de role localmente para redundância
+      sessionStorage.setItem('selected_role', role);
+      
+      await loginWithRedirect({ 
+        authorizationParams: { 
+          screen_hint: 'signup',
+          user_type: role === 'COMPANY' ? 'company' : 'student'
+        } 
+      });
+    } catch (error) {
+      console.error("Erro ao tentar registar:", error);
+    }
+  };
 
   // Realiza o logout e redireciona para a home
   const logout = () => {

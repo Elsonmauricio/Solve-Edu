@@ -1,6 +1,6 @@
 import { validationResult } from 'express-validator';
 import { storageService } from '../services/storage.service.js';
-import prisma from '../lib/prisma.js';
+import { supabase } from '../lib/supabase.js';
 import emailService from '../services/email.service.js';
 
 export class SolutionController {
@@ -15,14 +15,12 @@ export class SolutionController {
       const { problemId } = req.body;
 
       // Check if problem exists and is active
-      const problem = await prisma.problem.findUnique({
-        where: { id: problemId },
-        include: {
-          company: {
-            include: { user: true },
-          },
-        },
-      });
+      const { data: problem } = await supabase
+        .from('Problem')
+        .select('*, company:CompanyProfile(*, user:User(*))')
+        .eq('id', problemId)
+        .single();
+
       if (!problem) {
         return res.status(404).json({ 
           success: false, 
@@ -38,12 +36,12 @@ export class SolutionController {
       }
 
       // Check if student has already submitted a solution
-      const existingSolution = await prisma.solution.findFirst({ 
-        where: {
-          problemId,
-          studentId,
-        },
-      });
+      const { data: existingSolution } = await supabase
+        .from('Solution')
+        .select('*')
+        .eq('problemId', problemId)
+        .eq('studentId', studentId)
+        .maybeSingle();
 
       if (existingSolution && existingSolution.status !== 'REJECTED') {
         return res.status(400).json({ 
@@ -69,15 +67,20 @@ export class SolutionController {
         submittedAt: new Date(),
       };
 
-      const solution = await prisma.solution.create({
-        data: solutionData
-      });
+      const { data: solution, error: createError } = await supabase
+        .from('Solution')
+        .insert(solutionData)
+        .select()
+        .single();
+
+      if (createError) throw createError;
 
       // Create notification for company
       // Nota: A relação para obter o `userId` da empresa precisa de um include
-      if (problem.company?.user?.id) {
-        await prisma.notification.create({
-          data: {
+      if (problem.company?.user?.id) { // Nota: Com supabase a estrutura pode vir como array se for 1:N, mas aqui assumimos 1:1
+        const companyUserId = Array.isArray(problem.company.user) ? problem.company.user[0].id : problem.company.user.id;
+        
+        await supabase.from('Notification').insert({
             userId: problem.company.user.id,
             type: 'SOLUTION_SUBMITTED',
             title: 'Nova Solução Submetida',
@@ -86,8 +89,7 @@ export class SolutionController {
               problemId: problem.id,
               solutionId: solution.id,
               studentName: req.userName,
-            },
-          },
+            }
         });
 
         // Enviar email para a empresa
@@ -133,31 +135,23 @@ export class SolutionController {
       const limitNum = parseInt(limit);
       const skip = (pageNum - 1) * limitNum;
 
-      const where = {
-        ...(problemId && { problemId }),
-        ...(studentId && { studentId }),
-        ...(status && { status }),
-        ...(search && {
-          OR: [
-            { title: { contains: search, mode: 'insensitive' } },
-            { description: { contains: search, mode: 'insensitive' } },
-          ],
-        }),
-      };
+      let query = supabase
+        .from('Solution')
+        .select('*, student:StudentProfile(*, user:User(name, avatar)), problem:Problem(title)', { count: 'exact' });
 
-      const [solutions, total] = await Promise.all([
-        prisma.solution.findMany({
-          where,
-          include: {
-            student: { include: { user: { select: { name: true, avatar: true } } } },
-            problem: { select: { title: true } },
-          },
-          orderBy: { [sortBy]: sortOrder },
-          skip,
-          take: limitNum,
-        }),
-        prisma.solution.count({ where }),
-      ]);
+      if (problemId) query = query.eq('problemId', problemId);
+      if (studentId) query = query.eq('studentId', studentId);
+      if (status) query = query.eq('status', status);
+      if (search) {
+        query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+      }
+
+      query = query.order(sortBy, { ascending: sortOrder === 'asc' })
+                   .range(skip, skip + limitNum - 1);
+
+      const { data: solutions, count: total, error } = await query;
+
+      if (error) throw error;
 
       const result = {
         data: solutions,
@@ -188,13 +182,11 @@ export class SolutionController {
     try {
       const { id } = req.params;
 
-      const solution = await prisma.solution.findUnique({
-        where: { id },
-        include: {
-          student: { include: { user: true } },
-          problem: { include: { company: { include: { user: true } } } },
-        },
-      });
+      const { data: solution, error } = await supabase
+        .from('Solution')
+        .select('*, student:StudentProfile(*, user:User(*)), problem:Problem(*, company:CompanyProfile(*, user:User(*)))')
+        .eq('id', id)
+        .single();
 
       if (!solution) {
         return res.status(404).json({ 
@@ -203,11 +195,14 @@ export class SolutionController {
         });
       }
 
+      // Helper para extrair user ID de estruturas aninhadas do Supabase
+      const getUserId = (profile) => profile?.user?.id || (Array.isArray(profile?.user) ? profile.user[0]?.id : null);
+
       // Check authorization
       const canView = 
         req.userRole === 'ADMIN' ||
-        solution.student.user.id === req.userId ||
-        solution.problem.company.user.id === req.userId;
+        getUserId(solution.student) === req.userId ||
+        getUserId(solution.problem?.company) === req.userId;
 
       if (!canView) {
         return res.status(403).json({ 
@@ -241,10 +236,12 @@ export class SolutionController {
       const updateData = req.body;
 
       // Check if solution exists
-      const existingSolution = await prisma.solution.findUnique({
-        where: { id },
-        include: { student: { include: { user: true } } }
-      });
+      const { data: existingSolution } = await supabase
+        .from('Solution')
+        .select('*, student:StudentProfile(*, user:User(*))')
+        .eq('id', id)
+        .single();
+
       if (!existingSolution) {
         return res.status(404).json({ 
           success: false, 
@@ -252,10 +249,12 @@ export class SolutionController {
         });
       }
 
+      const getUserId = (profile) => profile?.user?.id || (Array.isArray(profile?.user) ? profile.user[0]?.id : null);
+
       // Check authorization
       const canUpdate = 
         req.userRole === 'ADMIN' ||
-        existingSolution.student.user.id === req.userId;
+        getUserId(existingSolution.student) === req.userId;
 
       if (!canUpdate) {
         return res.status(403).json({ 
@@ -274,17 +273,20 @@ export class SolutionController {
         });
       }
 
-      const solution = await prisma.solution.update({
-        where: { id },
-        data: updateData,
-        include: { student: { include: { user: true } }, problem: true }
-      });
+      const { data: solution, error } = await supabase
+        .from('Solution')
+        .update(updateData)
+        .eq('id', id)
+        .select('*, student:StudentProfile(*, user:User(*)), problem:Problem(*)')
+        .single();
+
+      if (error) throw error;
 
       // Create notification if status changed by company/admin
       if (req.userRole !== 'STUDENT' && updateData.status && updateData.status !== existingSolution.status) {
-        await prisma.notification.create({
-          data: {
-            userId: solution.student.user.id,
+        const studentUserId = getUserId(solution.student);
+        await supabase.from('Notification').insert({
+            userId: studentUserId,
             type: 'SOLUTION_REVIEWED',
             title: 'Solução Avaliada',
             message: `A sua solução para "${solution.problem.title}" foi ${updateData.status.toLowerCase()}`,
@@ -293,15 +295,15 @@ export class SolutionController {
               solutionId: solution.id,
               status: updateData.status,
               feedback: updateData.feedback,
-            },
-          }
+            }
         });
 
         // Enviar email para o estudante
-        if (solution.student?.user?.email) {
+        const studentEmail = solution.student?.user?.email || (Array.isArray(solution.student?.user) ? solution.student.user[0]?.email : null);
+        if (studentEmail) {
           await emailService.sendSolutionReviewedEmail(
-            solution.student.user.email,
-            solution.student.user.name,
+            studentEmail,
+            solution.student?.user?.name || 'Estudante',
             solution.problem.title,
             updateData.status,
             updateData.feedback
@@ -329,10 +331,12 @@ export class SolutionController {
       const { id } = req.params;
 
       // Check if solution exists
-      const existingSolution = await prisma.solution.findUnique({
-        where: { id },
-        include: { student: { include: { user: true } } }
-      });
+      const { data: existingSolution } = await supabase
+        .from('Solution')
+        .select('*, student:StudentProfile(*, user:User(*))')
+        .eq('id', id)
+        .single();
+
       if (!existingSolution) {
         return res.status(404).json({ 
           success: false, 
@@ -340,10 +344,12 @@ export class SolutionController {
         });
       }
 
+      const getUserId = (profile) => profile?.user?.id || (Array.isArray(profile?.user) ? profile.user[0]?.id : null);
+
       // Check authorization
       const canDelete = 
         req.userRole === 'ADMIN' ||
-        existingSolution.student.user.id === req.userId;
+        getUserId(existingSolution.student) === req.userId;
 
       if (!canDelete) {
         return res.status(403).json({ 
@@ -352,7 +358,7 @@ export class SolutionController {
         });
       }
 
-      await prisma.solution.delete({ where: { id } });
+      await supabase.from('Solution').delete().eq('id', id);
 
       res.json({
         success: true,
@@ -372,10 +378,10 @@ export class SolutionController {
     try {
       const studentId = req.studentId || req.params.studentId;
 
-      const solutions = await prisma.solution.findMany({
-        where: { studentId },
-        include: { problem: { select: { title: true, category: true } } }
-      });
+      const { data: solutions, error } = await supabase
+        .from('Solution')
+        .select('*, problem:Problem(title, category)')
+        .eq('studentId', studentId);
 
       res.json({
         success: true,
@@ -396,10 +402,12 @@ export class SolutionController {
       const { problemId } = req.params;
 
       // Check if user can view solutions
-      const problem = await prisma.problem.findUnique({
-        where: { id: problemId },
-        include: { company: { include: { user: true } } }
-      });
+      const { data: problem } = await supabase
+        .from('Problem')
+        .select('*, company:CompanyProfile(*, user:User(*))')
+        .eq('id', problemId)
+        .single();
+
       if (!problem) {
         return res.status(404).json({ 
           success: false, 
@@ -407,9 +415,11 @@ export class SolutionController {
         });
       }
 
+      const getUserId = (profile) => profile?.user?.id || (Array.isArray(profile?.user) ? profile.user[0]?.id : null);
+
       const canView = 
         req.userRole === 'ADMIN' ||
-        problem.company.user.id === req.userId;
+        getUserId(problem.company) === req.userId;
 
       if (!canView) {
         return res.status(403).json({ 
@@ -418,10 +428,10 @@ export class SolutionController {
         });
       }
 
-      const solutions = await prisma.solution.findMany({
-        where: { problemId },
-        include: { student: { include: { user: { select: { name: true, avatar: true } } } } }
-      });
+      const { data: solutions } = await supabase
+        .from('Solution')
+        .select('*, student:StudentProfile(*, user:User(name, avatar))')
+        .eq('problemId', problemId);
 
       res.json({
         success: true,
@@ -441,7 +451,12 @@ export class SolutionController {
     try {
       const { id } = req.params;
 
-      const solution = await prisma.solution.findUnique({ where: { id } });
+      const { data: solution } = await supabase
+        .from('Solution')
+        .select('likes')
+        .eq('id', id)
+        .single();
+
       if (!solution) {
         return res.status(404).json({ 
           success: false, 
@@ -449,10 +464,10 @@ export class SolutionController {
         });
       }
 
-      await prisma.solution.update({
-        where: { id },
-        data: { likes: { increment: 1 } }
-      });
+      await supabase
+        .from('Solution')
+        .update({ likes: (solution.likes || 0) + 1 })
+        .eq('id', id);
 
       res.json({
         success: true,
@@ -471,12 +486,12 @@ export class SolutionController {
 
   static async getTopSolutions(req, res) {
     try {
-      const solutions = await prisma.solution.findMany({
-        where: { status: 'ACCEPTED' },
-        orderBy: [{ rating: 'desc' }, { likes: 'desc' }],
-        take: 10,
-        include: { student: { include: { user: true } }, problem: true }
-      });
+      const { data: solutions } = await supabase
+        .from('Solution')
+        .select('*, student:StudentProfile(*, user:User(*)), problem:Problem(*)')
+        .eq('status', 'ACCEPTED')
+        .order('rating', { ascending: false })
+        .limit(10);
 
       res.json({
         success: true,
@@ -494,11 +509,9 @@ export class SolutionController {
 
   static async getStats(req, res) {
     try {
-      const [total, accepted, pending] = await Promise.all([
-        prisma.solution.count(),
-        prisma.solution.count({ where: { status: 'ACCEPTED' } }),
-        prisma.solution.count({ where: { status: 'PENDING_REVIEW' } })
-      ]);
+      const { count: total } = await supabase.from('Solution').select('*', { count: 'exact', head: true });
+      const { count: accepted } = await supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('status', 'ACCEPTED');
+      const { count: pending } = await supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('status', 'PENDING_REVIEW');
 
       const stats = {
         total,

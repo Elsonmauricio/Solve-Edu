@@ -51,10 +51,11 @@ export const useUserInitialization = () => {
               }
             }
           } else {
+            console.error("[UserInit] Erro do Backend:", profileRes);
             throw new Error(profileRes.message || 'Falha ao carregar perfil do utilizador.');
           }
         } catch (error: any) {
-          console.error("Erro ao inicializar dados do utilizador:", error);
+          console.error("[UserInit] Erro Crítico:", error);
           // Se o erro for 401, o token é inválido/expirado
           if (error.response && error.response.status === 401) {
             logout({ logoutParams: { returnTo: window.location.origin } });

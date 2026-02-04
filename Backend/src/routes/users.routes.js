@@ -11,6 +11,7 @@ router.get('/companies/top', UserController.getTopCompanies);
 // Protected routes
 router.get('/me', authenticate(), UserController.getUserProfile);
 router.put('/me', authenticate(), UserController.updateUserProfile);
+router.get('/profile', authenticate(), UserController.getUserProfile); // Alias para /me para compatibilidade com frontend
 router.get('/stats', authenticate(), UserController.getUserStats);
 
 // Admin routes

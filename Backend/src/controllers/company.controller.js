@@ -1,4 +1,4 @@
-import prisma from '../lib/prisma.js';
+import { supabase } from '../lib/supabase.js';
 
 export class CompanyController {
   static async getDashboardStats(req, res) {
@@ -18,29 +18,17 @@ export class CompanyController {
         pendingReviews
       ] = await Promise.all([
         // Problemas Ativos
-        prisma.problem.count({
-          where: { 
-            companyId,
-            status: 'ACTIVE'
-          }
-        }),
+        supabase.from('Problem').select('*', { count: 'exact', head: true }).eq('companyId', companyId).eq('status', 'ACTIVE').then(r => r.count || 0),
+        
         // Total de Soluções Recebidas em todos os problemas da empresa
-        prisma.solution.count({
-          where: {
-            problem: {
-              companyId
-            }
-          }
-        }),
+        // Supabase: Join para filtrar por companyId do problema
+        supabase.from('Solution').select('problem!inner(companyId)', { count: 'exact', head: true }).eq('problem.companyId', companyId).then(r => r.count || 0),
+
         // Soluções pendentes de revisão
-        prisma.solution.count({
-          where: {
-            problem: {
-              companyId
-            },
-            status: 'PENDING_REVIEW'
-          }
-        })
+        supabase.from('Solution').select('problem!inner(companyId)', { count: 'exact', head: true })
+          .eq('problem.companyId', companyId)
+          .eq('status', 'PENDING_REVIEW')
+          .then(r => r.count || 0)
       ]);
 
       res.json({

@@ -35,9 +35,11 @@ ReactDOM.createRoot(rootElement).render(
       domain={domain}
       clientId={clientId}
       authorizationParams={{
-        redirect_uri: window.location.origin,
+        redirect_uri: `${window.location.origin}`,
         ...(audience ? { audience } : {}),
       }}
+      useRefreshTokens={true}
+      cacheLocation="localstorage"
     >
       <AppProvider>
         <App />

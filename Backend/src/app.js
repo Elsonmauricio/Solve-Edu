@@ -13,6 +13,8 @@ import problemsRoutes from './routes/problems.routes.js';
 import solutionsRoutes from './routes/solutions.routes.js';
 import usersRoutes from './routes/users.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import studentRoutes from './routes/student.routes.js';
+import companyRoutes from './routes/company.routes.js';
 
 // Import middleware
 import { errorHandler } from './middleware/error.middleware.js';
@@ -72,6 +74,8 @@ app.use('/api/problems', problemsRoutes);
 app.use('/api/solutions', solutionsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/student', studentRoutes);
+app.use('/api/company', companyRoutes);
 
 // WebSocket for real-time notifications
 io.on('connection', (socket) => {
