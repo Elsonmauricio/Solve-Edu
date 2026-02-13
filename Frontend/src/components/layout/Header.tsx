@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { Menu, X, Search, User, Briefcase, GraduationCap, LogOut } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
+import { Menu, X, Search, User, Briefcase, GraduationCap, LogOut, LayoutDashboard } from 'lucide-react';
 import logo from '../../assets/Logo.png';
 
 const Header = () => {
-  const { register, logout, isAuthenticated, user } = useAuth();
+  const { register, logout, isAuthenticated } = useAuth();
+  const { user } = useApp(); // Usar o utilizador do contexto global (com a role correta da DB)
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -16,6 +18,15 @@ const Header = () => {
     { name: 'Como Funciona', href: '/how-it-works', icon: GraduationCap },
     { name: 'Comunidade', href: '/community', icon: User },
   ];
+
+  // Determinar o link do dashboard com base na role
+  const getDashboardLink = () => {
+    // Garante que temos sempre um destino válido, assumindo STUDENT como fallback se a role não estiver definida
+    const role = (user?.role || 'STUDENT').toUpperCase();
+    if (role === 'ADMIN') return '/admin-dashboard';
+    if (role === 'COMPANY') return '/company-dashboard';
+    return '/student-dashboard';
+  };
 
   return (
     <motion.header 
@@ -64,6 +75,21 @@ const Header = () => {
                 </Link>
               );
             })}
+
+            {/* Link para Dashboard (Visível apenas se logado) */}
+            {isAuthenticated && user && (
+              <Link
+                to={getDashboardLink()}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  location.pathname.includes('dashboard')
+                    ? 'text-solve-blue bg-blue-50 border border-blue-200'
+                    : 'text-gray-600 hover:text-solve-blue hover:bg-gray-50'
+                }`}
+              >
+                <LayoutDashboard size={16} />
+                <span>Dashboard</span>
+              </Link>
+            )}
           </nav>
 
           {/* Auth Buttons */}
@@ -71,11 +97,17 @@ const Header = () => {
             {isAuthenticated ? (
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
-                  <img 
-                    src={user?.avatar} 
-                    alt={user?.name} 
-                    className="w-8 h-8 rounded-full border border-gray-200"
-                  />
+                  {user?.avatar ? (
+                    <img 
+                      src={user.avatar} 
+                      alt={user.name} 
+                      className="w-8 h-8 rounded-full border border-gray-200 object-cover"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full border border-gray-200 bg-gray-100 flex items-center justify-center">
+                      <User size={16} className="text-gray-500" />
+                    </div>
+                  )}
                   <span className="text-sm font-medium text-gray-700">{user?.name}</span>
                 </div>
                 <button
@@ -89,13 +121,19 @@ const Header = () => {
             ) : (
               <>
                 <button
-                  onClick={() => register('STUDENT')}
+                  onClick={() => {
+                    localStorage.setItem('intended_role', 'STUDENT');
+                    register('STUDENT');
+                  }}
                   className="px-4 py-2 text-sm font-medium text-solve-blue hover:text-solve-purple transition-colors"
                 >
                   Sou Estudante
                 </button>
                 <button
-                  onClick={() => register('COMPANY')}
+                  onClick={() => {
+                    localStorage.setItem('intended_role', 'COMPANY');
+                    register('COMPANY');
+                  }}
                   className="px-6 py-2 bg-gradient-to-r from-solve-blue to-solve-purple text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200"
                 >
                   Sou Empresa
@@ -143,6 +181,18 @@ const Header = () => {
                     </Link>
                   );
                 })}
+                
+                {isAuthenticated && user && (
+                  <Link
+                    to={getDashboardLink()}
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center space-x-3 px-3 py-3 rounded-lg text-base font-medium text-gray-600 hover:text-solve-blue hover:bg-gray-50 transition-all duration-200"
+                  >
+                    <LayoutDashboard size={18} />
+                    <span>Dashboard</span>
+                  </Link>
+                )}
+
                 <div className="pt-4 border-t border-gray-200 space-y-2">
                   {isAuthenticated ? (
                     <button
@@ -155,13 +205,21 @@ const Header = () => {
                   ) : (
                     <>
                       <button
-                        onClick={() => { setIsMenuOpen(false); register('STUDENT'); }}
+                        onClick={() => { 
+                          setIsMenuOpen(false); 
+                          localStorage.setItem('intended_role', 'STUDENT');
+                          register('STUDENT'); 
+                        }}
                         className="block w-full text-left px-3 py-3 text-base font-medium text-solve-blue hover:bg-blue-50 rounded-lg"
                       >
                         Sou Estudante
                       </button>
                       <button
-                        onClick={() => { setIsMenuOpen(false); register('COMPANY'); }}
+                        onClick={() => { 
+                          setIsMenuOpen(false); 
+                          localStorage.setItem('intended_role', 'COMPANY');
+                          register('COMPANY'); 
+                        }}
                         className="block w-full text-left px-3 py-3 text-base font-medium bg-gradient-to-r from-solve-blue to-solve-purple text-white rounded-lg"
                       >
                         Sou Empresa

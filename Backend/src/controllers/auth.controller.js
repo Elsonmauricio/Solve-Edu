@@ -4,14 +4,9 @@ export class AuthController {
   // GET /api/auth/me
   static async getProfile(req, res) {
     try {
-      // O userId é injetado pelo middleware auth0.middleware.js (função syncUser)
-      const userId = req.userId;
-
-      const { data: user, error } = await supabase
-        .from('User')
-        .select('*, studentProfile:StudentProfile(*), companyProfile:CompanyProfile(*)')
-        .eq('id', userId)
-        .single();
+      // Usar o objeto user já carregado e corrigido pelo middleware
+      // O middleware já garante que user.role está preenchido (fallback para STUDENT)
+      const user = req.user;
 
       if (!user) {
         return res.status(404).json({ 
@@ -20,9 +15,26 @@ export class AuthController {
         });
       }
 
+      // Preparar resposta mantendo a estrutura esperada (perfis aninhados)
+      const responseUser = { ...user };
+      
+      // Garantir que os perfis estão anexados se não vierem do middleware
+      if (user.role === 'STUDENT' && !responseUser.studentProfile) {
+         const { data } = await supabase.from('StudentProfile').select('*').eq('userId', user.id).maybeSingle();
+         responseUser.studentProfile = data;
+      }
+      if (user.role === 'COMPANY' && !responseUser.companyProfile) {
+         const { data } = await supabase.from('CompanyProfile').select('*').eq('userId', user.id).maybeSingle();
+         responseUser.companyProfile = data;
+      }
+      if (user.role === 'SCHOOL' && !responseUser.schoolProfile) {
+         const { data } = await supabase.from('SchoolProfile').select('*').eq('userId', user.id).maybeSingle();
+         responseUser.schoolProfile = data;
+      }
+
       res.json({
         success: true,
-        data: user,
+        data: responseUser,
       });
 
     } catch (error) {
@@ -53,7 +65,7 @@ export class AuthController {
         .from('User')
         .update(userData)
         .eq('id', userId)
-        .select('*, studentProfile:StudentProfile(*), companyProfile:CompanyProfile(*)')
+        .select('*, studentProfile:StudentProfile(*), companyProfile:CompanyProfile(*), schoolProfile:SchoolProfile(*)')
         .single();
 
       if (userError) throw userError;
@@ -65,6 +77,8 @@ export class AuthController {
           table = 'StudentProfile';
         } else if (userRole === 'COMPANY') {
           table = 'CompanyProfile';
+        } else if (userRole === 'SCHOOL') {
+          table = 'SchoolProfile';
         }
         
         if (table) {
@@ -72,7 +86,7 @@ export class AuthController {
            // Recarregar dados atualizados
            const { data: refreshedUser } = await supabase
              .from('User')
-             .select('*, studentProfile:StudentProfile(*), companyProfile:CompanyProfile(*)')
+             .select('*, studentProfile:StudentProfile(*), companyProfile:CompanyProfile(*), schoolProfile:SchoolProfile(*)')
              .eq('id', userId)
              .single();
            return res.json({ success: true, message: 'Perfil atualizado!', data: refreshedUser });

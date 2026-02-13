@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { Toaster } from 'react-hot-toast';
 import MoonLoader from './components/common/MoonLoader';
@@ -14,6 +14,7 @@ import Community from './pages/Community';
 import StudentDashboard from './components/dashboard/StudentDashboard';
 import CompanyDashboard from './components/dashboard/CompanyDashboard';
 import AdminDashboard from './components/dashboard/AdminDashboard';
+import SchoolDashboard from './components/dashboard/SchoolDashboard';
 import ProblemDetail from './components/problems/ProblemDetail';
 import SolutionDetail from './components/solutions/SolutionDetail';
 import CreateProblem from './components/problems/CreateProblem';
@@ -23,27 +24,121 @@ import ProtectedRoute from './components/auth/ProtectedRoute'; // Confirmação:
 import { useUserInitialization } from './hooks/useUserInitialization';
 import { useApp } from './context/AppContext';
 
+
+// Componente para proteger rotas por Role (Permissão)
+const RoleGuard = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: string[] }) => {
+  const { user } = useApp();
+  const { logout } = useAuth0();
+  const location = useLocation();
+
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+
+  // Normalizar roles para evitar problemas de case-sensitivity (ex: "student" vs "STUDENT")
+  const userRole = (user.role || "").toUpperCase();
+
+  // Proteção contra perfis sem role definida (causa do erro "perfil ()")
+  if (!userRole) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <div className="p-8 bg-white rounded-xl shadow-lg max-w-md text-center">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl">⚠️</span>
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Perfil Incompleto</h2>
+          <p className="text-gray-600 mb-6">
+            A sua conta foi criada mas ainda não tem um perfil de acesso definido (Estudante ou Empresa).
+          </p>
+          <button 
+            onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+            className="px-6 py-2 bg-solve-blue text-white rounded-lg hover:bg-solve-purple transition-colors"
+          >
+            Sair e Tentar Novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const normalizedAllowedRoles = allowedRoles.map(r => r.toUpperCase());
+
+  if (!normalizedAllowedRoles.includes(userRole)) {
+    // Se a role não corresponder, redireciona para o dashboard correto
+    let target = '/student-dashboard';
+    if (userRole === 'ADMIN') target = '/admin-dashboard';
+    if (userRole === 'COMPANY') target = '/company-dashboard';
+    if (userRole === 'SCHOOL') target = '/school-dashboard';
+    
+    // Prevenir loop infinito: Se já estamos na página alvo mas não temos permissão,
+    // NÃO redirecionar para "/" (pois o RootRedirect mandaria de volta para cá).
+    // Em vez disso, mostrar erro de acesso.
+    if (location.pathname === target) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+          <h2 className="text-2xl font-bold text-red-600 mb-2">Acesso Não Autorizado</h2>
+          <p className="text-gray-600 mb-4">O seu perfil ({userRole}) não tem permissão para aceder a esta página.</p>
+          <div className="flex space-x-4">
+            <a href="/" className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">Voltar ao Início</a>
+            <button 
+              onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+              className="px-4 py-2 bg-solve-blue text-white rounded-lg hover:bg-solve-purple transition-colors"
+            >
+              Sair
+            </button>
+          </div>
+        </div>
+      );
+    }
+    
+    return <Navigate to={target} replace />;
+  }
+
+  return <>{children}</>;
+};
+
 // Componente para gerir o redirecionamento inicial
 const RootRedirect = () => {
   const { isAuthenticated } = useAuth0();
   const { user } = useApp();
 
-  if (isAuthenticated && user) {
+  if (isAuthenticated && user && user.role) {
     // Lê a role diretamente do perfil do utilizador na base de dados (mais fiável)
-    const role = user.role;
+    const userRole = user.role.toUpperCase();
     
-    if (role === 'COMPANY') return <Navigate to="/company-dashboard" replace />;
-    if (role === 'ADMIN') return <Navigate to="/admin-dashboard" replace />;
+    if (userRole === 'COMPANY') return <Navigate to="/company-dashboard" replace />;
+    if (userRole === 'ADMIN') return <Navigate to="/admin-dashboard" replace />;
+    if (userRole === 'SCHOOL') return <Navigate to="/school-dashboard" replace />;
     return <Navigate to="/student-dashboard" replace />;
   }
 
   return <Home />;
 };
 
+// Layout principal para controlar a visibilidade do Footer
+const MainLayout = ({ children }: { children: React.ReactNode }) => {
+  const location = useLocation();
+  // Lista de caminhos onde o footer deve ser escondido
+  const hideFooterPaths = ['/student-dashboard', '/company-dashboard', '/admin-dashboard', '/create-problem', '/submit-solution'];
+  const shouldHideFooter = hideFooterPaths.some(path => location.pathname.startsWith(path));
+
+  return (
+    <div className="min-h-screen bg-white overflow-x-hidden">
+      <QuantumBackground />
+      <Header />
+      <main className="pt-16">
+        {children}
+      </main>
+      {!shouldHideFooter && <Footer />}
+    </div>
+  );
+};
+
 function App() {
-  const { isLoading, error } = useAuth0();
+  const { isLoading, error, isAuthenticated, logout } = useAuth0();
   // Hook personalizado para inicializar os dados do utilizador
   const { isDataLoading } = useUserInitialization();
+  const { user } = useApp();
 
   if (error) {
     const isServiceNotFound = error.message.includes("Service not found");
@@ -102,9 +197,32 @@ function App() {
     return <MoonLoader />;
   }
 
+  // Verificação de segurança: Autenticado mas sem perfil carregado (Erro de Backend)
+  // Isto previne o "Login Zumbi" onde o utilizador está logado mas não tem dados
+  if (isAuthenticated && !user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="p-8 bg-white rounded-xl shadow-lg max-w-md text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl">⚠️</span>
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Falha ao Carregar Perfil</h2>
+          <p className="text-gray-600 mb-6">
+            Não foi possível conectar à sua conta. Isto geralmente acontece quando o servidor backend está desligado ou houve um erro na criação do perfil.
+          </p>
+          <button 
+            onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+            className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            Sair e Tentar Novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <div className="min-h-screen bg-white overflow-x-hidden">
         <Toaster 
           position="top-center"
           toastOptions={{
@@ -114,9 +232,7 @@ function App() {
             error: { style: { background: '#EF4444' } },
           }}
         />
-        <QuantumBackground />
-        <Header />
-        <main>
+      <MainLayout>
           <Routes>
             <Route path="/" element={<RootRedirect />} />
             <Route path="/problems" element={<Problems />} />
@@ -131,7 +247,9 @@ function App() {
               path="/student-dashboard" 
               element={
                 <ProtectedRoute>
-                  <StudentDashboard />
+                  <RoleGuard allowedRoles={['STUDENT']}>
+                    <StudentDashboard />
+                  </RoleGuard>
                 </ProtectedRoute>
               } 
             />
@@ -139,7 +257,9 @@ function App() {
               path="/company-dashboard" 
               element={
                 <ProtectedRoute>
-                  <CompanyDashboard />
+                  <RoleGuard allowedRoles={['COMPANY']}>
+                    <CompanyDashboard />
+                  </RoleGuard>
                 </ProtectedRoute>
               } 
             />
@@ -147,7 +267,19 @@ function App() {
               path="/admin-dashboard" 
               element={
                 <ProtectedRoute>
-                  <AdminDashboard />
+                  <RoleGuard allowedRoles={['ADMIN']}>
+                    <AdminDashboard />
+                  </RoleGuard>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/school-dashboard" 
+              element={
+                <ProtectedRoute>
+                  <RoleGuard allowedRoles={['SCHOOL']}>
+                    <SchoolDashboard />
+                  </RoleGuard>
                 </ProtectedRoute>
               } 
             />
@@ -160,9 +292,7 @@ function App() {
               element={<ProtectedRoute><SubmitSolution /></ProtectedRoute>} 
             />
           </Routes>
-        </main>
-        <Footer />
-      </div>
+      </MainLayout>
     </Router>
   );
 }

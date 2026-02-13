@@ -55,7 +55,7 @@ const CompanyDashboard = () => {
       try {
         // O backend deve filtrar automaticamente para a empresa logada
         const response = await problemsService.getAll({ limit: 4 });
-        if (response.success) setMyProblems(response.data.data);
+        if (response.success) setMyProblems(response.data.data || []);
       } catch (error) {
         console.error("Failed to fetch company problems:", error);
       }
@@ -65,7 +65,7 @@ const CompanyDashboard = () => {
       try {
         // O backend deve filtrar automaticamente para a empresa logada
         const response = await solutionsService.getAll({ status: 'PENDING_REVIEW' });
-        if (response.success) setPendingApplications(response.data.data);
+        if (response.success) setPendingApplications(response.data.data || []);
       } catch (error) {
         console.error("Failed to fetch pending applications:", error);
       }
@@ -95,21 +95,21 @@ const CompanyDashboard = () => {
     stats: [
       {
         title: "Desafios Publicados",
-        value: isLoading ? '...' : stats.activeProblems.toString(),
+        value: isLoading ? '...' : (stats.activeProblems || 0).toString(),
         change: 0, // Idealmente, comparar com o mês anterior
         icon: Target,
         color: "blue"
       },
       {
         title: "Candidaturas Recebidas",
-        value: isLoading ? '...' : stats.totalSolutionsReceived.toString(),
+        value: isLoading ? '...' : (stats.totalSolutionsReceived || 0).toString(),
         change: 0,
         icon: Users,
         color: "green"
       },
       {
         title: "Soluções Aceites",
-        value: isLoading ? '...' : stats.solutionsAccepted.toString(),
+        value: isLoading ? '...' : (stats.solutionsAccepted || 0).toString(),
         change: 0,
         icon: CheckCircle,
         color: "teal"
@@ -201,7 +201,7 @@ const CompanyDashboard = () => {
               </div>
               
               <div className="p-6">
-                {pendingApplications.length > 0 ? (
+                {pendingApplications && pendingApplications.length > 0 ? (
                   <div className="space-y-4">
                     {pendingApplications.map((solution, index) => (
                       <div
@@ -263,7 +263,7 @@ const CompanyDashboard = () => {
               </div>
               
               <div className="p-6">
-                {myProblems.length > 0 ? (
+                {myProblems && myProblems.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {myProblems.slice(0, 4).map((problem, index) => (
                       <ProblemCard key={problem.id} problem={problem} />

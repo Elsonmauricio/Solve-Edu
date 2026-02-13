@@ -4,6 +4,7 @@ export const USER_ROLES = {
   COMPANY: 'COMPANY',
   ADMIN: 'ADMIN',
   MENTOR: 'MENTOR',
+  SCHOOL: 'SCHOOL',
 };
 
 // Problem categories

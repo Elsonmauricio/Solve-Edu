@@ -11,6 +11,14 @@ export const validateAccessToken = auth({
   audience: process.env.AUTH0_AUDIENCE,
 });
 
+// Helper para validar e normalizar a role
+const normalizeRole = (role) => {
+  if (!role) return 'STUDENT';
+  const cleanRole = String(role).trim().toUpperCase();
+  const validRoles = ['STUDENT', 'COMPANY', 'ADMIN', 'SCHOOL'];
+  return validRoles.includes(cleanRole) ? cleanRole : 'STUDENT';
+};
+
 /**
  * Middleware 2: Sincronizar o utilizador do Auth0 com a base de dados local.
  * Este middleware corre *depois* do validateAccessToken.
@@ -56,6 +64,28 @@ export const syncUser = async (req, res, next) => {
       .eq('auth0Id', auth0Id)
       .maybeSingle(); // Usa maybeSingle para evitar erro PGRST116 se não existir
 
+    // Se o utilizador existe mas não tem role definida, atualiza-o.
+    if (user && !user.role) {
+      const rawRole = req.auth.payload['https://solveedu.com/roles']?.[0] 
+                   || req.headers['x-intended-role'];
+      const role = normalizeRole(rawRole);
+                   
+      console.log(`[Auth0] User found but missing role. Updating to ${role}`);
+
+      const { data: updatedUser, error: updateError } = await supabase
+        .from('User')
+        .update({ role: role })
+        .eq('id', user.id)
+        .select('*')
+        .single();
+      
+      if (updateError) {
+        console.error('[Auth0] Failed to update user role:', updateError);
+        // Removemos o fallback aqui para permitir que o Safety Net abaixo tente corrigir e persistir na BD
+      } else if (updatedUser) {
+        user = updatedUser;
+      }
+    }
 
     // Se o utilizador não existir na base de dados, cria-o.
     if (!user) {
@@ -71,10 +101,21 @@ export const syncUser = async (req, res, next) => {
       }
 
       if (existingUser) {
-        // Se o email já existe, atualizamos o auth0Id para vincular a conta
+        // Se o email já existe, atualizamos o auth0Id e verificamos se há mudança de role
+        const intendedRole = req.headers['x-intended-role'];
+        const updates = { auth0Id, isVerified: existingUser.isVerified || email_verified };
+
+        // Se o utilizador não tem role, ou a role pretendida é diferente da atual, atualiza.
+        if (!existingUser.role || (intendedRole && ['STUDENT', 'COMPANY'].includes(intendedRole) && existingUser.role !== intendedRole)) {
+          // Define a nova role com base na intenção, ou usa a existente, ou default para STUDENT
+          const newRole = normalizeRole(intendedRole || existingUser.role);
+          console.log(`[Auth0] Updating user role from ${existingUser.role} to ${newRole}`);
+          updates.role = newRole;
+        }
+
         const { data: updatedUser } = await supabase
           .from('User')
-          .update({ auth0Id })
+          .update(updates)
           .eq('id', existingUser.id)
           .select('*')
           .single();
@@ -82,7 +123,10 @@ export const syncUser = async (req, res, next) => {
         user = updatedUser;
       } else {
         // Se não existe nem por ID nem por Email, cria um novo
-        const role = req.auth.payload['https://solveedu.com/roles']?.[0] || 'STUDENT';
+        const rawRole = req.auth.payload['https://solveedu.com/roles']?.[0] 
+                     || req.headers['x-intended-role'];
+        const role = normalizeRole(rawRole);
+                     
         console.log(`[Auth0] Creating new user: ${email || 'unknown'} with role: ${role}`);
 
         // Garante um nome mesmo sem email
@@ -96,7 +140,7 @@ export const syncUser = async (req, res, next) => {
             email: email || `missing-email-${auth0Id}@placeholder.solveedu.com`, // Fallback para evitar erro de constraint
             name: displayName,
             avatar: picture,
-            role: role.toUpperCase(),
+            role: role,
             isVerified: email_verified || false
           })
           .select()
@@ -108,15 +152,6 @@ export const syncUser = async (req, res, next) => {
         }
 
         user = newUser;
-
-        // Criar perfil específico
-        if (role.toUpperCase() === 'STUDENT') {
-           const { data: profile } = await supabase.from('StudentProfile').insert({ userId: user.id }).select().single();
-           user.studentProfile = profile;
-        } else if (role.toUpperCase() === 'COMPANY') {
-           const { data: profile } = await supabase.from('CompanyProfile').insert({ userId: user.id }).select().single();
-           user.companyProfile = profile;
-        }
       }
     }
 
@@ -124,30 +159,74 @@ export const syncUser = async (req, res, next) => {
       throw new Error('Falha crítica: Utilizador não encontrado nem criado.');
     }
 
-    // Buscar perfis separadamente para evitar erros de relação
+    // Safety Net: Garantir que existe uma role definida antes de prosseguir
+    if (!user.role) {
+      console.warn(`[Auth0] User ${user.id} still has no role. Defaulting to STUDENT.`);
+      
+      // Tenta persistir a role default na base de dados para corrigir o erro permanentemente
+      const { data: safetyUser, error: safetyError } = await supabase
+        .from('User')
+        .update({ role: 'STUDENT' })
+        .eq('id', user.id)
+        .select('*')
+        .single();
+        
+      if (safetyUser) {
+        user = safetyUser;
+      } else {
+        console.error('[Auth0] Failed to persist default role (Safety Net):', safetyError);
+        user.role = 'STUDENT'; // Último recurso: memória (se a BD falhar mesmo)
+      }
+    }
+
+    // Garantir que o perfil específico existe (seja novo utilizador ou mudança de role)
     let sProfile = null;
     let cProfile = null;
+    let scProfile = null;
 
     if (user.role === 'STUDENT') {
-      const { data } = await supabase.from('StudentProfile').select('*').eq('userId', user.id).maybeSingle();
+      let { data } = await supabase.from('StudentProfile').select('*').eq('userId', user.id).maybeSingle();
+      if (!data) {
+        // Criar perfil se não existir
+        const { data: newProfile } = await supabase.from('StudentProfile').insert({ userId: user.id }).select().single();
+        data = newProfile;
+      }
       sProfile = data;
       user.studentProfile = sProfile;
     } else if (user.role === 'COMPANY') {
-      const { data } = await supabase.from('CompanyProfile').select('*').eq('userId', user.id).maybeSingle();
+      let { data } = await supabase.from('CompanyProfile').select('*').eq('userId', user.id).maybeSingle();
+      if (!data) {
+        // Criar perfil se não existir
+        const { data: newProfile } = await supabase.from('CompanyProfile').insert({ userId: user.id }).select().single();
+        data = newProfile;
+      }
       cProfile = data;
       user.companyProfile = cProfile;
+    } else if (user.role === 'SCHOOL') {
+      let { data } = await supabase.from('SchoolProfile').select('*').eq('userId', user.id).maybeSingle();
+      if (!data) {
+        // Criar perfil se não existir
+        const { data: newProfile } = await supabase.from('SchoolProfile').insert({ userId: user.id }).select().single();
+        data = newProfile;
+      }
+      scProfile = data;
+      user.schoolProfile = scProfile;
     }
 
     // Anexa a informação do utilizador da TUA base de dados ao objeto `req`.
     req.userId = user.id;
     req.userName = user.name; // Adicionado para estar disponível nos controllers
     req.userRole = user.role;
+    req.user = user; // Disponibiliza o utilizador completo e corrigido para o controller
     
     if (user.role === 'STUDENT' && sProfile) {
       req.studentId = sProfile.id;
     }
     if (user.role === 'COMPANY' && cProfile) {
       req.companyId = cProfile.id;
+    }
+    if (user.role === 'SCHOOL' && scProfile) {
+      req.schoolId = scProfile.id;
     }
 
     next();

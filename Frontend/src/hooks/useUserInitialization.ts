@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useApp } from '../context/AppContext';
-import { setAuthToken } from '../services/api';
+import api, { setAuthToken } from '../services/api';
 import { userService } from '../services/user.service';
 import { adminService } from '../services/admin.service';
 import { User as AppUser } from '../types';
@@ -16,13 +16,21 @@ export const useUserInitialization = () => {
   useEffect(() => {
     const initializeUser = async () => {
       if (isAuthenticated && user) {
+        const intendedRole = localStorage.getItem('intended_role');
         try {
           // 1. Obter e configurar o token de autenticação
           const token = await getAccessTokenSilently();
           setAuthToken(token);
 
+          // Injetar a role pretendida nos headers se for o primeiro login
+          if (intendedRole) {
+            // Configura o header globalmente para a próxima requisição
+            api.defaults.headers.common['x-intended-role'] = intendedRole;
+          }
+
           // 2. Sincronizar utilizador e obter perfil do backend
           const profileRes = await userService.getProfile();
+
           if (profileRes.success && profileRes.data) {
             const backendUser = profileRes.data as unknown as AppUser;
             
@@ -40,7 +48,8 @@ export const useUserInitialization = () => {
                 updatedAt: backendUser.updatedAt,
                 studentProfile: backendUser.studentProfile,
                 companyProfile: backendUser.companyProfile,
-              }
+                schoolProfile: (backendUser as any).schoolProfile,
+              } as any
             });
 
             // 3. Carregar dados específicos do papel (se aplicável)
@@ -50,6 +59,10 @@ export const useUserInitialization = () => {
                 dispatch({ type: 'SET_STATS', payload: statsRes.data as any });
               }
             }
+            
+            // Limpeza: Só remover do localStorage se o backend retornou a role.
+            if (backendUser.role) localStorage.removeItem('intended_role');
+
           } else {
             console.error("[UserInit] Erro do Backend:", profileRes);
             throw new Error(profileRes.message || 'Falha ao carregar perfil do utilizador.');
@@ -62,6 +75,11 @@ export const useUserInitialization = () => {
           } else {
             // Define um erro no estado global para que a UI possa mostrar uma mensagem amigável
             dispatch({ type: 'SET_ERROR', payload: 'Não foi possível carregar os dados do utilizador.' });
+          }
+        } finally {
+          // Limpeza: Garantir que o header temporário é sempre removido após a tentativa.
+          if (intendedRole) {
+            delete api.defaults.headers.common['x-intended-role'];
           }
         }
       } else {

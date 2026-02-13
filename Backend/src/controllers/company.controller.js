@@ -31,12 +31,17 @@ export class CompanyController {
           .then(r => r.count || 0)
       ]);
 
+      // TODO: Implementar tabela de transações/pagamentos para cálculo real
+      // Por agora, retornamos 0 ou um valor calculado base se existisse lógica de recompensa
+      const totalRewards = 0;
+
       res.json({
         success: true,
         data: {
           activeProblems,
           totalSolutionsReceived,
-          pendingReviews
+          pendingReviews,
+          totalRewards
         }
       });
 

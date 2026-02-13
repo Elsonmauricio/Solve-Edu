@@ -4,13 +4,10 @@ import { supabase } from '../lib/supabase.js';
 export class UserController {
   static async getUserProfile(req, res) {
     try {
+      // Usar o objeto user já carregado e corrigido pelo middleware (req.user)
+      // Isto evita uma nova query à BD que poderia retornar dados desatualizados (ex: role null)
+      const user = req.user;
       const userId = req.userId;
-
-      const { data: user } = await supabase
-        .from('User')
-        .select('*')
-        .eq('id', userId)
-        .single();
 
       if (!user) {
         return res.status(404).json({ 
@@ -22,11 +19,27 @@ export class UserController {
       // Buscar perfil separadamente
       let profile = null;
       if (user.role === 'STUDENT') {
-        const { data } = await supabase.from('StudentProfile').select('*').eq('userId', userId).maybeSingle();
-        profile = data;
+        // O middleware já tenta carregar o perfil, usamos se existir
+        if (user.studentProfile) {
+          profile = user.studentProfile;
+        } else {
+          const { data } = await supabase.from('StudentProfile').select('*').eq('userId', userId).maybeSingle();
+          profile = data;
+        }
       } else if (user.role === 'COMPANY') {
-        const { data } = await supabase.from('CompanyProfile').select('*').eq('userId', userId).maybeSingle();
-        profile = data;
+        if (user.companyProfile) {
+          profile = user.companyProfile;
+        } else {
+          const { data } = await supabase.from('CompanyProfile').select('*').eq('userId', userId).maybeSingle();
+          profile = data;
+        }
+      } else if (user.role === 'SCHOOL') {
+        if (user.schoolProfile) {
+          profile = user.schoolProfile;
+        } else {
+          const { data } = await supabase.from('SchoolProfile').select('*').eq('userId', userId).maybeSingle();
+          profile = data;
+        }
       }
 
       // Get additional stats based on role
@@ -41,23 +54,19 @@ export class UserController {
         stats = { problems, activeProblems };
       }
 
+      // Preparar resposta plana para corresponder à expectativa do frontend (useUserInitialization)
+      const responseData = {
+        ...user,
+        stats,
+        // Garantir que o perfil está na propriedade correta que o frontend espera
+        studentProfile: user.role === 'STUDENT' ? profile : undefined,
+        companyProfile: user.role === 'COMPANY' ? profile : undefined,
+        schoolProfile: user.role === 'SCHOOL' ? profile : undefined,
+      };
+
       res.json({
         success: true,
-        data: {
-          user: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-            avatar: user.avatar,
-            bio: user.bio,
-            isVerified: user.isVerified,
-            level: user.level,
-            createdAt: user.createdAt,
-          },
-          profile,
-          stats,
-        }
+        data: responseData
       });
 
     } catch (error) {
@@ -95,6 +104,8 @@ export class UserController {
           prismaUpdateData.studentProfile = { update: profileData };
         } else if (req.userRole === 'COMPANY') {
           prismaUpdateData.companyProfile = { update: profileData };
+        } else if (req.userRole === 'SCHOOL') {
+          prismaUpdateData.schoolProfile = { update: profileData };
         }
       }
 
@@ -198,6 +209,24 @@ export class UserController {
           acceptanceRate: totalSolutions > 0 ? (acceptedSolutions / totalSolutions) * 100 : 0,
           averageSolutionRating: avg,
         };
+      } else if (userRole === 'SCHOOL') {
+        // Estatísticas para Escola
+        const [
+          totalStudents,
+          activeProjects, // Soluções em progresso ou submetidas
+          completedPaps,  // Soluções aceites
+        ] = await Promise.all([
+          // Contar alunos associados a esta escola (assumindo que StudentProfile tem schoolId ou string matching)
+          // Nota: Como ainda não tens uma relação direta de ID, vamos contar por nome da escola por enquanto ou retornar 0
+          supabase.from('StudentProfile').select('*', { count: 'exact', head: true }).eq('school', req.user.schoolProfile?.schoolName || '').then(r => r.count || 0),
+          
+          // Para projetos, seria ideal ter uma relação. Por agora, retornamos 0 ou implementamos lógica futura
+          Promise.resolve(0), 
+          Promise.resolve(0)
+        ]);
+
+        // Média de notas (placeholder)
+        stats = { totalStudents, activeProjects, completedPaps, averageGrade: 0 };
       }
 
       res.json({

@@ -15,15 +15,15 @@ export class AdminController {
         newUsersToday,
         newProblemsToday,
       ] = await Promise.all([
-        supabase.from('User').select('*', { count: 'exact', head: true }).then(r => r.count),
-        supabase.from('User').select('*', { count: 'exact', head: true }).eq('role', 'STUDENT').then(r => r.count),
-        supabase.from('User').select('*', { count: 'exact', head: true }).eq('role', 'COMPANY').then(r => r.count),
-        supabase.from('Problem').select('*', { count: 'exact', head: true }).then(r => r.count),
-        supabase.from('Problem').select('*', { count: 'exact', head: true }).eq('status', 'ACTIVE').then(r => r.count),
-        supabase.from('Solution').select('*', { count: 'exact', head: true }).then(r => r.count),
-        supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('status', 'PENDING_REVIEW').then(r => r.count),
-        supabase.from('User').select('*', { count: 'exact', head: true }).gte('createdAt', new Date(new Date().setHours(0, 0, 0, 0)).toISOString()).then(r => r.count),
-        supabase.from('Problem').select('*', { count: 'exact', head: true }).gte('createdAt', new Date(new Date().setHours(0, 0, 0, 0)).toISOString()).then(r => r.count),
+        supabase.from('User').select('*', { count: 'exact', head: true }).then(r => r.count || 0),
+        supabase.from('User').select('*', { count: 'exact', head: true }).eq('role', 'STUDENT').then(r => r.count || 0),
+        supabase.from('User').select('*', { count: 'exact', head: true }).eq('role', 'COMPANY').then(r => r.count || 0),
+        supabase.from('Problem').select('*', { count: 'exact', head: true }).then(r => r.count || 0),
+        supabase.from('Problem').select('*', { count: 'exact', head: true }).eq('status', 'ACTIVE').then(r => r.count || 0),
+        supabase.from('Solution').select('*', { count: 'exact', head: true }).then(r => r.count || 0),
+        supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('status', 'PENDING_REVIEW').then(r => r.count || 0),
+        supabase.from('User').select('*', { count: 'exact', head: true }).gte('createdAt', new Date(new Date().setHours(0, 0, 0, 0)).toISOString()).then(r => r.count || 0),
+        supabase.from('Problem').select('*', { count: 'exact', head: true }).gte('createdAt', new Date(new Date().setHours(0, 0, 0, 0)).toISOString()).then(r => r.count || 0),
       ]);
 
       const stats = {
@@ -45,7 +45,7 @@ export class AdminController {
       };
 
       // Cálculos adicionais (Acceptance Rate e Avg Rating)
-      const { count: acceptedCount } = await supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('status', 'ACCEPTED');
+      const { count: acceptedCount } = await supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('status', 'ACCEPTED').then(res => ({ count: res.count || 0 }));
       
       // Para média, buscamos os ratings (Supabase JS não tem aggregate direto simples sem RPC)
       const { data: ratings } = await supabase.from('Solution').select('rating').not('rating', 'is', null);
@@ -591,7 +591,7 @@ export class AdminController {
         users: {
           total: totalUsers,
           active: activeUsers,
-          newThisMonth: newUsersThisMonth,
+          newThisMonth: newUsersThisMonth || 0,
           growth: [], // Não calculado nesta versão simplificada
         },
         problems: {
@@ -722,15 +722,23 @@ export class AdminController {
       const adminUserId = req.userId;
 
       // 1. Store the announcement in the database
-      // Nota: Tabela Announcement não estava no schema inicial, assumindo que existe ou ignorando
-      /* const { data: announcement } = await supabase.from('Announcement').insert({
-        title,
-        message,
-        type,
-        targetUsers,
-        authorId: adminUserId,
-      }).select().single(); */
-      const announcement = { id: 'temp-id', title }; // Mock para não quebrar se a tabela não existir
+      let announcement;
+      
+      // Tenta inserir se a tabela existir, senão usa fallback para não quebrar a notificação
+      try {
+        const { data, error } = await supabase.from('Announcement').insert({
+          title,
+          message,
+          type,
+          targetUsers,
+          authorId: adminUserId, // Certifique-se que a coluna existe no DB
+        }).select().single();
+        
+        if (!error && data) announcement = data;
+        else announcement = { id: crypto.randomUUID(), title }; // Fallback em memória
+      } catch (e) {
+        announcement = { id: 'temp-id', title };
+      }
 
       // 2. Create notifications for all users or specific targets
       if (targetUsers === 'ALL') {

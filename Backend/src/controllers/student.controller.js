@@ -20,11 +20,11 @@ export class StudentController {
         ratingStats
       ] = await Promise.all([
         // Total submetido
-        supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('studentId', studentId).then(r => r.count),
+        supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('studentId', studentId).then(r => r.count || 0),
         // Total aceites
-        supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('studentId', studentId).eq('status', 'ACCEPTED').then(r => r.count),
+        supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('studentId', studentId).eq('status', 'ACCEPTED').then(r => r.count || 0),
         // Em análise (Ongoing)
-        supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('studentId', studentId).in('status', ['PENDING_REVIEW', 'NEEDS_REVISION']).then(r => r.count),
+        supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('studentId', studentId).in('status', ['PENDING_REVIEW', 'NEEDS_REVISION']).then(r => r.count || 0),
         // Média de Rating
         supabase.from('Solution').select('rating').eq('studentId', studentId).not('rating', 'is', null)
       ]);

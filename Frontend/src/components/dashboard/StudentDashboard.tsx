@@ -29,7 +29,7 @@ const StudentDashboard = () => {
     submittedCount: 0,
     acceptedCount: 0,
     ongoingCount: 0,
-    averageRating: "0"
+    averageRating: 0
   });
   const [mySolutions, setMySolutions] = useState<Solution[]>([]);
   const [activeProblems, setActiveProblems] = useState<Problem[]>([]);
@@ -42,10 +42,10 @@ const StudentDashboard = () => {
         const response = await studentService.getDashboardStats();
         if (response.success) {
           setStats({
-            submittedCount: response.data.submittedCount,
-            acceptedCount: response.data.acceptedCount,
-            ongoingCount: response.data.ongoingCount,
-            averageRating: response.data.averageRating.toString()
+            submittedCount: response.data.submittedCount || 0,
+            acceptedCount: response.data.acceptedCount || 0,
+            ongoingCount: response.data.ongoingCount || 0,
+            averageRating: response.data.averageRating || 0
           });
         }
       } catch (error) {
@@ -60,7 +60,7 @@ const StudentDashboard = () => {
         // O backend filtra automaticamente para o estudante logado
         const response = await solutionsService.getAll({ limit: 3, sortBy: 'submittedAt', sortOrder: 'desc' });
         if (response.success) {
-          setMySolutions(response.data.data);
+          setMySolutions(response.data.data || []);
         }
       } catch (error) {
         console.error("Failed to fetch student solutions:", error);
@@ -72,7 +72,7 @@ const StudentDashboard = () => {
         // Busca os problemas mais populares ou recentes como recomendação
         const response = await problemsService.getAll({ limit: 3, sortBy: 'views', sortOrder: 'desc' });
         if (response.success) {
-          setActiveProblems(response.data.data);
+          setActiveProblems(response.data.data || []);
         }
       } catch (error) {
         console.error("Failed to fetch recommended problems:", error);
@@ -98,33 +98,33 @@ const StudentDashboard = () => {
       createdAt: user?.createdAt || new Date().toISOString(),
       updatedAt: user?.updatedAt || new Date().toISOString(),
       solutionsCount: stats.submittedCount,
-      rating: parseFloat(stats.averageRating)
+      rating: stats.averageRating
     } as any,
     stats: [
       {
         title: "Soluções Submetidas",
-        value: isLoading ? '...' : stats.submittedCount.toString(),
+        value: isLoading ? '...' : (stats.submittedCount || 0).toString(),
         change: 0,
         icon: Target,
         color: "blue"
       },
       {
         title: "Soluções Aceites",
-        value: isLoading ? '...' : stats.acceptedCount.toString(),
+        value: isLoading ? '...' : (stats.acceptedCount || 0).toString(),
         change: 0,
         icon: Award,
         color: "green"
       },
       {
         title: "Projetos em Curso",
-        value: isLoading ? '...' : stats.ongoingCount.toString(),
+        value: isLoading ? '...' : (stats.ongoingCount || 0).toString(),
         change: 0,
         icon: Clock,
         color: "orange"
       },
       {
         title: "Rating Médio",
-        value: isLoading ? '...' : `${stats.averageRating}/5`,
+        value: isLoading ? '...' : `${stats.averageRating.toFixed(1)}/5`,
         change: 0,
         icon: Star,
         color: "purple"
@@ -245,7 +245,7 @@ const StudentDashboard = () => {
               </div>
               
               <div className="p-6">
-                {mySolutions.length > 0 ? (
+                {mySolutions && mySolutions.length > 0 ? (
                   <div className="space-y-4">
                     {mySolutions.slice(0, 3).map((solution, index) => (
                       <SolutionCard key={solution.id} solution={solution} />
@@ -284,7 +284,7 @@ const StudentDashboard = () => {
               
               <div className="p-6">
                 <div className="space-y-4">
-                  {activeProblems.map((problem, index) => (
+                  {(activeProblems || []).map((problem, index) => (
                     <div
                       key={problem.id}
                       className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-solve-blue transition-colors group"

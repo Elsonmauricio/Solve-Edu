@@ -69,10 +69,10 @@ const AdminDashboard: React.FC = () => {
         ]);
 
         if (problemsRes.success) {
-          setRecentProblems(problemsRes.data.data);
+          setRecentProblems(problemsRes.data.data || []);
         }
         if (solutionsRes.success) {
-          setPendingSolutions(solutionsRes.data.data);
+          setPendingSolutions(solutionsRes.data.data || []);
         }
       } catch (error) {
         console.error("Failed to fetch admin lists:", error);
@@ -88,21 +88,21 @@ const AdminDashboard: React.FC = () => {
   const statCards: StatCard[] = stats ? [
     {
       title: "Total de Utilizadores",
-      value: stats.users?.total?.toString() ?? '0',
+      value: (stats.users?.total || 0).toString(),
       change: stats.users?.newToday ?? 0,
       icon: Users,
       color: "blue"
     },
     {
       title: "Desafios Ativos",
-      value: stats.problems?.active?.toString() ?? '0',
+      value: (stats.problems?.active || 0).toString(),
       change: stats.problems?.newToday ?? 0,
       icon: Target,
       color: "green"
     },
     {
       title: "Soluções Submetidas",
-      value: stats.solutions?.total?.toString() ?? '0',
+      value: (stats.solutions?.total || 0).toString(),
       change: stats.solutions?.newToday ?? 0,
       icon: CheckCircle,
       color: "teal"
@@ -223,7 +223,7 @@ const AdminDashboard: React.FC = () => {
                   <Link to="/problems" className="text-sm font-medium text-solve-blue hover:text-solve-purple">Ver todos</Link>
                 </div>
                 <div className="p-6">
-                  {recentProblems.length > 0 ? (
+                  {recentProblems && recentProblems.length > 0 ? (
                     <div className="space-y-4">
                       {recentProblems.map(problem => (
                         <div key={problem.id} className="flex items-center space-x-4">
@@ -300,7 +300,7 @@ const AdminDashboard: React.FC = () => {
             >
               <h3 className="text-lg font-semibold text-orange-800 mb-4">Moderação Pendente</h3>
               
-              {pendingSolutions.length > 0 ? (
+              {pendingSolutions && pendingSolutions.length > 0 ? (
                 <>
                   <div className="space-y-4">
                     {pendingSolutions.slice(0, 2).map(solution => (
