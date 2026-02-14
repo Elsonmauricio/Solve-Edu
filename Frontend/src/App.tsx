@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
-import { Toaster } from 'react-hot-toast';
+import { Toaster, toast } from 'react-hot-toast';
 import MoonLoader from './components/common/MoonLoader';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
+import { GraduationCap, Building, School } from 'lucide-react';
+import api from './services/api';
 import QuantumBackground from './components/layout/QuantumBackground';
 import Home from './pages/Home';
 import Problems from './pages/Problems';
@@ -30,6 +32,7 @@ const RoleGuard = ({ children, allowedRoles }: { children: React.ReactNode, allo
   const { user } = useApp();
   const { logout } = useAuth0();
   const location = useLocation();
+  const { dispatch } = useApp();
 
   if (!user) {
     return <Navigate to="/" replace />;
@@ -38,24 +41,66 @@ const RoleGuard = ({ children, allowedRoles }: { children: React.ReactNode, allo
   // Normalizar roles para evitar problemas de case-sensitivity (ex: "student" vs "STUDENT")
   const userRole = (user.role || "").toUpperCase();
 
-  // Proteção contra perfis sem role definida (causa do erro "perfil ()")
+  // Ecrã de seleção de perfil se a role não estiver definida
   if (!userRole) {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleRoleSelection = async (role: 'STUDENT' | 'COMPANY' | 'SCHOOL') => {
+      setIsSubmitting(true);
+      try {
+        // Idealmente, esta chamada estaria num ficheiro de serviço (ex: userService.setRole)
+        const response = await api.put('/users/me/role', { role });
+        
+        if (response.data.success && response.data.data) {
+          dispatch({ type: 'SET_USER', payload: response.data.data });
+          toast.success('Perfil definido com sucesso! A redirecionar...');
+          // A re-renderização do App irá tratar do redirecionamento
+        } else {
+          toast.error(response.data.message || 'Não foi possível definir o perfil.');
+        }
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || 'Ocorreu um erro de comunicação.');
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
         <div className="p-8 bg-white rounded-xl shadow-lg max-w-md text-center">
           <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">⚠️</span>
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Perfil Incompleto</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Complete o seu Perfil</h2>
           <p className="text-gray-600 mb-6">
-            A sua conta foi criada mas ainda não tem um perfil de acesso definido (Estudante ou Empresa).
+            Para começar, diga-nos que tipo de conta pretende criar.
           </p>
-          <button 
-            onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-            className="px-6 py-2 bg-solve-blue text-white rounded-lg hover:bg-solve-purple transition-colors"
-          >
-            Sair e Tentar Novamente
-          </button>
+          <div className="flex flex-col space-y-4">
+            <button
+              onClick={() => handleRoleSelection('STUDENT')}
+              disabled={isSubmitting}
+              className="w-full flex items-center justify-center space-x-3 px-6 py-3 bg-solve-blue text-white rounded-xl hover:bg-solve-purple transition-colors font-semibold disabled:opacity-50"
+            >
+              <GraduationCap size={20} />
+              <span>Sou Estudante</span>
+            </button>
+            <button
+              onClick={() => handleRoleSelection('COMPANY')}
+              disabled={isSubmitting}
+              className="w-full flex items-center justify-center space-x-3 px-6 py-3 bg-gray-700 text-white rounded-xl hover:bg-gray-900 transition-colors font-semibold disabled:opacity-50"
+            >
+              <Building size={20} />
+              <span>Sou uma Empresa</span>
+            </button>
+            <button
+              onClick={() => handleRoleSelection('SCHOOL')}
+              disabled={isSubmitting}
+              className="w-full flex items-center justify-center space-x-3 px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors font-semibold disabled:opacity-50"
+            >
+              <School size={20} />
+              <span>Sou uma Instituição</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -119,7 +164,7 @@ const RootRedirect = () => {
 const MainLayout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   // Lista de caminhos onde o footer deve ser escondido
-  const hideFooterPaths = ['/student-dashboard', '/company-dashboard', '/admin-dashboard', '/create-problem', '/submit-solution'];
+  const hideFooterPaths = ['/student-dashboard', '/company-dashboard', '/admin-dashboard', '/school-dashboard', '/create-problem', '/submit-solution'];
   const shouldHideFooter = hideFooterPaths.some(path => location.pathname.startsWith(path));
 
   return (

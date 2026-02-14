@@ -11,6 +11,6 @@ router.use('/users', userRoutes);
 router.use('/problems', problemRoutes);
 router.use('/solutions', solutionRoutes);
 router.use('/admin', adminRoutes);
-router.use('/schools', schoolRoutes);
+router.use('/school', schoolRoutes);
 
 export default router;

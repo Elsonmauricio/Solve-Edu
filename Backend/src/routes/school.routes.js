@@ -13,4 +13,7 @@ router.get('/dashboard', SchoolController.getSchoolDashboard);
 // Listar alunos da escola
 router.get('/students', SchoolController.getSchoolStudents);
 
+// Registar novo aluno
+router.post('/students', SchoolController.registerStudent);
+
 export default router;

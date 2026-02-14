@@ -13,7 +13,7 @@ export const validateAccessToken = auth({
 
 // Helper para validar e normalizar a role
 const normalizeRole = (role) => {
-  if (!role) return 'STUDENT';
+  if (!role) return null;
   const cleanRole = String(role).trim().toUpperCase();
   const validRoles = ['STUDENT', 'COMPANY', 'ADMIN', 'SCHOOL'];
   return validRoles.includes(cleanRole) ? cleanRole : 'STUDENT';
@@ -69,21 +69,23 @@ export const syncUser = async (req, res, next) => {
       const rawRole = req.auth.payload['https://solveedu.com/roles']?.[0] 
                    || req.headers['x-intended-role'];
       const role = normalizeRole(rawRole);
-                   
-      console.log(`[Auth0] User found but missing role. Updating to ${role}`);
-
-      const { data: updatedUser, error: updateError } = await supabase
-        .from('User')
-        .update({ role: role })
-        .eq('id', user.id)
-        .select('*')
-        .single();
       
-      if (updateError) {
-        console.error('[Auth0] Failed to update user role:', updateError);
-        // Removemos o fallback aqui para permitir que o Safety Net abaixo tente corrigir e persistir na BD
-      } else if (updatedUser) {
-        user = updatedUser;
+      // Apenas atualiza se houver uma role válida para definir
+      if (role) {
+        console.log(`[Auth0] User found but missing role. Updating to ${role}`);
+
+        const { data: updatedUser, error: updateError } = await supabase
+          .from('User')
+          .update({ role: role })
+          .eq('id', user.id)
+          .select('*')
+          .single();
+        
+        if (updateError) {
+          console.error('[Auth0] Failed to update user role:', updateError);
+        } else if (updatedUser) {
+          user = updatedUser;
+        }
       }
     }
 
@@ -159,24 +161,10 @@ export const syncUser = async (req, res, next) => {
       throw new Error('Falha crítica: Utilizador não encontrado nem criado.');
     }
 
-    // Safety Net: Garantir que existe uma role definida antes de prosseguir
+    // Safety Net REMOVIDO: Permitimos que o utilizador fique sem role (null)
+    // para que o frontend possa mostrar o ecrã de seleção de perfil.
     if (!user.role) {
-      console.warn(`[Auth0] User ${user.id} still has no role. Defaulting to STUDENT.`);
-      
-      // Tenta persistir a role default na base de dados para corrigir o erro permanentemente
-      const { data: safetyUser, error: safetyError } = await supabase
-        .from('User')
-        .update({ role: 'STUDENT' })
-        .eq('id', user.id)
-        .select('*')
-        .single();
-        
-      if (safetyUser) {
-        user = safetyUser;
-      } else {
-        console.error('[Auth0] Failed to persist default role (Safety Net):', safetyError);
-        user.role = 'STUDENT'; // Último recurso: memória (se a BD falhar mesmo)
-      }
+      console.log(`[Auth0] User ${user.id} has no role defined. Waiting for user selection.`);
     }
 
     // Garantir que o perfil específico existe (seja novo utilizador ou mudança de role)

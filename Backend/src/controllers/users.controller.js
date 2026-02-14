@@ -138,6 +138,69 @@ export class UserController {
     }
   }
 
+  static async setUserRole(req, res) {
+    try {
+      const userId = req.userId;
+      const { role } = req.body;
+
+      // 1. Validar a role recebida
+      const validRoles = ['STUDENT', 'COMPANY', 'SCHOOL'];
+      if (!role || !validRoles.includes(role.toUpperCase())) {
+        return res.status(400).json({ success: false, message: 'O perfil selecionado é inválido.' });
+      }
+      const normalizedRole = role.toUpperCase();
+
+      // 2. Verificar se o utilizador já tem um perfil para evitar sobreposições
+      const { data: currentUser } = await supabase.from('User').select('role').eq('id', userId).single();
+      if (currentUser && currentUser.role) {
+        return res.status(400).json({ success: false, message: 'O utilizador já tem um perfil definido.' });
+      }
+
+      // 3. Atualizar a role do utilizador na tabela User
+      const { data: updatedUser, error: userError } = await supabase
+        .from('User')
+        .update({ role: normalizedRole })
+        .eq('id', userId)
+        .select('*')
+        .single();
+
+      if (userError) throw userError;
+
+      // 4. Criar o perfil correspondente (StudentProfile ou CompanyProfile)
+      let profile = null;
+      let profileError = null;
+      if (normalizedRole === 'STUDENT') {
+        const { data, error } = await supabase.from('StudentProfile').insert({ userId }).select().single();
+        profile = data;
+        profileError = error;
+      } else if (normalizedRole === 'COMPANY') {
+        const { data, error } = await supabase.from('CompanyProfile').insert({ userId }).select().single();
+        profile = data;
+        profileError = error;
+      } else if (normalizedRole === 'SCHOOL') {
+        const { data, error } = await supabase.from('SchoolProfile').insert({ userId }).select().single();
+        profile = data;
+        profileError = error;
+      }
+
+      if (profileError) throw profileError;
+
+      // 5. Devolver o objeto de utilizador completo e atualizado
+      updatedUser.studentProfile = normalizedRole === 'STUDENT' ? profile : null;
+      updatedUser.companyProfile = normalizedRole === 'COMPANY' ? profile : null;
+      updatedUser.schoolProfile = normalizedRole === 'SCHOOL' ? profile : null;
+
+      res.json({ success: true, message: 'Perfil definido com sucesso!', data: updatedUser });
+
+    } catch (error) {
+      console.error('Set user role error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Ocorreu um erro ao definir o seu perfil.' 
+      });
+    }
+  }
+
   static async getUserStats(req, res) {
     try {
       const userId = req.userId;

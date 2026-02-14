@@ -12,6 +12,7 @@ router.get('/companies/top', UserController.getTopCompanies);
 router.get('/me', authenticate(), UserController.getUserProfile);
 router.put('/me', authenticate(), UserController.updateUserProfile);
 router.get('/profile', authenticate(), UserController.getUserProfile); // Alias para /me para compatibilidade com frontend
+router.put('/me/role', authenticate(), UserController.setUserRole); // Rota para definir a role inicial
 router.get('/stats', authenticate(), UserController.getUserStats);
 
 // Admin routes

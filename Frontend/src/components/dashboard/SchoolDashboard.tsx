@@ -5,6 +5,7 @@ import { useApp } from '../../context/AppContext';
 import StatsCard from '../ui/StatsCard';
 import { schoolService } from '../../services/school.service';
 import UserBadge from '../ui/UserBadge';
+import { toast } from 'react-hot-toast';
 import { 
   GraduationCap, 
   Users, 
@@ -15,7 +16,8 @@ import {
   Settings, 
   FileText,
   TrendingUp,
-  Search
+  Search,
+  X
 } from 'lucide-react';
 
 const SchoolDashboard = () => {
@@ -27,6 +29,9 @@ const SchoolDashboard = () => {
     completedPaps: 0,
     averageGrade: 0
   });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({ name: '', email: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -50,6 +55,31 @@ const SchoolDashboard = () => {
 
     fetchStats();
   }, []);
+
+  const handleRegisterStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name || !formData.email) {
+      toast.error('Por favor, preencha todos os campos.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await schoolService.registerStudent(formData);
+      if (response.success) {
+        toast.success(response.message || 'Aluno registado com sucesso!');
+        setIsModalOpen(false);
+        setFormData({ name: '', email: '' });
+        // Aqui poderias recarregar as estatísticas se quisesses
+      } else {
+        toast.error(response.message || 'Erro ao registar aluno.');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Erro ao conectar com o servidor.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const schoolStats = {
     user: {
@@ -116,7 +146,10 @@ const SchoolDashboard = () => {
               </p>
             </div>
             <div className="flex space-x-3 mt-4 lg:mt-0">
-              <button className="bg-solve-blue text-white px-6 py-3 rounded-xl font-semibold hover:bg-solve-purple transition-all duration-200 flex items-center space-x-2 shadow-lg shadow-blue-200">
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="bg-solve-blue text-white px-6 py-3 rounded-xl font-semibold hover:bg-solve-purple transition-all duration-200 flex items-center space-x-2 shadow-lg shadow-blue-200"
+              >
                 <Plus size={20} />
                 <span>Registar Aluno</span>
               </button>
@@ -294,6 +327,62 @@ const SchoolDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Registo de Aluno */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            {...({ className:"bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"} as any)}
+          >
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-gray-900">Registar Novo Aluno</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleRegisterStudent} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
+                <input 
+                  type="text" 
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-solve-blue focus:border-transparent outline-none transition-all"
+                  placeholder="Ex: Maria Santos"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email do Aluno</label>
+                <input 
+                  type="email" 
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-solve-blue focus:border-transparent outline-none transition-all"
+                  placeholder="aluno@exemplo.com"
+                />
+              </div>
+              <div className="pt-4 flex space-x-3">
+                <button 
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-1 px-4 py-2 bg-solve-blue text-white rounded-xl hover:bg-solve-purple font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? 'A Registar...' : 'Confirmar Registo'}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
