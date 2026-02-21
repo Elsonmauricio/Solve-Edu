@@ -7,34 +7,31 @@ import UserBadge from '../ui/UserBadge';
 import { problemsService } from '../../services/problems.service';
 import { solutionsService } from '../../services/solution.service';
 import { companyService } from '../../services/company.service';
+import CompanySolutions from '../layout/CompanySolutions'; // Importar o novo componente
 import ProblemCard from '../ui/ProblemCard';
 import { Problem, Solution } from '../../types';
 import { 
   Target, 
   Users, 
-  TrendingUp, 
-  Euro,
+  Star,
   Plus,
   Eye,
-  MessageCircle,
   Bell,
-  Settings,
   CheckCircle,
-  Clock
 } from 'lucide-react';
 
 const CompanyDashboard = () => {
   const { user } = useApp();
   const [stats, setStats] = useState({
     activeProblems: 0,
-    totalSolutionsReceived: 0,
-    pendingReviews: 0,
-    solutionsAccepted: 0, // Este pode vir de outro endpoint ou ser calculado
-    totalRewards: 0,
+    totalSolutions: 0,
+    acceptedSolutions: 0,
+    acceptanceRate: 0,
+    averageSolutionRating: 0,
+    expiredProblems: 0
   });
   const [isLoading, setIsLoading] = useState(true);
   const [myProblems, setMyProblems] = useState<Problem[]>([]);
-  const [pendingApplications, setPendingApplications] = useState<Solution[]>([]);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -42,7 +39,15 @@ const CompanyDashboard = () => {
         setIsLoading(true);
         const response = await companyService.getDashboardStats();
         if (response.success) {
-          setStats(prev => ({ ...prev, ...response.data }));
+          // Mapear a resposta do backend (UserController.getUserStats) para o estado local
+          setStats({
+            activeProblems: response.data.activeProblems || 0,
+            totalSolutions: response.data.totalSolutions || 0,
+            acceptedSolutions: response.data.acceptedSolutions || 0,
+            acceptanceRate: response.data.acceptanceRate || 0,
+            averageSolutionRating: response.data.averageSolutionRating || 0,
+            expiredProblems: response.data.expiredProblems || 0
+          });
         }
       } catch (error) {
         console.error("Failed to fetch company dashboard stats:", error);
@@ -54,27 +59,28 @@ const CompanyDashboard = () => {
     const fetchProblems = async () => {
       try {
         // O backend deve filtrar automaticamente para a empresa logada
-        const response = await problemsService.getAll({ limit: 4 });
+        const response = await problemsService.getAll({ limit: 4, sortBy: 'createdAt', sortOrder: 'desc' });
         if (response.success) setMyProblems(response.data.data || []);
       } catch (error) {
         console.error("Failed to fetch company problems:", error);
       }
     };
 
-    const fetchPending = async () => {
-      try {
-        // O backend deve filtrar automaticamente para a empresa logada
-        const response = await solutionsService.getAll({ status: 'PENDING_REVIEW' });
-        if (response.success) setPendingApplications(response.data.data || []);
-      } catch (error) {
-        console.error("Failed to fetch pending applications:", error);
-      }
-    };
-
     fetchStats();
     fetchProblems();
-    fetchPending();
   }, []);
+
+  // Gerar atividades recentes combinando problemas e candidaturas
+  const recentActivity = [
+    ...myProblems.map(p => ({
+      type: 'PROBLEM',
+      title: p.title,
+      date: p.createdAt,
+      desc: 'Novo desafio publicado'
+    }))
+  ]
+  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  .slice(0, 5);
 
 
   const companyStats = {
@@ -90,7 +96,7 @@ const CompanyDashboard = () => {
       createdAt: user?.createdAt || new Date().toISOString(),
       updatedAt: user?.updatedAt || new Date().toISOString(),
       problemsPosted: stats.activeProblems,
-      solutionsAccepted: stats.solutionsAccepted,
+      solutionsAccepted: stats.acceptedSolutions,
     } as any,
     stats: [
       {
@@ -102,23 +108,23 @@ const CompanyDashboard = () => {
       },
       {
         title: "Candidaturas Recebidas",
-        value: isLoading ? '...' : (stats.totalSolutionsReceived || 0).toString(),
+        value: isLoading ? '...' : (stats.totalSolutions || 0).toString(),
         change: 0,
         icon: Users,
         color: "green"
       },
       {
         title: "Soluções Aceites",
-        value: isLoading ? '...' : (stats.solutionsAccepted || 0).toString(),
+        value: isLoading ? '...' : (stats.acceptedSolutions || 0).toString(),
         change: 0,
         icon: CheckCircle,
         color: "teal"
       },
       {
-        title: "Total em Recompensas",
-        value: `€${stats.totalRewards}`, // Este valor deve vir do backend
+        title: "Avaliação Média",
+        value: isLoading ? '...' : (stats.averageSolutionRating || 0).toFixed(1),
         change: 0,
-        icon: Euro,
+        icon: Star,
         color: "purple"
       }
     ]
@@ -127,7 +133,6 @@ const CompanyDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
         <motion.div
           {...({ className: "mb-8" } as any)}
           initial={{ opacity: 0, y: 20 }}
@@ -163,7 +168,7 @@ const CompanyDashboard = () => {
           <div className="lg:col-span-3 space-y-8">
             {/* Stats Grid */}
             <motion.div
-              {...({ className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" } as any)}
+              {...({ className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" } as any)} 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
@@ -181,66 +186,14 @@ const CompanyDashboard = () => {
               ))}
             </motion.div>
 
-            {/* Pending Applications */}
-        <motion.div
+            {/* Tabela de Soluções da Empresa */}
+            <motion.div
               {...({ className: "bg-white rounded-2xl shadow-lg border border-gray-200" } as any)}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
             >
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-gray-900">Candidaturas Pendentes</h2>
-                  <Link
-                    to="/solutions"
-                    className="text-solve-blue hover:text-solve-purple font-medium"
-                  >
-                    Ver todas
-                  </Link>
-                </div>
-              </div>
-              
-              <div className="p-6">
-                {pendingApplications && pendingApplications.length > 0 ? (
-                  <div className="space-y-4">
-                    {pendingApplications.map((solution, index) => (
-                      <div
-                        key={solution.id}
-                        className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-solve-blue transition-colors"
-                      >
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900">{solution.title}</h4>
-                          <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
-                            <span>{typeof solution.student === 'string' ? solution.student : solution.student?.user?.name || "Estudante"}</span>
-                            <span>•</span>
-                            <span>{typeof solution.student === 'string' ? 'N/A' : solution.student?.school || "N/A"}</span>
-                            <span>•</span>
-                            <span className="text-yellow-600 font-medium">Em Análise</span>
-                          </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          <button className="px-4 py-2 bg-solve-blue text-white rounded-lg font-medium hover:bg-solve-purple transition-colors">
-                            Avaliar
-                          </button>
-                          <button className="p-2 border border-gray-300 rounded-lg text-gray-600 hover:border-gray-400 transition-colors">
-                            <MessageCircle size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <CheckCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      Nenhuma candidatura pendente
-                    </h3>
-                    <p className="text-gray-600">
-                      Todas as candidaturas foram analisadas.
-                    </p>
-                  </div>
-                )}
-              </div>
+              <CompanySolutions />
             </motion.div>
 
             {/* My Problems */}
@@ -356,35 +309,26 @@ const CompanyDashboard = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Atividade Recente</h3>
               
               <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-700">Solução aceite para "Sistema de Inventário"</p>
-                    <p className="text-xs text-gray-500">Há 1 dia</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Plus className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-700">Novo desafio publicado</p>
-                    <p className="text-xs text-gray-500">Há 3 dias</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                    <Users className="w-4 h-4 text-orange-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-700">5 novas candidaturas recebidas</p>
-                    <p className="text-xs text-gray-500">Há 1 semana</p>
-                  </div>
-                </div>
+                {recentActivity.length > 0 ? (
+                  recentActivity.map((activity, idx) => (
+                    <div key={idx} className="flex items-center space-x-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${activity.type === 'PROBLEM' ? 'bg-blue-100' : 'bg-orange-100'}`}>
+                        {activity.type === 'PROBLEM' ? (
+                          <Plus className="w-4 h-4 text-blue-600" />
+                        ) : (
+                          <Users className="w-4 h-4 text-orange-600" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-700">{activity.desc}</p>
+                        <p className="text-xs text-gray-500 truncate max-w-[200px]">{activity.title}</p>
+                        <p className="text-[10px] text-gray-400">{new Date(activity.date).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500 text-center py-4">Sem atividade recente.</p>
+                )}
               </div>
             </motion.div>
 
@@ -401,30 +345,30 @@ const CompanyDashboard = () => {
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span>Taxa de Aceitação</span>
-                    <span>67%</span>
+                    <span>{stats.acceptanceRate.toFixed(0)}%</span>
                   </div>
                   <div className="w-full bg-white/20 rounded-full h-2">
-                    <div className="bg-white h-2 rounded-full" style={{ width: '67%' }}></div>
+                    <div className="bg-white h-2 rounded-full" style={{ width: `${Math.min(stats.acceptanceRate, 100)}%` }}></div>
                   </div>
                 </div>
                 
                 <div>
                   <div className="flex justify-between text-sm mb-1">
-                    <span>Tempo Médio de Resposta</span>
-                    <span>3.2 dias</span>
+                    <span>Desafios Expirados</span>
+                    <span>{stats.expiredProblems}</span>
                   </div>
                   <div className="w-full bg-white/20 rounded-full h-2">
-                    <div className="bg-white h-2 rounded-full" style={{ width: '80%' }}></div>
+                    <div className="bg-white h-2 rounded-full" style={{ width: `${Math.min((stats.expiredProblems / (stats.activeProblems + stats.expiredProblems || 1)) * 100, 100)}%` }}></div>
                   </div>
                 </div>
                 
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span>Satisfação dos Estudantes</span>
-                    <span>4.5/5</span>
+                    <span>{stats.averageSolutionRating.toFixed(1)}/5</span>
                   </div>
                   <div className="w-full bg-white/20 rounded-full h-2">
-                    <div className="bg-white h-2 rounded-full" style={{ width: '90%' }}></div>
+                    <div className="bg-white h-2 rounded-full" style={{ width: `${(stats.averageSolutionRating / 5) * 100}%` }}></div>
                   </div>
                 </div>
               </div>

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import StatsCard from '../ui/StatsCard';
 import { schoolService } from '../../services/school.service';
+import SchoolSolutionsList from '../layout/SchoolSolutionsList'; // Importar o novo componente
 import UserBadge from '../ui/UserBadge';
 import { toast } from 'react-hot-toast';
 import { 
@@ -27,8 +28,10 @@ const SchoolDashboard = () => {
     totalStudents: 0,
     activeProjects: 0,
     completedPaps: 0,
-    averageGrade: 0
+    averageGrade: 0,
+    acceptanceRate: 0
   });
+  const [students, setStudents] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,9 +44,10 @@ const SchoolDashboard = () => {
         if (response.success) {
           setStats({
             totalStudents: response.data.totalStudents || 0,
-            activeProjects: response.data.activeProjects || 0,
-            completedPaps: response.data.completedPaps || 0,
-            averageGrade: response.data.averageGrade || 0
+            activeProjects: response.data.totalSolutions || 0, // Mapeia total de soluções como projetos ativos/submetidos
+            completedPaps: response.data.acceptedSolutions || 0,
+            averageGrade: response.data.averageGrade || 0,
+            acceptanceRate: response.data.acceptanceRate || 0
           });
         }
       } catch (error) {
@@ -53,7 +57,19 @@ const SchoolDashboard = () => {
       }
     };
 
+    const fetchStudents = async () => {
+      try {
+        const response = await schoolService.getStudents();
+        if (response.success) {
+          setStudents(response.data || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch students:", error);
+      }
+    };
+
     fetchStats();
+    fetchStudents();
   }, []);
 
   const handleRegisterStudent = async (e: React.FormEvent) => {
@@ -186,6 +202,9 @@ const SchoolDashboard = () => {
               ))}
             </motion.div>
 
+            {/* Lista de Soluções para Validação de PAP */}
+            <SchoolSolutionsList />
+
             {/* Recent Activity / Students Progress */}
             <motion.div
               {...({ className: "bg-white rounded-2xl shadow-lg border border-gray-200" } as any)}
@@ -207,25 +226,33 @@ const SchoolDashboard = () => {
               
               <div className="p-6">
                 <div className="space-y-4">
-                  {[1, 2, 3].map((item) => (
-                    <div key={item} className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
+                  {students.length > 0 ? (
+                    students.slice(0, 5).map((student) => (
+                    <div key={student.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
                       <div className="flex items-center space-x-4">
-                        <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 font-bold">
-                          A{item}
-                        </div>
+                        <img 
+                          src={student.avatar || `https://ui-avatars.com/api/?name=${student.name}`} 
+                          alt={student.name}
+                          className="w-10 h-10 rounded-full object-cover bg-gray-200"
+                        />
                         <div>
-                          <h4 className="font-semibold text-gray-900">João Silva</h4>
-                          <p className="text-sm text-gray-500">Técnico de Informática • 12º Ano</p>
+                          <h4 className="font-semibold text-gray-900">{student.name}</h4>
+                          <p className="text-sm text-gray-500">
+                            {student.studentProfile?.course || 'Curso não definido'} • {student.studentProfile?.year ? `${student.studentProfile.year}º Ano` : 'N/A'}
+                          </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          PAP Submetida
+                        {/* Placeholder para status real se disponível futuramente */}
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Registado
                         </span>
-                        <p className="text-xs text-gray-400 mt-1">Há 2 horas</p>
                       </div>
                     </div>
-                  ))}
+                  ))
+                  ) : (
+                    <p className="text-center text-gray-500 py-4">Nenhum aluno registado recentemente.</p>
+                  )}
                 </div>
                 <div className="mt-6 text-center">
                   <button className="text-solve-blue hover:text-solve-purple font-medium text-sm">
@@ -291,10 +318,10 @@ const SchoolDashboard = () => {
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="text-gray-600">Taxa de Conclusão</span>
-                    <span className="font-semibold text-gray-900">85%</span>
+                    <span className="font-semibold text-gray-900">{stats.acceptanceRate.toFixed(0)}%</span>
                   </div>
                   <div className="w-full bg-gray-100 rounded-full h-2">
-                    <div className="bg-green-500 h-2 rounded-full" style={{ width: '85%' }}></div>
+                    <div className="bg-green-500 h-2 rounded-full" style={{ width: `${Math.min(stats.acceptanceRate, 100)}%` }}></div>
                   </div>
                 </div>
                 <div>

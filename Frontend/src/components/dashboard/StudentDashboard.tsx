@@ -42,9 +42,9 @@ const StudentDashboard = () => {
         const response = await studentService.getDashboardStats();
         if (response.success) {
           setStats({
-            submittedCount: response.data.submittedCount || 0,
-            acceptedCount: response.data.acceptedCount || 0,
-            ongoingCount: response.data.ongoingCount || 0,
+            submittedCount: response.data.totalSolutions || 0,
+            acceptedCount: response.data.acceptedSolutions || 0,
+            ongoingCount: response.data.pendingSolutions || 0,
             averageRating: response.data.averageRating || 0
           });
         }
@@ -131,6 +131,55 @@ const StudentDashboard = () => {
       }
     ]
   };
+
+  // Lógica para Atividade Recente (baseada nas soluções submetidas)
+  const recentActivity = mySolutions.map(solution => ({
+    id: solution.id,
+    type: 'SOLUTION',
+    title: solution.title,
+    status: solution.status,
+    date: solution.submittedAt,
+    // Tenta obter o título do problema se disponível na relação, senão usa fallback
+    problemTitle: (solution as any).problem?.title || 'Desafio'
+  }));
+
+  // Lógica para Prazos Próximos (baseada em desafios recomendados ou ativos)
+  // Combina problemas das soluções (se tiverem prazo) com problemas recomendados
+  const deadlines = [
+    ...mySolutions
+      .filter(s => (s as any).problem?.deadline && new Date((s as any).problem.deadline) > new Date())
+      .map(s => ({
+        id: s.id,
+        title: (s as any).problem?.title || 'Desafio',
+        deadline: (s as any).problem?.deadline,
+        type: 'MY_SOLUTION'
+      })),
+    ...activeProblems
+      .filter(p => p.deadline && new Date(p.deadline) > new Date())
+      .map(p => ({
+        id: p.id,
+        title: p.title,
+        deadline: p.deadline,
+        type: 'RECOMMENDED'
+      }))
+  ]
+  // Remove duplicados por ID (caso haja sobreposição)
+  .filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i)
+  .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+  .slice(0, 3);
+
+  // Lógica para Progresso do Perfil
+  const calculateProgress = () => {
+    if (!user) return 0;
+    let filledFields = 0;
+    const totalFields = 4; // Avatar, Nome, Email, Escola
+    if (user.avatar) filledFields++;
+    if (user.name) filledFields++;
+    if (user.email) filledFields++;
+    if ((user as any).studentProfile?.school) filledFields++;
+    return Math.round((filledFields / totalFields) * 100);
+  };
+  const profileProgress = calculateProgress();
 
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
@@ -348,35 +397,31 @@ const StudentDashboard = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Atividade Recente</h3>
               
               <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <Award className="w-4 h-4 text-green-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-700">Solução aceite em "Sistema de Inventário"</p>
-                    <p className="text-xs text-gray-500">Há 2 dias</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Plus className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-700">Nova solução submetida</p>
-                    <p className="text-xs text-gray-500">Há 1 semana</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                    <Star className="w-4 h-4 text-purple-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-700">Atingiu nível Avançado</p>
-                    <p className="text-xs text-gray-500">Há 2 semanas</p>
-                  </div>
-                </div>
+                {recentActivity.length > 0 ? (
+                  recentActivity.map((activity) => (
+                    <div key={activity.id} className="flex items-center space-x-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        activity.status === 'ACCEPTED' ? 'bg-green-100' : 
+                        activity.status === 'PENDING_REVIEW' ? 'bg-yellow-100' : 'bg-blue-100'
+                      }`}>
+                        {activity.status === 'ACCEPTED' ? <Award className="w-4 h-4 text-green-600" /> :
+                         activity.status === 'PENDING_REVIEW' ? <Clock className="w-4 h-4 text-yellow-600" /> :
+                         <Plus className="w-4 h-4 text-blue-600" />}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-700">
+                          {activity.status === 'ACCEPTED' ? 'Solução aceite' : 
+                           activity.status === 'PENDING_REVIEW' ? 'Solução em análise' : 'Solução submetida'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {activity.problemTitle} • {new Date(activity.date).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500 text-center py-2">Sem atividade recente.</p>
+                )}
               </div>
             </motion.div>
 
@@ -390,21 +435,22 @@ const StudentDashboard = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Prazos Próximos</h3>
               
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">App Mobile</p>
-                    <p className="text-xs text-gray-600">5 dias restantes</p>
-                  </div>
-                  <Calendar className="w-4 h-4 text-orange-600" />
-                </div>
-                
-                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Website Redesign</p>
-                    <p className="text-xs text-gray-600">12 dias restantes</p>
-                  </div>
-                  <Calendar className="w-4 h-4 text-blue-600" />
-                </div>
+                {deadlines.length > 0 ? (
+                  deadlines.map((item, idx) => {
+                    const daysLeft = Math.ceil((new Date(item.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                    return (
+                      <div key={`${item.id}-${idx}`} className={`flex items-center justify-between p-3 rounded-lg ${daysLeft < 5 ? 'bg-orange-50' : 'bg-blue-50'}`}>
+                        <div className="overflow-hidden">
+                          <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
+                          <p className="text-xs text-gray-600">{daysLeft} dias restantes</p>
+                        </div>
+                        <Calendar className={`w-4 h-4 ${daysLeft < 5 ? 'text-orange-600' : 'text-blue-600'} flex-shrink-0`} />
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-sm text-gray-500 text-center py-2">Sem prazos próximos.</p>
+                )}
               </div>
             </motion.div>
 
@@ -417,22 +463,22 @@ const StudentDashboard = () => {
             >
               <h3 className="text-lg font-semibold mb-2">Progresso do Perfil</h3>
               <div className="w-full bg-white/20 rounded-full h-2 mb-2">
-                <div className="bg-white h-2 rounded-full" style={{ width: '75%' }}></div>
+                <div className="bg-white h-2 rounded-full" style={{ width: `${profileProgress}%` }}></div>
               </div>
-              <p className="text-blue-100 text-sm">75% completo - Continue a submissão de soluções!</p>
+              <p className="text-blue-100 text-sm">{profileProgress}% completo</p>
               
               <div className="mt-4 space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span>Soluções Submetidas</span>
-                  <span>8/10</span>
+                  <span>{stats.submittedCount}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Perfil Completo</span>
-                  <span>100%</span>
+                  <span>Soluções Aceites</span>
+                  <span>{stats.acceptedCount}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Skills Validadas</span>
-                  <span>6/8</span>
+                  <span>Rating Médio</span>
+                  <span>{stats.averageRating.toFixed(1)}/5</span>
                 </div>
               </div>
             </motion.div>

@@ -41,7 +41,9 @@ const Footer = () => {
         { name: 'Centro de Ajuda', href: '/help' },
         { name: 'Contactos', href: '/contact' },
         { name: 'Política de Privacidade', href: '/privacy' },
-        { name: 'Termos de Serviço', href: '/terms' },
+        { name: 'Termos de Uso', href: '/terms' },
+        { name: 'Proteção de Menores', href: '/child-protection' },
+        { name: 'Segurança', href: '/security' },
       ],
     },
   ];

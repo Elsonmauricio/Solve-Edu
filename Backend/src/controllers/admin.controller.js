@@ -774,4 +774,42 @@ export class AdminController {
       });
     }
   }
+
+  static async getMyNotifications(req, res) {
+    try {
+      const userId = req.userId;
+      const { data, error } = await supabase
+        .from('Notification')
+        .select('*')
+        .eq('userId', userId)
+        .order('createdAt', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+
+      res.json({ success: true, data });
+    } catch (error) {
+      console.error('Get my notifications error:', error);
+      res.status(500).json({ success: false, message: 'Erro ao buscar notificações.' });
+    }
+  }
+
+  static async markNotificationsAsRead(req, res) {
+    try {
+      const userId = req.userId;
+
+      const { error } = await supabase
+        .from('Notification')
+        .update({ isRead: true })
+        .eq('userId', userId)
+        .eq('isRead', false);
+      
+      if (error) throw error;
+
+      res.json({ success: true, message: 'Notificações marcadas como lidas.' });
+    } catch (error) {
+      console.error('Mark notifications as read error:', error);
+      res.status(500).json({ success: false, message: 'Erro ao marcar notificações.' });
+    }
+  }
 }

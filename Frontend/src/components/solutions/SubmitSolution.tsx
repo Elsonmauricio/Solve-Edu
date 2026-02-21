@@ -1,21 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, X, Upload, Github, Link as LinkIcon, Loader } from 'lucide-react';
+import { ArrowLeft, Plus, X, Upload, Github, Link as LinkIcon, Loader, FileText, Trash2 } from 'lucide-react';
 import { Solution, Problem, User } from '../../types';
 import toast from 'react-hot-toast';
 import { useSolutions, CreateSolutionDto } from '../../hooks/useSolutions';
+import { problemsService } from '../../services/problems.service';
 
 const SubmitSolution = () => {
   const { id } = useParams();
   const { problems, dispatch, user } = useApp();
   const navigate = useNavigate();
-  const { createSolution, loading: isLoading } = useSolutions();
+  const { createSolution, loading: isSubmitting } = useSolutions();
 
-  const problem = problems.find((p: Problem) => p.id === parseInt(id || '0'));
+  const [problem, setProblem] = useState<Problem | null>(null);
+  const [isLoadingProblem, setIsLoadingProblem] = useState(true);
 
-  interface FormData {
+  useEffect(() => {
+    const loadProblem = async () => {
+      if (!id) return;
+      
+      // Tenta encontrar no contexto primeiro (convertendo ID para string para garantir compatibilidade com UUIDs)
+      const found = problems.find((p: Problem) => String(p.id) === id);
+      
+      if (found) {
+        setProblem(found);
+        setIsLoadingProblem(false);
+      } else {
+        // Se não encontrar (ex: refresh da página), busca na API
+        try {
+          const response = await problemsService.getById(id);
+          if (response.success) {
+            setProblem(response.data as any);
+          }
+        } catch (error) {
+          console.error('Erro ao carregar desafio:', error);
+          toast.error('Não foi possível carregar os detalhes do desafio.');
+        } finally {
+          setIsLoadingProblem(false);
+        }
+      }
+    };
+
+    loadProblem();
+  }, [id, problems]);
+
+  interface SolutionFormState {
     title: string;
     description: string;
     technologies: string[];
@@ -25,7 +56,7 @@ const SubmitSolution = () => {
     newTech: string;
   }
 
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<SolutionFormState>({
     title: '',
     description: '',
     technologies: [],
@@ -35,7 +66,23 @@ const SubmitSolution = () => {
     newTech: ''
   });
 
-  const handleInputChange = (field: keyof FormData, value: any) => {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleInputChange = (field: keyof SolutionFormState, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -66,26 +113,54 @@ const SubmitSolution = () => {
 
     // O hook gere o estado de loading
     try {
-      const solutionData: CreateSolutionDto = {
-        title: formData.title,
-        description: formData.description,
-        problemId: problem.id,
-        technologies: formData.technologies,
-        githubUrl: formData.githubUrl,
-        demoUrl: formData.demoUrl,
-        documentation: formData.documentation,
-      };
+      const submitData = new FormData();
+      submitData.append('title', formData.title);
+      submitData.append('description', formData.description);
+      submitData.append('problemId', String(problem.id));
+      
+      formData.technologies.forEach(tech => {
+        submitData.append('technologies', tech);
+      });
 
-      await createSolution(solutionData);
+      if (formData.githubUrl) submitData.append('githubUrl', formData.githubUrl);
+      if (formData.demoUrl) submitData.append('demoUrl', formData.demoUrl);
+      if (formData.documentation) submitData.append('documentation', formData.documentation);
+      
+      if (selectedFile) {
+        submitData.append('file', selectedFile);
+      }
+
+      await createSolution(submitData as any);
       toast.success('Solução submetida com sucesso!');
       navigate('/student-dashboard');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting solution:', error);
-      toast.error('Erro ao submeter solução. Tente novamente.');
+      // Extrai a mensagem de erro específica do backend
+      const apiError = error.response?.data;
+      
+      // Define a mensagem inicial
+      let errorMessage = apiError?.message || 'Erro ao submeter solução. Tente novamente.';
+      
+      if (apiError?.errors && Array.isArray(apiError.errors)) {
+        errorMessage = apiError.errors.map((e: any) => e.msg).join('. ');
+      }
+
+      toast.error(errorMessage);
+      if (apiError?.errors) {
+        console.error('Validation Errors:', apiError.errors);
+      }
     }
   };
 
   const isFormValid = formData.title && formData.description && formData.technologies.length > 0;
+
+  if (isLoadingProblem) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader size={40} className="animate-spin text-solve-blue" />
+      </div>
+    );
+  }
 
   if (!problem) {
     return (
@@ -216,6 +291,11 @@ const SubmitSolution = () => {
                 <Plus size={20} />
               </button>
             </div>
+            {formData.technologies.length === 0 && (
+              <p className="text-xs text-orange-500 mt-1">
+                ⚠️ Adicione pelo menos uma tecnologia clicando no botão + ou pressionando Enter.
+              </p>
+            )}
           </div>
 
           {/* Links */}
@@ -268,15 +348,48 @@ const SubmitSolution = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Ficheiros Adicionais (Opcional)
             </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center">
-              <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-gray-600 mb-2">
-                Arraste ficheiros ou <span className="text-solve-blue cursor-pointer">procure no seu computador</span>
-              </p>
-              <p className="text-sm text-gray-500">
-                PDF, DOC, ZIP até 25MB
-              </p>
-            </div>
+            
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+              accept=".pdf,.doc,.docx,.zip,.rar"
+            />
+
+            {!selectedFile ? (
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-solve-blue hover:bg-blue-50 transition-all"
+              >
+                <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-600 mb-2">
+                  Clique para fazer upload de um documento
+                </p>
+                <p className="text-sm text-gray-500">
+                  PDF, DOC, ZIP até 25MB
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl bg-gray-50">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <FileText className="text-blue-600" size={20} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">{selectedFile.name}</p>
+                    <p className="text-xs text-gray-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemoveFile}
+                  className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <Trash2 size={20} />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* PAP Information */}
@@ -301,19 +414,26 @@ const SubmitSolution = () => {
             <button
               type="button"
               onClick={() => navigate(-1)}
-              disabled={isLoading}
+              disabled={isSubmitting}
               className="px-8 py-4 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:border-gray-400 transition-colors disabled:opacity-50"
             >
               Cancelar
             </button>
-            <button
-              type="submit"
-              disabled={!isFormValid || isLoading}
-              className="flex items-center justify-center gap-2 flex-1 bg-gradient-to-r from-solve-blue to-solve-purple text-white py-4 rounded-xl font-semibold hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading && <Loader size={20} className="animate-spin" />}
-              {isLoading ? 'Submetendo...' : 'Submeter Solução'}
-            </button>
+            <div className="flex-1 flex flex-col">
+              <button
+                type="submit"
+                disabled={!isFormValid || isSubmitting}
+                className="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-solve-blue to-solve-purple text-white py-4 rounded-xl font-semibold hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting && <Loader size={20} className="animate-spin" />}
+                {isSubmitting ? 'Submetendo...' : 'Submeter Solução'}
+              </button>
+              {!isFormValid && (
+                <p className="text-xs text-red-500 text-center mt-2">
+                  Preencha o título, descrição e adicione pelo menos uma tecnologia para continuar.
+                </p>
+              )}
+            </div>
           </div>
         </form>
         </div>

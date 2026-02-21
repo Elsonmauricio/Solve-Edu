@@ -1,20 +1,14 @@
 import api from './api';
 
-interface DashboardStats {
-  activeProblems: number;
-  totalSolutionsReceived: number;
-  pendingReviews: number;
-}
-
-interface ApiResponse<T> {
-    success: boolean;
-    data: T;
-    message?: string;
-}
-
 export const companyService = {
-  async getDashboardStats(): Promise<ApiResponse<DashboardStats>> {
-    const response = await api.get('/company/dashboard-stats');
-    return response.data;
+  // Obter estatísticas para o dashboard da empresa
+  getDashboardStats: async () => {
+    try {
+      // Reutiliza o endpoint genérico de stats que já suporta o role COMPANY
+      const response = await api.get('/users/stats');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
   }
 };

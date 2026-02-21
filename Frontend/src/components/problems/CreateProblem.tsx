@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { problemsService } from '../../services/problems.service';
-import { ArrowLeft, Plus, X, Upload, Loader } from 'lucide-react';
+import { ArrowLeft, Plus, X, Upload, Loader, FileText, Trash2 } from 'lucide-react';
 import { Problem } from '../../types';
 import toast from 'react-hot-toast';
 
@@ -21,6 +21,8 @@ interface FormData {
 const CreateProblem = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<FormData>({
     title: '',
@@ -84,6 +86,19 @@ const CreateProblem = () => {
     }));
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -95,19 +110,24 @@ const CreateProblem = () => {
       const deadlineDate = new Date();
       deadlineDate.setDate(deadlineDate.getDate() + deadlineDays);
 
-      const problemData: Partial<Problem> = {
-        title: formData.title,
-        description: formData.description,
-        category: formData.category,
-        difficulty: formData.difficulty,
-        tags: formData.tags,
-        deadline: deadlineDate.toISOString(),
-        reward: formData.reward,
-        requirements: formData.requirements.filter(req => req.trim()),
-      };
+      // Criar FormData para envio de ficheiro
+      const submitData = new FormData();
+      submitData.append('title', formData.title);
+      submitData.append('description', formData.description);
+      submitData.append('category', formData.category);
+      submitData.append('difficulty', formData.difficulty);
+      submitData.append('deadline', deadlineDate.toISOString());
+      if (formData.reward) submitData.append('reward', formData.reward);
+      
+      formData.tags.forEach(tag => submitData.append('tags', tag));
+      formData.requirements.filter(req => req.trim()).forEach(req => submitData.append('requirements', req));
+      
+      if (selectedFile) {
+        submitData.append('file', selectedFile);
+      }
 
       // O token é adicionado automaticamente pelo intercetor da API
-      const response = await problemsService.create(problemData);
+      const response = await problemsService.create(submitData as any);
 
       if (response.success) {
         toast.success('Desafio criado com sucesso!');
@@ -115,9 +135,15 @@ const CreateProblem = () => {
       } else {
         toast.error((response as any).message || 'Erro ao criar desafio');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating problem:', error);
-      toast.error('Erro ao criar desafio. Tente novamente.');
+      // Tenta mostrar a mensagem específica do backend se existir
+      // Prioridade ao erro técnico (data.error) para facilitar o debug
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || 
+                           (error.response?.data?.errors ? 'Erro nos dados do formulário' : 'Erro ao criar desafio. Tente novamente.');
+      
+      toast.error(errorMessage);
+      if (error.response?.data?.errors) console.log('Validation errors:', error.response.data.errors);
     } finally {
       setIsLoading(false);
     }
@@ -228,10 +254,18 @@ const CreateProblem = () => {
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
                 rows={6}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-solve-blue focus:border-transparent"
+                minLength={50}
+                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-solve-blue focus:border-transparent ${
+                  formData.description.length > 0 && formData.description.length < 50 
+                    ? 'border-red-300 focus:ring-red-200' 
+                    : 'border-gray-300'
+                }`}
                 placeholder="Descreva o desafio em detalhe, incluindo o contexto, objetivos e resultados esperados..."
                 required
               />
+              <div className={`text-xs mt-1 text-right ${formData.description.length > 0 && formData.description.length < 50 ? 'text-red-500' : 'text-gray-500'}`}>
+                {formData.description.length}/5000 (Mínimo 50 caracteres)
+              </div>
             </div>
 
             {/* Tags Section */}
@@ -355,15 +389,48 @@ const CreateProblem = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Documentos de Apoio (Opcional)
               </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center">
-                <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-600 mb-2">
-                  Arraste ficheiros ou <span className="text-solve-blue cursor-pointer">procure no seu computador</span>
-                </p>
-                <p className="text-sm text-gray-500">
-                  PDF, DOC, PPT até 10MB
-                </p>
-              </div>
+              
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.txt"
+              />
+
+              {!selectedFile ? (
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-solve-blue hover:bg-blue-50 transition-all"
+                >
+                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-600 mb-2">
+                    Clique para fazer upload de um documento
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    PDF, DOC, PPT até 10MB
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl bg-gray-50">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <FileText className="text-blue-600" size={20} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{selectedFile.name}</p>
+                      <p className="text-xs text-gray-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveFile}
+                    className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Buttons Section */}

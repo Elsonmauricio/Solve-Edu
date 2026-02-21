@@ -8,6 +8,7 @@ export class SchoolController {
   static async registerStudent(req, res) {
     try {
       const schoolName = req.user.schoolProfile?.schoolName;
+      const schoolProfileId = req.schoolId; // Obtido do middleware
       const { name, email } = req.body;
 
       if (!name || !email) {
@@ -30,7 +31,7 @@ export class SchoolController {
         if (existingUser.role === 'STUDENT') {
            await supabase
             .from('StudentProfile')
-            .update({ school: schoolName })
+            .update({ school: schoolName, schoolProfileId: schoolProfileId })
             .eq('userId', existingUser.id);
             
            return res.json({ success: true, message: 'Aluno existente associado à sua escola com sucesso.' });
@@ -59,7 +60,8 @@ export class SchoolController {
         .from('StudentProfile')
         .insert({
           userId: newUser.id,
-          school: schoolName
+          school: schoolName,
+          schoolProfileId: schoolProfileId
         });
 
       if (profileError) throw profileError;
@@ -128,6 +130,31 @@ export class SchoolController {
       res.status(500).json({
         success: false,
         message: 'Erro ao buscar alunos da escola.',
+      });
+    }
+  }
+
+  /**
+   * Lista as soluções dos alunos de uma escola.
+   */
+  static async getSchoolSolutions(req, res) {
+    try {
+      const schoolProfileId = req.schoolId;
+
+      const { data: solutions, error } = await supabase
+        .from('Solution')
+        .select('id, title, status, isPAP, submittedAt, student:StudentProfile!inner(id, user:User(id, name)), problem:Problem(id, title)')
+        .eq('student.schoolProfileId', schoolProfileId)
+        .order('submittedAt', { ascending: false });
+
+      if (error) throw error;
+
+      res.json({ success: true, data: solutions });
+    } catch (error) {
+      console.error('Get school solutions error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao buscar soluções da escola.',
       });
     }
   }

@@ -1,15 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useApp } from '../../context/AppContext';
-import { Menu, X, Search, User, Briefcase, GraduationCap, LogOut, LayoutDashboard } from 'lucide-react';
+import { Menu, X, Search, User, Briefcase, GraduationCap, LogOut, LayoutDashboard, Bell } from 'lucide-react';
 import logo from '../../assets/Logo.png';
+import NotificationsDropdown from '../layout/NotificationsDropdown';
+import api from '../../services/api';
+
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+}
 
 const Header = () => {
   const { register, logout, isAuthenticated } = useAuth();
   const { user } = useApp(); // Usar o utilizador do contexto global (com a role correta da DB)
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const location = useLocation();
 
   const navigation = [
@@ -19,6 +32,32 @@ const Header = () => {
     { name: 'Comunidade', href: '/community', icon: User },
   ];
 
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      if (isAuthenticated) {
+        try {
+          const response = await api.get('/solutions/notifications');
+          if (response.data.success) {
+            setNotifications(response.data.data);
+          }
+        } catch (error) {
+          console.error("Failed to fetch notifications:", error);
+        }
+      }
+    };
+    fetchNotifications();
+  }, [isAuthenticated]);
+
+  const handleToggleNotifications = async () => {
+    setIsNotificationsOpen(prev => !prev);
+    if (!isNotificationsOpen && unreadCount > 0) {
+      // Mark as read on the backend
+      await api.post('/solutions/notifications/read');
+      // Update UI immediately
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    }
+  };
+
   // Determinar o link do dashboard com base na role
   const getDashboardLink = () => {
     // Garante que temos sempre um destino válido, assumindo STUDENT como fallback se a role não estiver definida
@@ -27,6 +66,8 @@ const Header = () => {
     if (role === 'COMPANY') return '/company-dashboard';
     return '/student-dashboard';
   };
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
     <motion.header 
@@ -96,6 +137,22 @@ const Header = () => {
           <div className="hidden md:flex items-center space-x-4">
             {isAuthenticated ? (
               <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <button
+                    onClick={handleToggleNotifications}
+                    className="p-2 text-gray-500 hover:text-solve-blue transition-colors"
+                    title="Notificações"
+                  >
+                    <Bell size={20} />
+                    {unreadCount > 0 && (
+                      <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
+                    )}
+                  </button>
+                  <NotificationsDropdown 
+                    notifications={notifications} 
+                    isOpen={isNotificationsOpen} 
+                    onClose={() => setIsNotificationsOpen(false)} />
+                </div>
                 <div className="flex items-center space-x-2">
                   {user?.avatar ? (
                     <img 

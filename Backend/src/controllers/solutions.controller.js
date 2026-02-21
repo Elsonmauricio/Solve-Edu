@@ -8,11 +8,16 @@ export class SolutionController {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+        // Devolve a primeira mensagem de erro para ser mostrada no toast do frontend
+        return res.status(400).json({ 
+          success: false, 
+          message: errors.array()[0].msg, 
+          errors: errors.array() 
+        });
       }
 
       const studentId = req.studentId;
-      const { problemId } = req.body;
+      const { title, description, problemId, technologies, githubUrl, demoUrl, documentation } = req.body;
 
       // Check if problem exists and is active
       const { data: problem } = await supabase
@@ -53,15 +58,21 @@ export class SolutionController {
       // 1. Upload do ficheiro para o Supabase (se existir)
       let fileUrls = [];
       if (req.file) {
-        // Faz o upload para o bucket 'solutions'
+        // O storageService já cria um nome de ficheiro único
         const url = await storageService.uploadFile(req.file, 'solutions');
         if (url) fileUrls.push(url);
       }
 
       // Create solution
       const solutionData = {
-        ...req.body,
+        title,
+        description,
+        problemId,
+        technologies, // Vem como array do sanitizer
         studentId,
+        githubUrl: githubUrl || null,
+        demoUrl: demoUrl || null,
+        documentation: documentation || null,
         status: 'PENDING_REVIEW',
         files: fileUrls, // Guarda o URL do ficheiro no array de ficheiros
         submittedAt: new Date(),
@@ -73,7 +84,17 @@ export class SolutionController {
         .select()
         .single();
 
-      if (createError) throw createError;
+      if (createError) {
+        console.error('Erro Supabase ao inserir solução:', createError);
+        // Trata erros específicos do Supabase
+        if (createError.code === '23503') { // foreign key violation
+          const message = createError.details?.includes('problemId')
+            ? 'O desafio associado não foi encontrado.'
+            : 'O perfil do estudante não foi encontrado. Por favor, tente fazer login novamente.';
+          return res.status(400).json({ success: false, message: message, code: 'FK_VIOLATION' });
+        }
+        throw createError;
+      }
 
       // Create notification for company
       // Nota: A relação para obter o `userId` da empresa precisa de um include
@@ -94,12 +115,16 @@ export class SolutionController {
 
         // Enviar email para a empresa
         if (problem.company.user.email) {
-          await emailService.sendSolutionSubmittedEmail(
-            problem.company.user.email,
-            req.userName,
-            problem.title,
-            solution.id
-          );
+          try {
+            await emailService.sendSolutionSubmittedEmail(
+              problem.company.user.email,
+              req.userName,
+              problem.title,
+              solution.id
+            );
+          } catch (emailError) {
+            console.error('Aviso: Falha ao enviar email (verifique as credenciais SMTP):', emailError.message);
+          }
         }
       }
 
@@ -111,9 +136,16 @@ export class SolutionController {
 
     } catch (error) {
       console.error('Create solution error:', error);
+
+      // Dica específica para erro de cache de schema (PGRST204)
+      if (error.code === 'PGRST204') {
+        console.error('⚠️ ALERTA: A cache do Supabase está desatualizada ou faltam colunas na tabela Solution. Execute "NOTIFY pgrst, \'reload config\';" no SQL Editor.');
+      }
+
       res.status(500).json({ 
         success: false, 
-        message: 'Erro ao submeter solução.' 
+        message: error.message || 'Erro ao submeter solução.',
+        error: error.details || 'Erro desconhecido'
       });
     }
   }
@@ -125,6 +157,7 @@ export class SolutionController {
         limit = 20,
         problemId,
         studentId,
+        companyId,
         status,
         search,
         sortBy = 'submittedAt',
@@ -135,12 +168,21 @@ export class SolutionController {
       const limitNum = parseInt(limit);
       const skip = (pageNum - 1) * limitNum;
 
-      let query = supabase
-        .from('Solution')
-        .select('*, student:StudentProfile(*, user:User(name, avatar)), problem:Problem(title)', { count: 'exact' });
+      // Base query
+      let selectQuery = '*, student:StudentProfile(*, user:User(name, avatar))';
+      
+      // Se filtrarmos por companyId, precisamos de fazer inner join com Problem
+      if (companyId) {
+        selectQuery += ', problem:Problem!inner(title, companyId)';
+      } else {
+        selectQuery += ', problem:Problem(title)';
+      }
+
+      let query = supabase.from('Solution').select(selectQuery, { count: 'exact' });
 
       if (problemId) query = query.eq('problemId', problemId);
       if (studentId) query = query.eq('studentId', studentId);
+      if (companyId) query = query.eq('problem.companyId', companyId);
       if (status) query = query.eq('status', status);
       if (search) {
         query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
@@ -211,6 +253,31 @@ export class SolutionController {
         });
       }
 
+      // Obter contagem de likes e interações do utilizador atual
+      const { count: likeCount } = await supabase
+        .from('SolutionInteraction')
+        .select('*', { count: 'exact', head: true })
+        .eq('solutionId', id)
+        .eq('type', 'LIKE');
+
+      solution.likes = likeCount || 0;
+
+      // Verificar interações do utilizador atual (se estiver logado)
+      solution.isLiked = false;
+      solution.isBookmarked = false;
+      if (req.userId) {
+        const { data: interactions } = await supabase
+          .from('SolutionInteraction')
+          .select('type')
+          .eq('solutionId', id)
+          .eq('userId', req.userId);
+        
+        if (interactions) {
+          solution.isLiked = interactions.some(i => i.type === 'LIKE');
+          solution.isBookmarked = interactions.some(i => i.type === 'BOOKMARK');
+        }
+      }
+
       res.json({
         success: true,
         data: solution,
@@ -238,7 +305,7 @@ export class SolutionController {
       // Check if solution exists
       const { data: existingSolution } = await supabase
         .from('Solution')
-        .select('*, student:StudentProfile(*, user:User(*))')
+        .select('*, student:StudentProfile(*, user:User(*)), problem:Problem(*, company:CompanyProfile(*, user:User(*)))')
         .eq('id', id)
         .single();
 
@@ -251,10 +318,12 @@ export class SolutionController {
 
       const getUserId = (profile) => profile?.user?.id || (Array.isArray(profile?.user) ? profile.user[0]?.id : null);
 
+      const isStudentOwner = getUserId(existingSolution.student) === req.userId;
+      const isCompanyOwner = getUserId(existingSolution.problem?.company) === req.userId;
+
       // Check authorization
       const canUpdate = 
-        req.userRole === 'ADMIN' ||
-        getUserId(existingSolution.student) === req.userId;
+        req.userRole === 'ADMIN' || isStudentOwner || isCompanyOwner;
 
       if (!canUpdate) {
         return res.status(403).json({ 
@@ -263,9 +332,16 @@ export class SolutionController {
         });
       }
 
-      // Students can only update certain fields
-      if (req.userRole === 'STUDENT') {
+      // Define allowed fields based on role
+      if (isStudentOwner && req.userRole !== 'ADMIN') {
         const allowedFields = ['title', 'description', 'technologies', 'githubUrl', 'demoUrl', 'documentation', 'files'];
+        Object.keys(updateData).forEach(key => {
+          if (!allowedFields.includes(key)) {
+            delete updateData[key];
+          }
+        });
+      } else if (isCompanyOwner && req.userRole !== 'ADMIN') {
+        const allowedFields = ['status', 'rating', 'feedback'];
         Object.keys(updateData).forEach(key => {
           if (!allowedFields.includes(key)) {
             delete updateData[key];
@@ -447,43 +523,41 @@ export class SolutionController {
     }
   }
 
-  static async likeSolution(req, res) {
+  static async toggleInteraction(req, res) {
     try {
-      const { id } = req.params;
+      const { id } = req.params; // solutionId
+      const { type } = req.body; // 'LIKE' ou 'BOOKMARK'
+      const userId = req.userId;
 
-      const { data: solution } = await supabase
-        .from('Solution')
-        .select('likes')
-        .eq('id', id)
-        .single();
-
-      if (!solution) {
-        return res.status(404).json({ 
-          success: false, 
-          message: 'Solução não encontrada.' 
-        });
+      if (!['LIKE', 'BOOKMARK'].includes(type)) {
+        return res.status(400).json({ success: false, message: 'Tipo de interação inválido.' });
       }
 
-      await supabase
-        .from('Solution')
-        .update({ likes: (solution.likes || 0) + 1 })
-        .eq('id', id);
+      const { data: existing } = await supabase
+        .from('SolutionInteraction')
+        .select('id')
+        .eq('solutionId', id)
+        .eq('userId', userId)
+        .eq('type', type)
+        .maybeSingle();
 
-      res.json({
-        success: true,
-        message: 'Solução marcada como gostei!',
-        data: { likes: solution.likes + 1 },
-      });
+      let isSet = false;
+      if (existing) {
+        await supabase.from('SolutionInteraction').delete().match({ id: existing.id });
+      } else {
+        await supabase.from('SolutionInteraction').insert({ solutionId: id, userId, type });
+        isSet = true;
+      }
 
+      const { count } = await supabase.from('SolutionInteraction').select('*', { count: 'exact', head: true }).eq('solutionId', id).eq('type', 'LIKE');
+
+      res.json({ success: true, data: { isSet, likes: count } });
     } catch (error) {
-      console.error('Like solution error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Erro ao marcar solução.' 
-      });
+      console.error(`Toggle ${type} error:`, error);
+      res.status(500).json({ success: false, message: 'Erro ao interagir com a solução.' });
     }
   }
-
+  
   static async getTopSolutions(req, res) {
     try {
       const { data: solutions } = await supabase
@@ -495,7 +569,7 @@ export class SolutionController {
 
       res.json({
         success: true,
-        data: solutions,
+        data: solutions || [],
       });
 
     } catch (error) {
@@ -531,6 +605,115 @@ export class SolutionController {
         success: false, 
         message: 'Erro ao buscar estatísticas.' 
       });
+    }
+  }
+
+  static async getStudentStats(req, res) {
+    try {
+      const { studentId } = req.params;
+      
+      const { count: total } = await supabase
+        .from('Solution')
+        .select('*', { count: 'exact', head: true })
+        .eq('studentId', studentId);
+
+      const { count: accepted } = await supabase
+        .from('Solution')
+        .select('*', { count: 'exact', head: true })
+        .eq('studentId', studentId)
+        .eq('status', 'ACCEPTED');
+
+      // Calcular média de avaliações
+      const { data: ratings } = await supabase
+        .from('Solution')
+        .select('rating')
+        .eq('studentId', studentId)
+        .not('rating', 'is', null);
+      
+      const avgRating = ratings?.length 
+        ? (ratings.reduce((acc, curr) => acc + curr.rating, 0) / ratings.length).toFixed(1) 
+        : "N/A";
+
+      res.json({
+        success: true,
+        data: {
+          totalSolutions: total || 0,
+          acceptedSolutions: accepted || 0,
+          averageRating: avgRating
+        }
+      });
+    } catch (error) {
+      console.error('Get student stats error:', error);
+      res.status(500).json({ success: false, message: 'Erro ao buscar estatísticas do estudante.' });
+    }
+  }
+
+  static async getComments(req, res) {
+    try {
+      const { id } = req.params; // Solution ID
+      const { data: comments, error } = await supabase
+        .from('Comment')
+        .select('*, user:User(id, name, avatar, role, companyProfile:CompanyProfile(companyName))')
+        .eq('solutionId', id)
+        .order('createdAt', { ascending: false });
+
+      if (error) throw error;
+
+      res.json({ success: true, data: comments });
+    } catch (error) {
+      console.error('Get comments error:', error);
+      res.status(500).json({ success: false, message: 'Erro ao buscar comentários.' });
+    }
+  }
+
+  static async createComment(req, res) {
+    try {
+      const { id } = req.params; // Solution ID
+      const { content } = req.body;
+      const userId = req.userId;
+
+      const { data: comment, error } = await supabase
+        .from('Comment')
+        .insert({
+          solutionId: id,
+          userId,
+          content,
+          createdAt: new Date()
+        })
+        .select('*, user:User(id, name, avatar, role)')
+        .single();
+
+      if (error) throw error;
+
+      res.status(201).json({ success: true, message: 'Comentário adicionado.', data: comment });
+    } catch (error) {
+      console.error('Create comment error:', error);
+      res.status(500).json({ success: false, message: 'Erro ao criar comentário.' });
+    }
+  }
+
+  static async togglePAP(req, res) {
+    try {
+      const { id } = req.params;
+      
+      if (req.userRole !== 'SCHOOL') {
+        return res.status(403).json({ success: false, message: 'Apenas escolas podem validar PAPs.' });
+      }
+
+      // Buscar estado atual
+      const { data: solution } = await supabase.from('Solution').select('isPAP').eq('id', id).single();
+      
+      const { data: updated, error } = await supabase
+        .from('Solution')
+        .update({ isPAP: !solution.isPAP })
+        .eq('id', id)
+        .select().single();
+
+      if (error) throw error;
+      res.json({ success: true, message: updated.isPAP ? 'Marcado como PAP.' : 'Desmarcado como PAP.', data: updated });
+    } catch (error) {
+      console.error('Toggle PAP error:', error);
+      res.status(500).json({ success: false, message: 'Erro ao atualizar estado PAP.' });
     }
   }
 }

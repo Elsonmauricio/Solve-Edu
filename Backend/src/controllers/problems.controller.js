@@ -1,5 +1,6 @@
 import { validationResult } from 'express-validator';
 import { supabase } from '../lib/supabase.js';
+import { storageService } from '../services/storage.service.js';
 
 export class ProblemController {
   // GET /api/problems
@@ -125,6 +126,7 @@ export class ProblemController {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.log('Erro de validação ao criar problema:', errors.array());
         return res.status(400).json({ errors: errors.array() });
       }
 
@@ -133,11 +135,36 @@ export class ProblemController {
         return res.status(403).json({ success: false, message: 'Apenas empresas podem criar desafios.' });
       }
 
+      // Upload do ficheiro para o Supabase (se existir)
+      let fileUrls = [];
+      if (req.file) {
+        try {
+          const url = await storageService.uploadFile(req.file, 'problems');
+          if (url) fileUrls.push(url);
+        } catch (uploadError) {
+          console.error('Erro no upload do ficheiro:', uploadError);
+          return res.status(500).json({ success: false, message: 'Erro ao fazer upload do documento.', error: uploadError.message });
+        }
+      }
+
+      // Construção explícita do objeto para evitar erros de campos inexistentes no DB
       const problemData = {
-        ...req.body,
+        title: req.body.title,
+        description: req.body.description,
+        category: req.body.category,
+        difficulty: req.body.difficulty,
+        deadline: req.body.deadline,
         companyId,
         status: 'ACTIVE',
+        tags: Array.isArray(req.body.tags) ? req.body.tags : (req.body.tags ? [req.body.tags] : []),
+        requirements: Array.isArray(req.body.requirements) ? req.body.requirements : (req.body.requirements ? [req.body.requirements] : []),
       };
+
+      // Adicionar campos opcionais apenas se existirem (evita erro se coluna não existir no DB)
+      if (req.body.reward) problemData.reward = req.body.reward;
+      if (fileUrls.length > 0) problemData.files = fileUrls;
+
+      console.log('Tentando criar problema com dados:', problemData);
 
       const { data: problem, error } = await supabase
         .from('Problem')
@@ -145,12 +172,25 @@ export class ProblemController {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro Supabase ao inserir problema:', error);
+        throw error;
+      }
 
       res.status(201).json({ success: true, message: 'Desafio criado com sucesso!', data: problem });
     } catch (error) {
       console.error('Create problem error:', error);
-      res.status(500).json({ success: false, message: 'Erro ao criar o desafio.' });
+      
+      // Dica específica para erro de cache de schema (PGRST204)
+      if (error.code === 'PGRST204') {
+        console.error('⚠️ ALERTA: A cache do Supabase está desatualizada. Execute "NOTIFY pgrst, \'reload config\';" no SQL Editor do Supabase.');
+      }
+
+      res.status(500).json({ 
+        success: false, 
+        message: 'Erro ao criar o desafio.', 
+        error: error.message || error.details || 'Erro desconhecido' 
+      });
     }
   }
 

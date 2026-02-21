@@ -51,7 +51,7 @@ const Community = () => {
           }));
         }
 
-        if (topSolutionsRes.success) {
+        if (topSolutionsRes.success && topSolutionsRes.data) {
           // Tipagem mais segura para o retorno da API
           const students = topSolutionsRes.data.map((solution: any) => {
               // Type guard para garantir que 'student' é um objeto com 'user'
@@ -93,7 +93,6 @@ const Community = () => {
         {/* Header */}
         <motion.div
          {...({ className: "mb-8" } as any)}
-          initialclassName="mb-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}

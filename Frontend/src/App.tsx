@@ -13,9 +13,18 @@ import Problems from './pages/Problems';
 import Solutions from './pages/Solutions';
 import HowItWorks from './pages/HowItWorks';
 import Community from './pages/Community';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
+import Security from './pages/Security';
+import ChildProtection from './pages/ChildProtection';
+import Help from './components/layout/Help';
+import Contact from './components/layout/Contact';
+import ComingSoon from './pages/ComingSoon'; // Importar componente genérico
 import StudentDashboard from './components/dashboard/StudentDashboard';
 import CompanyDashboard from './components/dashboard/CompanyDashboard';
 import AdminDashboard from './components/dashboard/AdminDashboard';
+import AdminUsers from './components/Admin/AdminUsers';
+import AdminContent from './components/Admin/AdminContent';
 import SchoolDashboard from './components/dashboard/SchoolDashboard';
 import ProblemDetail from './components/problems/ProblemDetail';
 import SolutionDetail from './components/solutions/SolutionDetail';
@@ -142,24 +151,6 @@ const RoleGuard = ({ children, allowedRoles }: { children: React.ReactNode, allo
   return <>{children}</>;
 };
 
-// Componente para gerir o redirecionamento inicial
-const RootRedirect = () => {
-  const { isAuthenticated } = useAuth0();
-  const { user } = useApp();
-
-  if (isAuthenticated && user && user.role) {
-    // Lê a role diretamente do perfil do utilizador na base de dados (mais fiável)
-    const userRole = user.role.toUpperCase();
-    
-    if (userRole === 'COMPANY') return <Navigate to="/company-dashboard" replace />;
-    if (userRole === 'ADMIN') return <Navigate to="/admin-dashboard" replace />;
-    if (userRole === 'SCHOOL') return <Navigate to="/school-dashboard" replace />;
-    return <Navigate to="/student-dashboard" replace />;
-  }
-
-  return <Home />;
-};
-
 // Layout principal para controlar a visibilidade do Footer
 const MainLayout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
@@ -279,13 +270,26 @@ function App() {
         />
       <MainLayout>
           <Routes>
-            <Route path="/" element={<RootRedirect />} />
+            <Route path="/" element={<Home />} />
             <Route path="/problems" element={<Problems />} />
             <Route path="/problems/:id" element={<ProblemDetail />} />
             <Route path="/solutions" element={<Solutions />} />
             <Route path="/solutions/:id" element={<SolutionDetail />} />
             <Route path="/how-it-works" element={<HowItWorks />} />
             <Route path="/community" element={<Community />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/security" element={<Security />} />
+            <Route path="/child-protection" element={<ChildProtection />} />
+            <Route path="/help" element={<Help />} />
+            <Route path="/contact" element={<Contact />} />
+            
+            {/* Rotas "Em Breve" para links do Footer */}
+            <Route path="/resources" element={<ComingSoon title="Recursos Educativos" />} />
+            <Route path="/mentorship" element={<ComingSoon title="Programa de Mentoria" />} />
+            <Route path="/talent" element={<ComingSoon title="Encontrar Talentos" />} />
+            <Route path="/success-stories" element={<ComingSoon title="Casos de Sucesso" />} />
+            <Route path="/partnerships" element={<ComingSoon title="Parcerias" />} />
             
             {/* Rotas Protegidas */}
             <Route 
@@ -315,6 +319,22 @@ function App() {
                   <RoleGuard allowedRoles={['ADMIN']}>
                     <AdminDashboard />
                   </RoleGuard>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/users" 
+              element={
+                <ProtectedRoute>
+                  <RoleGuard allowedRoles={['ADMIN']}><AdminUsers /></RoleGuard>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/content" 
+              element={
+                <ProtectedRoute>
+                  <RoleGuard allowedRoles={['ADMIN']}><AdminContent /></RoleGuard>
                 </ProtectedRoute>
               } 
             />

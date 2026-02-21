@@ -191,7 +191,6 @@ const ProblemList = () => {
               <ProblemCard
                 key={problem.id}
                 problem={problem}
-                delay={index * 0.1}
               />
             ))}
             </div>

@@ -43,8 +43,8 @@ export const useSolutions = () => {
 
   const fetchSolution = useCallback(async (id: string | number) => {
     setLoading(true);
-    try {
-      const response = await solutionsService.getById(Number(id));
+            try {
+              const response = await solutionsService.getById(String(id));
       return response.data || response;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao carregar solução';

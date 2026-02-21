@@ -1,21 +1,14 @@
 import api from './api';
 
-interface DashboardStats {
-  submittedCount: number;
-  acceptedCount: number;
-  ongoingCount: number;
-  averageRating: number;
-}
-
-interface ApiResponse<T> {
-    success: boolean;
-    data: T;
-    message?: string;
-}
-
 export const studentService = {
-  async getDashboardStats(): Promise<ApiResponse<DashboardStats>> {
-    const response = await api.get('/student/dashboard-stats');
-    return response.data;
+  // Obter estatísticas para o dashboard do estudante
+  getDashboardStats: async () => {
+    try {
+      // Reutiliza o endpoint genérico de stats que já suporta o role STUDENT
+      const response = await api.get('/users/stats');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
   }
 };

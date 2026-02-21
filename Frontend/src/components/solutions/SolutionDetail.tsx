@@ -20,12 +20,15 @@ import {
   Clock,
   AlertCircle,
   Loader,
-  LucideIcon
+  LucideIcon,
+  Send
 } from 'lucide-react';
+import api from '../../services/api';
+import toast from 'react-hot-toast';
 
 // Interfaces para tipagem
 interface Solution {
-  id: number;
+  id: string;
   title: string;
   description: string;
   student: string;
@@ -34,11 +37,11 @@ interface Solution {
   status: string;
   technologies: string[];
   githubUrl?: string;
-  problemId: number;
+  problemId: string;
 }
 
 interface Problem {
-  id: number;
+  id: string;
   title: string;
   description: string;
 }
@@ -47,12 +50,16 @@ const SolutionDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const context = useApp();
   const solutions = (context.solutions || []) as unknown as Solution[];
-  const problems = (context.problems || []) as unknown as Problem[];
   const [solutionDetail, setSolutionDetail] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
-  const solution = solutions.find((s: Solution) => s.id === parseInt(id || '0'));
-  const problem = solution ? problems.find((p: Problem) => p.id === solution.problemId) : null;
+  const [studentStats, setStudentStats] = useState<any>(null);
+  const [comments, setComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  // Estados para interações
+  const [isLiked, setIsLiked] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
 
   // Carregar detalhes da solução da API quando o id mudar
   useEffect(() => {
@@ -60,9 +67,30 @@ const SolutionDetail: React.FC = () => {
       if (!id) return;
       try {
         setIsLoading(true);
-        const response = await solutionsService.getById(parseInt(id));
+        const response = await solutionsService.getById(id);
+        
         if (response.success) {
           setSolutionDetail(response.data);
+          // Inicializar estados de interação
+          setIsLiked(response.data.isLiked || false);
+          setIsBookmarked(response.data.isBookmarked || false);
+          setLikeCount(response.data.likes || 0);
+          
+          // Carregar estatísticas do estudante
+          if (response.data.student?.id) {
+            try {
+              // Nota: Assumindo que a rota foi criada no backend conforme instrução
+              const statsRes = await api.get(`/solutions/student/${response.data.student.id}/stats`);
+              if (statsRes.data.success) {
+                setStudentStats(statsRes.data.data);
+              }
+            } catch (err) {
+              console.error('Erro ao carregar stats do estudante', err);
+            }
+          }
+
+          // Carregar comentários
+          loadComments();
         }
       } catch (error) {
         console.error('Erro ao carregar detalhe da solução:', error);
@@ -74,21 +102,76 @@ const SolutionDetail: React.FC = () => {
     loadSolutionDetail();
   }, [id]);
 
-  // Usar dados carregados da API ou do contexto
-  const displaySolution = solutionDetail || solution;
-
-  // Calcular estatísticas reais do estudante
-  const studentSolutions = solutions.filter(s => {
-    const studentName = typeof displaySolution?.student === 'string' ? displaySolution.student : (displaySolution?.student as any)?.user?.name;
-    if (typeof s.student === 'string') {
-      return s.student === studentName;
+  const loadComments = async () => {
+    if (!id) return;
+    try {
+      const res = await api.get(`/solutions/${id}/comments`);
+      if (res.data.success) {
+        setComments(res.data.data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar comentários:', error);
     }
-    return (s.student as any)?.user?.name === studentName;
-  });
-  const totalSubmissions = studentSolutions.length;
-  const acceptedSubmissions = studentSolutions.filter(s => s.status === 'Aceite' || s.status === 'Accepted').length;
-  const ratings = studentSolutions.map(s => (s as any).rating || 0).filter(r => r > 0);
-  const averageRating = ratings.length > 0 ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : "N/A";
+  };
+
+  const handlePostComment = async () => {
+    if (!newComment.trim() || !id) return;
+    
+    setIsSubmittingComment(true);
+    try {
+      const res = await api.post(`/solutions/${id}/comments`, { content: newComment });
+      if (res.data.success) {
+        toast.success('Comentário adicionado!');
+        setNewComment('');
+        loadComments(); // Recarregar lista
+      }
+    } catch (error) {
+      toast.error('Erro ao enviar comentário.');
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
+
+  const handleToggleInteraction = async (type: 'LIKE' | 'BOOKMARK') => {
+    if (!id || !context.user) {
+      toast.error('Precisa de estar autenticado para interagir.');
+      return;
+    }
+
+    // Atualização Otimista
+    if (type === 'LIKE') {
+      setIsLiked(prev => !prev);
+      setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+    } else {
+      setIsBookmarked(prev => !prev);
+    }
+
+    try {
+      const res = await api.post(`/solutions/${id}/interact`, { type });
+      if (res.data.success) {
+        // Sincronizar com o estado real do backend
+        if (type === 'LIKE') {
+          setLikeCount(res.data.data.likes);
+          setIsLiked(res.data.data.isSet);
+        } else {
+          setIsBookmarked(res.data.data.isSet);
+        }
+      }
+    } catch (error) {
+      toast.error('Ocorreu um erro na sua ação.');
+    }
+  };
+
+  // Usar apenas dados carregados da API como fonte da verdade
+  const displaySolution = solutionDetail;
+  const problem = displaySolution?.problem;
+
+  // Usar estatísticas reais da API ou fallback seguro
+  const {
+    totalSolutions: totalSubmissions,
+    acceptedSolutions: acceptedSubmissions,
+    averageRating,
+  } = studentStats || { totalSolutions: 0, acceptedSolutions: 0, averageRating: "N/A" };
 
   const getStatusColor = (status: string): string => {
     switch (status) {
@@ -158,20 +241,24 @@ const SolutionDetail: React.FC = () => {
                   </div>
                   <div className="flex-1">
                     <h1 className="text-3xl font-black text-gray-900 mb-2">
-                      {solution!.title}
+                      {displaySolution.title}
                     </h1>
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center space-x-2">
                         <User size={16} className="text-gray-400" />
-                        <span className="text-gray-600 font-medium">{solution!.student}</span>
+                        <span className="text-gray-600 font-medium">
+                          {displaySolution.student?.user?.name || 'Estudante'}
+                        </span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <School size={16} className="text-gray-400" />
-                        <span className="text-gray-600">{solution!.school}</span>
+                        <span className="text-gray-600">
+                          {displaySolution.student?.school || 'Escola não informada'}
+                        </span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Calendar size={16} className="text-gray-400" />
-                        <span className="text-gray-500 text-sm">Submetida em {solution!.submittedAt}</span>
+                        <span className="text-gray-500 text-sm">Submetida em {new Date(displaySolution.submittedAt).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
@@ -179,18 +266,30 @@ const SolutionDetail: React.FC = () => {
 
                 {/* Status */}
                 <div className="flex items-center space-x-4 mb-6">
-                  <span className={`px-4 py-2 rounded-full text-sm font-medium ${getStatusColor(solution!.status)}`}>
-                    {solution!.status}
+                  <span className={`px-4 py-2 rounded-full text-sm font-medium ${getStatusColor(displaySolution.status)}`}>
+                    {displaySolution.status}
                   </span>
                   
                   {/* Action Buttons */}
                   <div className="flex space-x-2">
-                    <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-xl text-gray-600 hover:border-gray-400 transition-colors">
-                      <ThumbsUp size={16} />
-                      <span>12</span>
+                    <button
+                      onClick={() => handleToggleInteraction('LIKE')}
+                      className={`flex items-center space-x-2 px-4 py-2 border rounded-xl transition-colors ${
+                        isLiked 
+                          ? 'border-solve-blue bg-blue-50 text-solve-blue' 
+                          : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                      }`}
+                    >
+                      <ThumbsUp size={16} className={isLiked ? 'fill-current' : ''} />
+                      <span>{likeCount}</span>
                     </button>
-                    <button className="p-2 border border-gray-300 rounded-xl text-gray-600 hover:border-gray-400 transition-colors">
-                      <Bookmark size={16} />
+                    <button
+                      onClick={() => handleToggleInteraction('BOOKMARK')}
+                      className={`p-2 border rounded-xl transition-colors ${
+                        isBookmarked ? 'border-yellow-400 bg-yellow-50 text-yellow-600' : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                      }`}
+                    >
+                      <Bookmark size={16} className={isBookmarked ? 'fill-current' : ''} />
                     </button>
                     <button className="p-2 border border-gray-300 rounded-xl text-gray-600 hover:border-gray-400 transition-colors">
                       <Share2 size={16} />
@@ -204,7 +303,7 @@ const SolutionDetail: React.FC = () => {
             <div className="prose max-w-none mb-8">
               <h3 className="text-xl font-semibold text-gray-900 mb-4">Descrição da Solução</h3>
               <p className="text-gray-700 leading-relaxed text-lg">
-                {solution!.description}
+                {displaySolution.description}
               </p>
             </div>
 
@@ -212,7 +311,7 @@ const SolutionDetail: React.FC = () => {
             <div className="mb-8">
               <h3 className="text-xl font-semibold text-gray-900 mb-4">Tecnologias Utilizadas</h3>
               <div className="flex flex-wrap gap-3">
-                {solution!.technologies.map((tech: string) => (
+                {displaySolution.technologies?.map((tech: string) => (
                   <span key={tech} className="px-4 py-2 bg-blue-100 text-blue-800 rounded-xl font-medium">
                     {tech}
                   </span>
@@ -239,11 +338,11 @@ const SolutionDetail: React.FC = () => {
             </div>
 
             {/* Code Repository */}
-            {solution!.githubUrl && (
+            {displaySolution.githubUrl && (
               <div className="bg-gray-50 rounded-xl p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Repositório de Código</h3>
                 <a
-                  href={solution!.githubUrl}
+                  href={displaySolution.githubUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center space-x-3 bg-gray-900 text-white px-6 py-3 rounded-xl hover:bg-gray-800 transition-colors"
@@ -271,40 +370,59 @@ const SolutionDetail: React.FC = () => {
             <div className="space-y-6">
               {/* Comment Form */}
               <div className="flex space-x-4">
-                <div className="w-10 h-10 bg-gradient-to-r from-solve-blue to-solve-purple rounded-full flex-shrink-0"></div>
+                <div className="w-10 h-10 bg-gradient-to-r from-solve-blue to-solve-purple rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold">
+                  {context.user?.name?.charAt(0) || 'U'}
+                </div>
                 <div className="flex-1">
                   <textarea
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
                     placeholder="Partilhe a sua opinião sobre esta solução..."
                     rows={3}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-solve-blue focus:border-transparent"
                   />
                   <div className="flex justify-end mt-2">
-                    <button className="bg-solve-blue text-white px-6 py-2 rounded-xl font-medium hover:bg-solve-purple transition-colors">
-                      Comentar
+                    <button 
+                      onClick={handlePostComment}
+                      disabled={isSubmittingComment || !newComment.trim()}
+                      className="bg-solve-blue text-white px-6 py-2 rounded-xl font-medium hover:bg-solve-purple transition-colors disabled:opacity-50 flex items-center space-x-2"
+                    >
+                      {isSubmittingComment ? <Loader size={16} className="animate-spin" /> : <Send size={16} />}
+                      <span>Comentar</span>
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* Sample Comments */}
+              {/* Comments List */}
               <div className="space-y-4">
-                <div className="flex space-x-4">
-                  <div className="w-10 h-10 bg-gray-300 rounded-full flex-shrink-0"></div>
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="font-semibold text-gray-900">Maria Silva</span>
-                      <span className="text-gray-500 text-sm">• Empresa TechRetail</span>
+                {comments.length > 0 ? (
+                  comments.map((comment) => (
+                    <div key={comment.id} className="flex space-x-4">
+                      <div className="w-10 h-10 bg-gray-200 rounded-full flex-shrink-0 overflow-hidden">
+                        {comment.user?.avatar ? (
+                          <img src={comment.user.avatar} alt={comment.user.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-500 font-bold">
+                            {comment.user?.name?.charAt(0)}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <span className="font-semibold text-gray-900">{comment.user?.name}</span>
+                          <span className="text-gray-500 text-sm">
+                            • {comment.user?.companyProfile?.companyName || comment.user?.role || 'Utilizador'}
+                          </span>
+                          <span className="text-gray-400 text-xs">• {new Date(comment.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <p className="text-gray-700">{comment.content}</p>
+                      </div>
                     </div>
-                    <p className="text-gray-700">
-                      Excelente trabalho! A solução proposta é muito inovadora e atende perfeitamente às nossas necessidades.
-                    </p>
-                    <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                      <span>Há 2 dias</span>
-                      <button className="hover:text-gray-700">Responder</button>
-                      <button className="hover:text-gray-700">Gostei</button>
-                    </div>
-                  </div>
-                </div>
+                  ))
+                ) : (
+                  <p className="text-center text-gray-500 py-4">Seja o primeiro a comentar!</p>
+                )}
               </div>
             </div>
           </div>
@@ -353,11 +471,15 @@ const SolutionDetail: React.FC = () => {
             
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-12 h-12 bg-gradient-to-r from-solve-blue to-solve-purple rounded-full flex items-center justify-center text-white font-bold">
-                {solution!.student.split(' ').map((n: string) => n[0]).join('')}
+                {(displaySolution.student?.user?.name || 'E').charAt(0)}
               </div>
               <div>
-                <h4 className="font-semibold text-gray-900">{solution!.student}</h4>
-                <p className="text-sm text-gray-600">{solution!.school}</p>
+                <h4 className="font-semibold text-gray-900">
+                  {displaySolution.student?.user?.name || 'Estudante'}
+                </h4>
+                <p className="text-sm text-gray-600">
+                  {displaySolution.student?.school || 'Escola não informada'}
+                </p>
               </div>
             </div>
 

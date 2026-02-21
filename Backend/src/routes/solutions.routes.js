@@ -2,28 +2,37 @@ import { Router } from 'express';
 import { body } from 'express-validator';
 import multer from 'multer';
 import { SolutionController } from '../controllers/solutions.controller.js';
-// Importa o novo middleware de autenticação compatível com Auth0
-import { authenticate } from '../middleware/auth0.middleware.js';
+import { AdminController } from '../controllers/admin.controller.js';
+import { authenticate, optionalAuth } from '../middleware/auth0.middleware.js';
 
 const router = Router();
 
-// Configuração básica do Multer (Armazenamento em memória para processamento rápido)
-// Para produção, recomenda-se upload direto para S3/Firebase ou disco temporário
+// Configuração do Multer para processar uploads (Limite 25MB, igual ao frontend)
 const upload = multer({ 
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 } // Limite de 5MB
+  limits: { fileSize: 25 * 1024 * 1024 } 
 });
 
-// Validation rules
+// Regras de validação e sanitização para a criação de soluções
 const createSolutionValidation = [
-  body('problemId').notEmpty(),
-  body('title').notEmpty().trim().isLength({ min: 5, max: 200 }),
-  body('description').notEmpty().trim().isLength({ min: 50, max: 5000 }),
-  body('technologies').isArray(),
+  body('title').notEmpty().withMessage('O título é obrigatório').trim(),
+  body('description').notEmpty().withMessage('A descrição é obrigatória').trim(),
+  body('problemId').isUUID().withMessage('O ID do desafio é inválido'),
+  
+  // Sanitizer CRÍTICO: Garante que 'technologies' é sempre um array
+  body('technologies').customSanitizer(value => {
+    if (!value) return [];
+    return Array.isArray(value) ? value : [value];
+  }),
+  // Validação após o sanitizer
+  body('technologies.*').isString().trim(),
+
+  body('githubUrl').optional({ checkFalsy: true }).isURL().withMessage('O URL do GitHub é inválido'),
+  body('demoUrl').optional({ checkFalsy: true }).isURL().withMessage('O URL de demonstração é inválido'),
 ];
 
 // Public routes
-router.get('/', SolutionController.getSolutions);
+router.get('/', optionalAuth, SolutionController.getSolutions);
 router.get('/top', SolutionController.getTopSolutions);
 router.get('/stats', SolutionController.getStats);
 
@@ -31,18 +40,25 @@ router.get('/stats', SolutionController.getStats);
 // Adicionado middleware 'upload.single("document")' para processar o ficheiro
 router.post('/', 
   authenticate(['STUDENT']), 
-  upload.single('document'), 
-  createSolutionValidation, 
+  upload.single('file'), // Corrigido para corresponder ao frontend
+  createSolutionValidation,
   SolutionController.createSolution
 );
 router.get('/student/my', authenticate(['STUDENT']), SolutionController.getStudentSolutions);
-router.get('/student/:studentId', authenticate(['ADMIN']), SolutionController.getStudentSolutions);
-router.get('/problem/:problemId', authenticate(['COMPANY', 'ADMIN']), SolutionController.getProblemSolutions);
+router.get('/student/:studentId', authenticate(['ADMIN', 'SCHOOL']), SolutionController.getStudentSolutions);
+router.get('/problem/:problemId', authenticate(['COMPANY', 'ADMIN', 'SCHOOL']), SolutionController.getProblemSolutions);
+
+// Notification routes
+router.get('/notifications', authenticate(), AdminController.getMyNotifications);
+router.post('/notifications/read', authenticate(), AdminController.markNotificationsAsRead);
 
 // Solution specific routes
-router.get('/:id', authenticate(), SolutionController.getSolution);
-router.put('/:id', authenticate(), SolutionController.updateSolution);
-router.delete('/:id', authenticate(), SolutionController.deleteSolution);
-router.post('/:id/like', authenticate(), SolutionController.likeSolution);
+router.get('/:id', optionalAuth, SolutionController.getSolution);
+router.put('/:id', authenticate(['STUDENT', 'COMPANY', 'ADMIN']), SolutionController.updateSolution);
+router.delete('/:id', authenticate(['STUDENT', 'ADMIN']), SolutionController.deleteSolution);
+router.post('/:id/interact', authenticate(), SolutionController.toggleInteraction);
+router.get('/:id/comments', SolutionController.getComments);
+router.post('/:id/comments', authenticate(), SolutionController.createComment);
+router.post('/:id/toggle-pap', authenticate(['SCHOOL']), SolutionController.togglePAP);
 
 export default router;

@@ -15,6 +15,7 @@ import usersRoutes from './routes/users.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import studentRoutes from './routes/student.routes.js';
 import companyRoutes from './routes/company.routes.js';
+import contactRoutes from './routes/contact.routes.js';
 
 // Import middleware
 import { errorHandler } from './middleware/error.middleware.js';
@@ -76,6 +77,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/company', companyRoutes);
+app.use('/api/contact', contactRoutes);
 
 // WebSocket for real-time notifications
 io.on('connection', (socket) => {

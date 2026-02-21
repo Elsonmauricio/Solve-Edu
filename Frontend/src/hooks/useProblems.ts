@@ -37,7 +37,7 @@ export const useProblems = () => {
   const fetchProblem = useCallback(async (id: string | number) => {
     setLoading(true);
     try {
-      const response = await problemsService.getById(id);
+      const response = await problemsService.getById(String(id));
       return response.data || response;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao carregar detalhes do desafio';

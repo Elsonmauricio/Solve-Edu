@@ -148,6 +148,25 @@ class EmailService {
     }
   }
 
+  // Adicionar a src/services/email.service.js
+async sendContactFormEmail(name, fromEmail, subject, message) {
+    const mailOptions = {
+      from: `"${name}" <${process.env.SMTP_USER}>`, // O email de envio deve ser o do seu SMTP
+      to: process.env.ADMIN_EMAIL, // O seu email de suporte
+      replyTo: fromEmail, // Para poder responder diretamente ao utilizador
+      subject: `[SolveEdu Contacto] - ${subject}`,
+      html: `
+        <p><strong>Nome:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${fromEmail}</p>
+        <p><strong>Assunto:</strong> ${subject}</p>
+        <hr>
+        <p>${message.replace(/\n/g, '<br>')}</p>
+      `,
+    };
+    await this.transporter.sendMail(mailOptions);
+}
+
+
   async sendPasswordResetEmail(to, resetToken) {
     try {
       const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
@@ -225,5 +244,7 @@ class EmailService {
     }
   }
 }
+
+
 
 export default new EmailService();
