@@ -16,9 +16,12 @@ import adminRoutes from './routes/admin.routes.js';
 import studentRoutes from './routes/student.routes.js';
 import companyRoutes from './routes/company.routes.js';
 import contactRoutes from './routes/contact.routes.js';
+import notificationRoutes from './routes/notification.routes.js';
 
 // Import middleware
 import { errorHandler } from './middleware/error.middleware.js';
+import { optionalAuth } from './middleware/auth0.middleware.js';
+import { checkMaintenanceMode } from './middleware/maintenance.middleware.js';
 
 // Load environment variables
 dotenv.config();
@@ -59,6 +62,12 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
+// Aplica middlewares globais para a API
+// 1. `optionalAuth`: Tenta autenticar o utilizador se um token for fornecido, mas não falha se não for. Popula `req.user`.
+// 2. `checkMaintenanceMode`: Usa a informação do `req.user` para verificar se o acesso deve ser bloqueado.
+app.use('/api', optionalAuth);
+app.use('/api', checkMaintenanceMode);
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
@@ -78,6 +87,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/company', companyRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/notifications', notificationRoutes); // Reusing notificationRoutes for notifications
 
 // WebSocket for real-time notifications
 io.on('connection', (socket) => {

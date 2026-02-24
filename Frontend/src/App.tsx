@@ -25,6 +25,8 @@ import CompanyDashboard from './components/dashboard/CompanyDashboard';
 import AdminDashboard from './components/dashboard/AdminDashboard';
 import AdminUsers from './components/Admin/AdminUsers';
 import AdminContent from './components/Admin/AdminContent';
+import AdminReports from './components/Admin/AdminReports';
+import AdminSettings from './components/Admin/AdminSettings';
 import SchoolDashboard from './components/dashboard/SchoolDashboard';
 import ProblemDetail from './components/problems/ProblemDetail';
 import SolutionDetail from './components/solutions/SolutionDetail';
@@ -284,12 +286,13 @@ function App() {
             <Route path="/help" element={<Help />} />
             <Route path="/contact" element={<Contact />} />
             
-            {/* Rotas "Em Breve" para links do Footer */}
+            {/* Rotas "Em Breve" para links do Futuros */}
             <Route path="/resources" element={<ComingSoon title="Recursos Educativos" />} />
             <Route path="/mentorship" element={<ComingSoon title="Programa de Mentoria" />} />
             <Route path="/talent" element={<ComingSoon title="Encontrar Talentos" />} />
             <Route path="/success-stories" element={<ComingSoon title="Casos de Sucesso" />} />
             <Route path="/partnerships" element={<ComingSoon title="Parcerias" />} />
+            <Route path="/company/team" element={<ComingSoon title="Gestão de Equipa" />} />
             
             {/* Rotas Protegidas */}
             <Route 
@@ -335,6 +338,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <RoleGuard allowedRoles={['ADMIN']}><AdminContent /></RoleGuard>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/reports" 
+              element={
+                <ProtectedRoute>
+                  <RoleGuard allowedRoles={['ADMIN']}><AdminReports /></RoleGuard>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/settings" 
+              element={
+                <ProtectedRoute>
+                  <RoleGuard allowedRoles={['ADMIN']}><AdminSettings /></RoleGuard>
                 </ProtectedRoute>
               } 
             />

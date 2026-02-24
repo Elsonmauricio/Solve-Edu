@@ -35,6 +35,7 @@ const createSolutionValidation = [
 router.get('/', optionalAuth, SolutionController.getSolutions);
 router.get('/top', SolutionController.getTopSolutions);
 router.get('/stats', SolutionController.getStats);
+router.get('/student/:studentId/stats', authenticate(), SolutionController.getStudentStats);
 
 // Protected routes
 // Adicionado middleware 'upload.single("document")' para processar o ficheiro
@@ -60,5 +61,6 @@ router.post('/:id/interact', authenticate(), SolutionController.toggleInteractio
 router.get('/:id/comments', SolutionController.getComments);
 router.post('/:id/comments', authenticate(), SolutionController.createComment);
 router.post('/:id/toggle-pap', authenticate(['SCHOOL']), SolutionController.togglePAP);
+router.post('/:id/remind', authenticate(['ADMIN']), AdminController.sendSolutionReminder);
 
 export default router;

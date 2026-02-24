@@ -3,8 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { solutionsService } from '../../services/solution.service';
 import { Solution } from '../../types';
-import { CheckCircle, XCircle, ExternalLink, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, ExternalLink, Clock, Bell } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import api from '../../services/api';
 
 const AdminContent = () => {
   const [pendingSolutions, setPendingSolutions] = useState<Solution[]>([]);
@@ -29,13 +30,24 @@ const AdminContent = () => {
     }
   };
 
-  const handleReview = async (id: number, status: 'ACCEPTED' | 'REJECTED') => {
+  const handleReview = async (id: string | number, status: 'ACCEPTED' | 'REJECTED') => {
     try {
-      await solutionsService.review(id, { status });
+      await solutionsService.review(String(id), { status });
       setPendingSolutions(prev => prev.filter(s => s.id !== id));
       toast.success(`Solução ${status === 'ACCEPTED' ? 'aprovada' : 'rejeitada'} com sucesso`);
     } catch (error) {
       toast.error('Erro ao processar revisão');
+    }
+  };
+
+  const handleRemind = async (id: string | number) => {
+    try {
+      const response = await api.post(`/solutions/${id}/remind`);
+      if (response.data.success) {
+        toast.success(response.data.message);
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Erro ao enviar lembrete');
     }
   };
 
@@ -97,13 +109,19 @@ const AdminContent = () => {
 
                 <div className="flex md:flex-col justify-center gap-3 min-w-[150px]">
                   <button
-                    onClick={() => handleReview(solution.id, 'ACCEPTED')}
+                    onClick={() => handleRemind(solution.id)}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-xl hover:bg-blue-200 transition-colors font-medium"
+                  >
+                    <Bell className="w-4 h-4" /> Avisar Empresa
+                  </button>
+                  <button
+                    onClick={() => window.confirm('Tem a certeza que quer forçar a aprovação? Idealmente deve ser a empresa a fazê-lo.') && handleReview(solution.id, 'ACCEPTED')}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium"
                   >
                     <CheckCircle className="w-4 h-4" /> Aprovar
                   </button>
                   <button
-                    onClick={() => handleReview(solution.id, 'REJECTED')}
+                    onClick={() => window.confirm('Tem a certeza que quer forçar a rejeição?') && handleReview(solution.id, 'REJECTED')}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-xl hover:bg-red-200 transition-colors font-medium"
                   >
                     <XCircle className="w-4 h-4" /> Rejeitar

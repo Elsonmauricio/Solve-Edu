@@ -6,7 +6,7 @@ import { useApp } from '../../context/AppContext';
 import { Menu, X, Search, User, Briefcase, GraduationCap, LogOut, LayoutDashboard, Bell } from 'lucide-react';
 import logo from '../../assets/Logo.png';
 import NotificationsDropdown from '../layout/NotificationsDropdown';
-import api from '../../services/api';
+import { notificationService } from '../../services/notification.service';
 
 interface Notification {
   id: string;
@@ -36,11 +36,11 @@ const Header = () => {
     const fetchNotifications = async () => {
       if (isAuthenticated) {
         try {
-          const response = await api.get('/solutions/notifications');
-          if (response.data.success) {
-            setNotifications(response.data.data);
+          const response = await notificationService.getMyNotifications();
+          if (response.success) {
+            setNotifications(response.data);
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error("Failed to fetch notifications:", error);
         }
       }
@@ -52,7 +52,7 @@ const Header = () => {
     setIsNotificationsOpen(prev => !prev);
     if (!isNotificationsOpen && unreadCount > 0) {
       // Mark as read on the backend
-      await api.post('/solutions/notifications/read');
+      await notificationService.markAsRead();
       // Update UI immediately
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     }

@@ -1,5 +1,7 @@
 import { validationResult } from 'express-validator';
 import { supabase } from '../lib/supabase.js';
+import disk from 'diskusage';
+import os from 'os';
 
 export class AdminController {
   static async getDashboardStats(req, res) {
@@ -810,6 +812,174 @@ export class AdminController {
     } catch (error) {
       console.error('Mark notifications as read error:', error);
       res.status(500).json({ success: false, message: 'Erro ao marcar notificações.' });
+    }
+  }
+
+  static async sendSolutionReminder(req, res) {
+    try {
+      const { id } = req.params; // Solution ID
+
+      const { data: solution, error } = await supabase
+        .from('Solution')
+        .select('*, problem:Problem(title, company:CompanyProfile(user:User(id, name, email)))')
+        .eq('id', id)
+        .single();
+
+      if (error || !solution) {
+        return res.status(404).json({ success: false, message: 'Solução não encontrada.' });
+      }
+
+      const companyUser = Array.isArray(solution.problem?.company?.user) 
+        ? solution.problem.company.user[0] 
+        : solution.problem?.company?.user;
+
+      if (!companyUser) {
+        return res.status(400).json({ success: false, message: 'Empresa não encontrada para este desafio.' });
+      }
+
+      // Enviar notificação para a empresa
+      await supabase.from('Notification').insert({
+        userId: companyUser.id,
+        type: 'SYSTEM_UPDATE',
+        title: 'Ação Necessária: Revisão de Solução',
+        message: `A administração solicita a revisão da solução pendente para o desafio "${solution.problem.title}". Por favor, analise-a brevemente.`,
+        data: { solutionId: solution.id, problemId: solution.problemId }
+      });
+
+      res.json({ success: true, message: `Lembrete enviado para ${companyUser.name}.` });
+    } catch (error) {
+      console.error('Send reminder error:', error);
+      res.status(500).json({ success: false, message: 'Erro ao enviar lembrete.' });
+    }
+  }
+
+  // Adicione estes métodos ao seu ficheiro src/controllers/admin.controller.js
+
+  static async getReports(req, res) {
+    try {
+      // 1. Crescimento de Utilizadores (usando a função SQL)
+      const { data: userGrowth, error: growthError } = await supabase.rpc('get_monthly_user_growth');
+      if (growthError) throw growthError;
+
+      // 2. Taxa de Conclusão de Desafios
+      const { count: totalSolutions } = await supabase.from('Solution').select('*', { count: 'exact', head: true });
+      const { count: acceptedSolutions } = await supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('status', 'ACCEPTED');
+      const completionRate = totalSolutions > 0 ? (acceptedSolutions / totalSolutions) * 100 : 0;
+
+      // 3. Satisfação das Empresas (média de ratings)
+      const { data: ratings, error: ratingError } = await supabase.from('Solution').select('rating').not('rating', 'is', null);
+      if (ratingError) throw ratingError;
+      const companySatisfaction = ratings.length > 0
+        ? ratings.reduce((acc, curr) => acc + curr.rating, 0) / ratings.length
+        : 0;
+
+      // 4. Tempo Médio de Resposta
+      const { data: reviewTimes, error: timeError } = await supabase.from('Solution').select('submittedAt, reviewedAt').not('reviewedAt', 'is', null);
+      if (timeError) throw timeError;
+      
+      let totalResponseTime = 0;
+      reviewTimes.forEach(solution => {
+        const submitted = new Date(solution.submittedAt).getTime();
+        const reviewed = new Date(solution.reviewedAt).getTime();
+        totalResponseTime += (reviewed - submitted);
+      });
+      const averageResponseTimeInDays = reviewTimes.length > 0
+        ? (totalResponseTime / reviewTimes.length) / (1000 * 60 * 60 * 24)
+        : 0;
+
+      res.json({
+        success: true,
+        data: {
+          userGrowth: userGrowth || [],
+          completionRate: parseFloat(completionRate.toFixed(1)),
+          companySatisfaction: parseFloat(companySatisfaction.toFixed(1)),
+          averageResponseTime: parseFloat(averageResponseTimeInDays.toFixed(1))
+        }
+      });
+
+    } catch (error) {
+      console.error('Get admin reports error:', error);
+      res.status(500).json({ success: false, message: 'Erro ao buscar dados para relatórios.' });
+    }
+  }
+
+  static async getSettings(req, res) {
+    try {
+      const { data, error } = await supabase
+        .from('PlatformSettings')
+        .select('*')
+        .eq('id', true)
+        .single();
+
+      if (error) throw error;
+
+      res.json({ success: true, data });
+    } catch (error) {
+      console.error('Get settings error:', error);
+      res.status(500).json({ success: false, message: 'Erro ao buscar definições da plataforma.' });
+    }
+  }
+
+  static async updateSettings(req, res) {
+    try {
+      const settingsData = req.body;
+      delete settingsData.id;
+      settingsData.updatedAt = new Date();
+
+      const { data, error } = await supabase
+        .from('PlatformSettings')
+        .update(settingsData)
+        .eq('id', true)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      res.json({ success: true, message: 'Definições atualizadas com sucesso!', data });
+    } catch (error) {
+      console.error('Update settings error:', error);
+      res.status(500).json({ success: false, message: 'Erro ao atualizar definições.' });
+    }
+  }
+  static async getSystemHealth(req, res) {
+    try {
+      // 1. API Status (implícito, se chegamos aqui está online)
+      const api = 'Online';
+
+      // 2. DB Status (tenta fazer uma query simples)
+      const { error: dbError } = await supabase.from('User').select('id').limit(1);
+      const db = dbError ? 'Offline' : 'Online';
+
+      // 3. Storage Usage (uso do disco do servidor)
+      const path = os.platform() === 'win32' ? 'c:' : '/';
+      const { total, free } = await disk.check(path);
+      const used = total - free;
+      const storage = total > 0 ? parseFloat(((used / total) * 100).toFixed(1)) : 0;
+
+      // 4. Last Backup (lê da tabela de configurações)
+      const { data: settings } = await supabase.from('PlatformSettings').select('lastBackupAt').single();
+      
+      res.json({
+        success: true,
+        data: {
+          api,
+          db,
+          storage,
+          lastBackup: settings?.lastBackupAt || null,
+        },
+      });
+    } catch (error) {
+      console.error('Get system health error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Erro ao buscar estado do sistema.',
+        data: {
+          api: 'Online',
+          db: 'Offline',
+          storage: 0,
+          lastBackup: null,
+        }
+      });
     }
   }
 }

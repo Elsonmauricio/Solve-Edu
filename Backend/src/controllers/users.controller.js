@@ -205,6 +205,8 @@ export class UserController {
     try {
       const userId = req.userId;
       const userRole = req.userRole;
+      const studentId = req.studentId;
+      const companyId = req.companyId;
 
       let stats = {};
 
@@ -217,13 +219,13 @@ export class UserController {
           totalLikes,
           problemsSolved,
         ] = await Promise.all([
-          supabase.from('Solution').select('student!inner(userId)', { count: 'exact', head: true }).eq('student.userId', userId).then(r => r.count),
-          supabase.from('Solution').select('student!inner(userId)', { count: 'exact', head: true }).eq('student.userId', userId).eq('status', 'ACCEPTED').then(r => r.count),
-          supabase.from('Solution').select('student!inner(userId)', { count: 'exact', head: true }).eq('student.userId', userId).eq('status', 'PENDING_REVIEW').then(r => r.count),
+          supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('studentId', studentId).then(r => r.count),
+          supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('studentId', studentId).eq('status', 'ACCEPTED').then(r => r.count),
+          supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('studentId', studentId).eq('status', 'PENDING_REVIEW').then(r => r.count),
           // Média e Soma (fetch manual)
-          supabase.from('Solution').select('rating, likes, student!inner(userId)').eq('student.userId', userId),
+          supabase.from('Solution').select('rating, likes, problemId').eq('studentId', studentId),
           // Problems Solved (distinct problemId where status=ACCEPTED)
-          supabase.from('Solution').select('problemId, student!inner(userId)').eq('student.userId', userId).eq('status', 'ACCEPTED')
+          supabase.from('Solution').select('problemId').eq('studentId', studentId).eq('status', 'ACCEPTED')
         ]);
 
         // Processar agregações em JS
@@ -243,6 +245,9 @@ export class UserController {
         };
 
       } else if (userRole === 'COMPANY') {
+        const startOfDay = new Date();
+        startOfDay.setUTCHours(0, 0, 0, 0);
+
         const [
           totalProblems,
           activeProblems,
@@ -250,18 +255,29 @@ export class UserController {
           totalSolutions,
           acceptedSolutions,
           averageSolutionRating,
+          newProblemsToday,
+          newSolutionsToday,
+          newlyAcceptedSolutionsToday,
         ] = await Promise.all([
-          supabase.from('Problem').select('company!inner(userId)', { count: 'exact', head: true }).eq('company.userId', userId).then(r => r.count),
-          supabase.from('Problem').select('company!inner(userId)', { count: 'exact', head: true }).eq('company.userId', userId).eq('status', 'ACTIVE').then(r => r.count),
-          supabase.from('Problem').select('company!inner(userId)', { count: 'exact', head: true }).eq('company.userId', userId).eq('status', 'EXPIRED').then(r => r.count),
-          supabase.from('Solution').select('problem!inner(company!inner(userId))', { count: 'exact', head: true }).eq('problem.company.userId', userId).then(r => r.count),
-          supabase.from('Solution').select('problem!inner(company!inner(userId))', { count: 'exact', head: true }).eq('problem.company.userId', userId).eq('status', 'ACCEPTED').then(r => r.count),
+          supabase.from('Problem').select('*', { count: 'exact', head: true }).eq('companyId', companyId).then(r => r.count),
+          supabase.from('Problem').select('*', { count: 'exact', head: true }).eq('companyId', companyId).eq('status', 'ACTIVE').then(r => r.count),
+          supabase.from('Problem').select('*', { count: 'exact', head: true }).eq('companyId', companyId).eq('status', 'EXPIRED').then(r => r.count),
+          supabase.from('Solution').select('problem!inner(companyId)', { count: 'exact', head: true }).eq('problem.companyId', companyId).then(r => r.count),
+          supabase.from('Solution').select('problem!inner(companyId)', { count: 'exact', head: true }).eq('problem.companyId', companyId).eq('status', 'ACCEPTED').then(r => r.count),
           // Avg Rating
-          supabase.from('Solution').select('rating, problem!inner(company!inner(userId))').eq('problem.company.userId', userId).not('rating', 'is', null)
+          supabase.from('Solution').select('rating, problem!inner(companyId)').eq('problem.companyId', companyId).not('rating', 'is', null),
+          // Novas métricas diárias
+          supabase.from('Problem').select('*', { count: 'exact', head: true }).eq('companyId', companyId).gte('createdAt', startOfDay.toISOString()).then(r => r.count),
+          supabase.from('Solution').select('problem!inner(companyId)', { count: 'exact', head: true }).eq('problem.companyId', companyId).gte('submittedAt', startOfDay.toISOString()).then(r => r.count),
+          supabase.from('Solution').select('problem!inner(companyId)', { count: 'exact', head: true }).eq('problem.companyId', companyId).eq('status', 'ACCEPTED').gte('reviewedAt', startOfDay.toISOString()).then(r => r.count),
         ]);
 
         const ratingsData = averageSolutionRating.data || [];
         const avg = ratingsData.reduce((acc, curr) => acc + (curr.rating || 0), 0) / (ratingsData.length || 1);
+
+        // Cálculo da taxa de expiração no backend
+        const totalTrackedProblems = activeProblems + expiredProblems;
+        const expiredRate = totalTrackedProblems > 0 ? (expiredProblems / totalTrackedProblems) * 100 : 0;
 
         stats = {
           totalProblems,
@@ -271,6 +287,11 @@ export class UserController {
           acceptedSolutions,
           acceptanceRate: totalSolutions > 0 ? (acceptedSolutions / totalSolutions) * 100 : 0,
           averageSolutionRating: avg,
+          // Novas estatísticas
+          newProblemsToday: newProblemsToday || 0,
+          newSolutionsToday: newSolutionsToday || 0,
+          newlyAcceptedSolutionsToday: newlyAcceptedSolutionsToday || 0,
+          expiredRate: expiredRate,
         };
       } else if (userRole === 'SCHOOL') {
         // Estatísticas para Escola
@@ -405,50 +426,41 @@ export class UserController {
   static async getAllUsers(req, res) {
     try {
       const { role, isVerified, search, page = 1, limit = 20 } = req.query;
+      const pageNum = parseInt(page);
+      const limitNum = parseInt(limit);
       const skip = (page - 1) * limit;
 
-      const where = {
-        AND: [
-          role ? { role } : {},
-          isVerified !== undefined ? { isVerified: isVerified === 'true' } : {},
-          search ? {
-            OR: [
-              { name: { contains: search, mode: 'insensitive' } },
-              { email: { contains: search, mode: 'insensitive' } },
-            ]
-          } : {},
-        ]
-      };
+      let query = supabase
+        .from('User')
+        .select('id, email, name, role, avatar, isVerified, isActive, createdAt', { count: 'exact' });
 
-      const [users, total] = await Promise.all([
-        prisma.user.findMany({
-          where,
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-            avatar: true,
-            isVerified: true,
-            isActive: true,
-            level: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: 'desc' },
-          skip,
-          take: parseInt(limit),
-        }),
-        prisma.user.count({ where }),
-      ]);
+      if (role) {
+        query = query.eq('role', role);
+      }
+      
+      if (isVerified !== undefined) {
+        query = query.eq('isVerified', isVerified === 'true');
+      }
+
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+      }
+
+      query = query.order('createdAt', { ascending: false })
+                   .range(skip, skip + limitNum - 1);
+
+      const { data: users, count: total, error } = await query;
+
+      if (error) throw error;
 
       res.json({
         success: true,
         data: {
           users,
           total,
-          page: parseInt(page),
-          limit: parseInt(limit),
-          totalPages: Math.ceil(total / limit),
+          page: pageNum,
+          limit: limitNum,
+          totalPages: Math.ceil(total / limitNum),
         }
       });
 
@@ -465,41 +477,13 @@ export class UserController {
     try {
       const { id } = req.params;
 
-      const user = await prisma.user.findUnique({
-        where: { id },
-        include: {
-          studentProfile: true,
-          companyProfile: true,
-          problems: {
-            include: {
-              _count: {
-                select: { solutions: true }
-              }
-            }
-          },
-          solutions: {
-            include: {
-              problem: {
-                select: {
-                  title: true,
-                  company: {
-                    include: {
-                      user: {
-                        select: {
-                          name: true,
-                          avatar: true,
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      });
+      const { data: user, error } = await supabase
+        .from('User')
+        .select('*, studentProfile:StudentProfile(*), companyProfile:CompanyProfile(*)')
+        .eq('id', id)
+        .single();
 
-      if (!user) {
+      if (error || !user) {
         return res.status(404).json({ 
           success: false, 
           message: 'Utilizador não encontrado.' 
@@ -532,10 +516,14 @@ export class UserController {
         delete updateData.role;
       }
 
-      const user = await prisma.user.update({
-        where: { id },
-        data: updateData
-      });
+      const { data: user, error } = await supabase
+        .from('User')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
 
       res.json({
         success: true,
@@ -564,9 +552,12 @@ export class UserController {
         });
       }
 
-      await prisma.user.delete({
-        where: { id }
-      });
+      const { error } = await supabase
+        .from('User')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
 
       res.json({
         success: true,

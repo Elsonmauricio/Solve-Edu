@@ -13,7 +13,7 @@ export const solutionsService = {
     const response = await api.post('/solutions', data);
     return response.data;
   },
-  review: async (id: number, data: { status: string; feedback?: string | null }) => {
+  review: async (id: string, data: { status: string; feedback?: string | null }) => {
     const response = await api.put(`/solutions/${id}`, data);
     return response.data;
   },

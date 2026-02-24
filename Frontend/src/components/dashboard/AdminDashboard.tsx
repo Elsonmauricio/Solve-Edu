@@ -50,7 +50,7 @@ const AdminDashboard: React.FC = () => {
     api: 'A verificar...',
     db: 'A verificar...',
     storage: 0,
-    lastBackup: new Date().toISOString()
+    lastBackup: null as string | null
   });
   const [platformMetrics, setPlatformMetrics] = useState({
     growth: 0,
@@ -58,11 +58,31 @@ const AdminDashboard: React.FC = () => {
     satisfaction: 4.8 // Valor base, idealmente viria de média de ratings
   });
 
+  const formatBackupTime = (dateString: string | null) => {
+    if (!dateString) return 'Nunca';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+    if (diffInSeconds < 60) return 'Agora mesmo';
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    if (diffInMinutes < 60) return `Há ${diffInMinutes} min`;
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `Há ${diffInHours}h`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    return `Há ${diffInDays}d`;
+  };
+
   useEffect(() => {
-    const fetchAdminStats = async () => {
+    const fetchAdminStats = async (showLoading = true) => {
       try {
-        setIsLoading(true);
-        const response = await adminService.getDashboardStats();
+        if (showLoading) setIsLoading(true);
+        const [response, solutionStatsRes] = await Promise.all([
+          adminService.getDashboardStats(),
+          solutionsService.getStats()
+        ]);
+
         if (response.success) {
           setStats(response.data);
           
@@ -78,31 +98,31 @@ const AdminDashboard: React.FC = () => {
           // Assumindo que 1 solução por utilizador é um bom engajamento base (50%)
           const engagementRate = Math.min((totalSolutions / totalUsers) * 50, 100);
 
+          // Satisfação: Média de ratings (vindo do backend agora)
+          const satisfaction = solutionStatsRes.success ? (solutionStatsRes.data.averageRating || 0) : 4.8;
+
           setPlatformMetrics({
             growth: parseFloat(growthRate.toFixed(1)),
             engagement: parseFloat(engagementRate.toFixed(1)),
-            satisfaction: 4.8
+            satisfaction: parseFloat(satisfaction.toFixed(1)),
           });
 
           // Se recebemos dados, o sistema está online
           setSystemHealth({
-            api: 'Online',
-            db: 'Online',
-            storage: 78, // Simulado (requer endpoint de infraestrutura)
-            lastBackup: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString() // Simulado: 2h atrás
+            ...systemHealth, // Mantém os valores antigos até a nova chamada
           });
         }
       } catch (error) {
         console.error("Failed to fetch admin stats:", error);
         setSystemHealth(prev => ({ ...prev, api: 'Offline', db: 'Offline' }));
       } finally {
-        setIsLoading(false);
+        if (showLoading) setIsLoading(false);
       }
     };
 
-    const fetchLists = async () => {
+    const fetchLists = async (showLoading = true) => {
       try {
-        setIsLoadingLists(true);
+        if (showLoading) setIsLoadingLists(true);
         const [problemsRes, solutionsRes] = await Promise.all([
           problemsService.getAll({ limit: 3, sortBy: 'createdAt', sortOrder: 'desc' }),
           solutionsService.getAll({ status: 'PENDING_REVIEW', limit: 5 })
@@ -117,12 +137,35 @@ const AdminDashboard: React.FC = () => {
       } catch (error) {
         console.error("Failed to fetch admin lists:", error);
       } finally {
-        setIsLoadingLists(false);
+        if (showLoading) setIsLoadingLists(false);
       }
     };
 
-    fetchAdminStats();
-    fetchLists();
+    const fetchSystemHealth = async () => {
+      try {
+        const response = await adminService.getSystemHealth();
+        if (response.success) {
+          setSystemHealth(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch system health:", error);
+        setSystemHealth(prev => ({ ...prev, api: 'Offline', db: 'Offline' }));
+      }
+    };
+
+    // Carregamento inicial (com indicador de loading)
+    fetchAdminStats(true);
+    fetchLists(true);
+    fetchSystemHealth();
+
+    // Atualização em tempo real (Polling a cada 15 segundos, sem loading visual)
+    const interval = setInterval(() => {
+      fetchAdminStats(false);
+      fetchLists(false);
+      fetchSystemHealth();
+    }, 15000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const statCards: StatCard[] = stats ? [
@@ -182,13 +225,14 @@ const AdminDashboard: React.FC = () => {
               </p>
             </div>
             <div className="flex space-x-3 mt-4 lg:mt-0">
-              <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-xl text-gray-700 hover:border-gray-400 transition-colors">
+              <Link to="/admin/reports" className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-xl text-gray-700 hover:border-gray-400 transition-colors">
                 <BarChart3 size={20} />
                 <span>Relatórios</span>
-              </button>
-              <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-xl text-gray-700 hover:border-gray-400 transition-colors">
+              </Link>
+              <Link to="/admin/settings" className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-xl text-gray-700 hover:border-gray-400 transition-colors">
                 <Settings size={20} />
-              </button>
+                <span>Definições</span>
+              </Link>
             </div>
           </div>
           </div>
@@ -325,7 +369,7 @@ const AdminDashboard: React.FC = () => {
                 
                 <div className="flex items-center justify-between">
                   <span className="text-gray-700">Último Backup</span>
-                  <span className="text-gray-500 text-sm">Há 2 horas</span>
+                  <span className="text-gray-500 text-sm">{formatBackupTime(systemHealth.lastBackup)}</span>
                 </div>
               </div>
             </motion.div>

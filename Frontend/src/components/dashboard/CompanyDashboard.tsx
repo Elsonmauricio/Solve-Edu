@@ -7,8 +7,10 @@ import UserBadge from '../ui/UserBadge';
 import { problemsService } from '../../services/problems.service';
 import { solutionsService } from '../../services/solution.service';
 import { companyService } from '../../services/company.service';
+import { notificationService } from '../../services/notification.service';
 import CompanySolutions from '../layout/CompanySolutions'; // Importar o novo componente
 import ProblemCard from '../ui/ProblemCard';
+import NotificationsDropdown from '../layout/NotificationsDropdown';
 import { Problem, Solution } from '../../types';
 import { 
   Target, 
@@ -20,6 +22,16 @@ import {
   CheckCircle,
 } from 'lucide-react';
 
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  data?: any;
+}
+
 const CompanyDashboard = () => {
   const { user } = useApp();
   const [stats, setStats] = useState({
@@ -28,56 +40,81 @@ const CompanyDashboard = () => {
     acceptedSolutions: 0,
     acceptanceRate: 0,
     averageSolutionRating: 0,
-    expiredProblems: 0
+    expiredProblems: 0,
+    newProblemsToday: 0,
+    newSolutionsToday: 0,
+    newlyAcceptedSolutionsToday: 0,
+    expiredRate: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [myProblems, setMyProblems] = useState<Problem[]>([]);
+  const [recentSolutions, setRecentSolutions] = useState<Solution[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchDashboardData = async () => {
+      if (!user?.companyProfile?.id) {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
       try {
-        setIsLoading(true);
-        const response = await companyService.getDashboardStats();
-        if (response.success) {
-          // Mapear a resposta do backend (UserController.getUserStats) para o estado local
-          setStats({
-            activeProblems: response.data.activeProblems || 0,
-            totalSolutions: response.data.totalSolutions || 0,
-            acceptedSolutions: response.data.acceptedSolutions || 0,
-            acceptanceRate: response.data.acceptanceRate || 0,
-            averageSolutionRating: response.data.averageSolutionRating || 0,
-            expiredProblems: response.data.expiredProblems || 0
-          });
+        // Executar todas as chamadas de API em paralelo para um carregamento mais rápido
+        const [statsRes, problemsRes, solutionsRes, notificationsRes] = await Promise.all([
+          companyService.getDashboardStats(),
+          problemsService.getAll({ limit: 4, sortBy: 'createdAt', sortOrder: 'desc' }),
+          solutionsService.getAll({
+            companyId: user.companyProfile.id,
+            limit: 5,
+            sortBy: 'submittedAt',
+            sortOrder: 'desc'
+          }),
+          notificationService.getMyNotifications()
+        ]);
+
+        // Processar e definir os estados com os dados recebidos
+        if (statsRes.success) {
+          setStats(statsRes.data);
         }
+        if (problemsRes.success) {
+          setMyProblems(problemsRes.data.data || []);
+        }
+        if (solutionsRes.success) {
+          setRecentSolutions(solutionsRes.data.data || []);
+        }
+        if (notificationsRes.success) {
+          setNotifications(notificationsRes.data);
+        }
+
       } catch (error) {
-        console.error("Failed to fetch company dashboard stats:", error);
+        console.error("Failed to fetch dashboard data:", error);
+        // Poderia adicionar um toast de erro aqui
       } finally {
         setIsLoading(false);
       }
     };
 
-    const fetchProblems = async () => {
-      try {
-        // O backend deve filtrar automaticamente para a empresa logada
-        const response = await problemsService.getAll({ limit: 4, sortBy: 'createdAt', sortOrder: 'desc' });
-        if (response.success) setMyProblems(response.data.data || []);
-      } catch (error) {
-        console.error("Failed to fetch company problems:", error);
-      }
-    };
-
-    fetchStats();
-    fetchProblems();
-  }, []);
+    fetchDashboardData();
+  }, [user]);
 
   // Gerar atividades recentes combinando problemas e candidaturas
   const recentActivity = [
     ...myProblems.map(p => ({
+      id: p.id,
       type: 'PROBLEM',
       title: p.title,
       date: p.createdAt,
       desc: 'Novo desafio publicado'
-    }))
+    })),
+    ...recentSolutions.map(s => ({
+      id: s.id,
+      type: 'SOLUTION',
+      title: s.title,
+      date: s.submittedAt,
+      desc: `Nova candidatura de ${(s.student as any)?.user?.name || 'um estudante'}`
+    })),
   ]
   .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   .slice(0, 5);
@@ -102,32 +139,44 @@ const CompanyDashboard = () => {
       {
         title: "Desafios Publicados",
         value: isLoading ? '...' : (stats.activeProblems || 0).toString(),
-        change: 0, // Idealmente, comparar com o mês anterior
+        change: stats.newProblemsToday || 0,
         icon: Target,
         color: "blue"
       },
       {
         title: "Candidaturas Recebidas",
         value: isLoading ? '...' : (stats.totalSolutions || 0).toString(),
-        change: 0,
+        change: stats.newSolutionsToday || 0,
         icon: Users,
         color: "green"
       },
       {
         title: "Soluções Aceites",
         value: isLoading ? '...' : (stats.acceptedSolutions || 0).toString(),
-        change: 0,
+        change: stats.newlyAcceptedSolutionsToday || 0,
         icon: CheckCircle,
         color: "teal"
       },
       {
         title: "Avaliação Média",
         value: isLoading ? '...' : (stats.averageSolutionRating || 0).toFixed(1),
-        change: 0,
+        change: 0, // 'Change' não se aplica a uma média da mesma forma
         icon: Star,
         color: "purple"
       }
     ]
+  };
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  const handleToggleNotifications = async () => {
+    setIsNotificationsOpen(prev => !prev);
+    if (!isNotificationsOpen && unreadCount > 0) {
+      // Marcar como lidas no backend
+      await notificationService.markAsRead();
+      // Atualizar UI
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    }
   };
 
   return (
@@ -156,9 +205,18 @@ const CompanyDashboard = () => {
                 <Plus size={20} />
                 <span>Novo Desafio</span>
               </Link>
-              <button className="flex items-center space-x-2 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:border-gray-400 transition-colors">
-                <Bell size={20} />
-              </button>
+              <div className="relative">
+                <button 
+                  onClick={handleToggleNotifications}
+                  className="flex items-center space-x-2 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:border-gray-400 transition-colors bg-white"
+                >
+                  <Bell size={20} />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-2 right-2 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+                  )}
+                </button>
+                <NotificationsDropdown notifications={notifications} isOpen={isNotificationsOpen} onClose={() => setIsNotificationsOpen(false)} />
+              </div>
             </div>
           </div>
         </motion.div>
@@ -288,14 +346,15 @@ const CompanyDashboard = () => {
                   </span>
                 </Link>
                 
-                <button className="flex items-center space-x-3 p-3 border border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-colors group w-full text-left">
+                <Link
+                  to="/company/team"
+                  className="flex items-center space-x-3 p-3 border border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-colors group w-full text-left"
+                >
                   <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
                     <Users className="w-4 h-4 text-purple-600" />
                   </div>
-                  <span className="text-gray-700 group-hover:text-purple-600 font-medium">
-                    Gerir Equipa
-                  </span>
-                </button>
+                  <span className="text-gray-700 group-hover:text-purple-600 font-medium">Gerir Equipa</span>
+                </Link>
               </div>
             </motion.div>
 
@@ -311,7 +370,7 @@ const CompanyDashboard = () => {
               <div className="space-y-4">
                 {recentActivity.length > 0 ? (
                   recentActivity.map((activity, idx) => (
-                    <div key={idx} className="flex items-center space-x-3">
+                    <div key={activity.id} className="flex items-center space-x-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center ${activity.type === 'PROBLEM' ? 'bg-blue-100' : 'bg-orange-100'}`}>
                         {activity.type === 'PROBLEM' ? (
                           <Plus className="w-4 h-4 text-blue-600" />
@@ -358,7 +417,7 @@ const CompanyDashboard = () => {
                     <span>{stats.expiredProblems}</span>
                   </div>
                   <div className="w-full bg-white/20 rounded-full h-2">
-                    <div className="bg-white h-2 rounded-full" style={{ width: `${Math.min((stats.expiredProblems / (stats.activeProblems + stats.expiredProblems || 1)) * 100, 100)}%` }}></div>
+                    <div className="bg-white h-2 rounded-full" style={{ width: `${stats.expiredRate.toFixed(0)}%` }}></div>
                   </div>
                 </div>
                 

@@ -113,29 +113,29 @@ const SchoolDashboard = () => {
     stats: [
       {
         title: "Alunos Registados",
-        value: isLoading ? '...' : stats.totalStudents.toString(),
-        change: 0, 
+        value: isLoading ? '...' : (stats.totalStudents || 0).toString(),
+        change: 0, // Backend não fornece esta métrica de "hoje" ainda
         icon: Users,
         color: "blue"
       },
       {
         title: "PAPs em Curso",
-        value: isLoading ? '...' : stats.activeProjects.toString(),
-        change: 0,
+        value: isLoading ? '...' : (stats.activeProjects || 0).toString(),
+        change: 0, // Backend não fornece esta métrica de "hoje" ainda
         icon: BookOpen,
         color: "orange"
       },
       {
         title: "Projetos Concluídos",
-        value: isLoading ? '...' : stats.completedPaps.toString(),
-        change: 0,
+        value: isLoading ? '...' : (stats.completedPaps || 0).toString(),
+        change: 0, // Backend não fornece esta métrica de "hoje" ainda
         icon: GraduationCap,
         color: "green"
       },
       {
         title: "Média das Notas",
-        value: isLoading ? '...' : (stats.averageGrade || 0).toFixed(1),
-        change: 0,
+        value: isLoading ? '...' : (stats.averageGrade || 0).toFixed(1) + "/20",
+        change: 0, // 'Change' não se aplica a uma média da mesma forma
         icon: Award,
         color: "purple"
       }

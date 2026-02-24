@@ -347,6 +347,11 @@ export class SolutionController {
             delete updateData[key];
           }
         });
+
+        // Atualizar a data de revisão se o estado estiver a ser alterado
+        if (updateData.status) {
+          updateData.reviewedAt = new Date();
+        }
       }
 
       const { data: solution, error } = await supabase
@@ -587,11 +592,22 @@ export class SolutionController {
       const { count: accepted } = await supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('status', 'ACCEPTED');
       const { count: pending } = await supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('status', 'PENDING_REVIEW');
 
+      // Calcular média de avaliações global
+      const { data: ratings } = await supabase
+        .from('Solution')
+        .select('rating')
+        .not('rating', 'is', null);
+      
+      const avgRating = ratings?.length 
+        ? (ratings.reduce((acc, curr) => acc + (curr.rating || 0), 0) / ratings.length) 
+        : 0;
+
       const stats = {
         total,
         accepted,
         pending,
-        acceptanceRate: total > 0 ? (accepted / total) * 100 : 0
+        acceptanceRate: total > 0 ? (accepted / total) * 100 : 0,
+        averageRating: avgRating
       };
 
       res.json({

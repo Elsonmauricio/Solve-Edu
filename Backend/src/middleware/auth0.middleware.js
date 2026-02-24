@@ -251,4 +251,5 @@ export const optionalAuth = (req, res, next) => {
     if (err) return next(); // Token inválido, continua como anónimo
     syncUser(req, res, next); // Token válido, sincroniza o utilizador
   });
+
 };

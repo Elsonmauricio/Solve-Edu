@@ -1,4 +1,4 @@
-// c:\Users\maels\Documents\Solve Edu\Frontend\src\pages\admin\AdminUsers.tsx
+// c:\Users\maels\Documents\Solve Edu\Frontend\src\components\Admin\AdminUsers.tsx
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { userService } from '../../services/user.service';
@@ -97,7 +97,7 @@ const AdminUsers = () => {
                       key={user.id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      {...({ className: "hover:bg-gray-50 transition-colors"} as any)}
+                     {...({ className: "hover:bg-gray-50 transition-colors" } as any)}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
