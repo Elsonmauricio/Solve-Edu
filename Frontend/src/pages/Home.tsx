@@ -77,7 +77,11 @@ const Home: React.FC = () => {
             ...prevStats.slice(1)
           ]);
         }
-      } catch (error) {
+      } catch (error: any) {
+        // Ignora erro 429 (Too Many Requests) causado pelo React Strict Mode em desenvolvimento
+        if (error.response && error.response.status === 429) {
+          return;
+        }
         console.error("Failed to fetch stats:", error);
       }
     };

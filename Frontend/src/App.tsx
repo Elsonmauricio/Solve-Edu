@@ -36,6 +36,7 @@ import './styles/globals.css';
 import ProtectedRoute from './components/auth/ProtectedRoute'; // Confirmação: Este caminho está correto
 import { useUserInitialization } from './hooks/useUserInitialization';
 import { useApp } from './context/AppContext';
+import ChatWidget from './components/chat/ChatWidget';
 
 
 // Componente para proteger rotas por Role (Permissão)
@@ -167,6 +168,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
       <main className="pt-16">
         {children}
       </main>
+      <ChatWidget />
       {!shouldHideFooter && <Footer />}
     </div>
   );

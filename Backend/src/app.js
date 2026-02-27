@@ -17,6 +17,7 @@ import studentRoutes from './routes/student.routes.js';
 import companyRoutes from './routes/company.routes.js';
 import contactRoutes from './routes/contact.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
+import chatRoutes from './routes/chat.routes.js';
 
 // Import middleware
 import { errorHandler } from './middleware/error.middleware.js';
@@ -88,6 +89,7 @@ app.use('/api/student', studentRoutes);
 app.use('/api/company', companyRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/notifications', notificationRoutes); // Reusing notificationRoutes for notifications
+app.use('/api/chat', chatRoutes);
 
 // WebSocket for real-time notifications
 io.on('connection', (socket) => {

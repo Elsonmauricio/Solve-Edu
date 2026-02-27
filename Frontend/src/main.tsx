@@ -8,6 +8,8 @@ import { Auth0Provider } from '@auth0/auth0-react';
 // Importa o componente principal da aplicação, o 'App'.
 import App from './App';
 import { AppProvider } from './context/AppContext';
+import { RealtimeProvider } from './context/RealtimeContext';
+import { ChatProvider } from './context/ChatContext';
 // Importa os estilos globais da aplicação, que serão aplicados em todo o site.
 import './styles/globals.css';
 
@@ -30,7 +32,6 @@ ReactDOM.createRoot(rootElement).render(
   // '<React.StrictMode>' é um componente especial que ajuda a detectar problemas potenciais na aplicação.
   // Ele ativa verificações e avisos adicionais para seus descendentes, mas não renderiza nenhuma UI visível.
   // Funciona apenas em modo de desenvolvimento.
-  <React.StrictMode>
     <Auth0Provider
       domain={domain}
       clientId={clientId}
@@ -42,8 +43,11 @@ ReactDOM.createRoot(rootElement).render(
       cacheLocation="localstorage"
     >
       <AppProvider>
-        <App />
+        <RealtimeProvider>
+          <ChatProvider>
+            <App />
+          </ChatProvider>
+        </RealtimeProvider>
       </AppProvider>
     </Auth0Provider>
-  </React.StrictMode>,
 );

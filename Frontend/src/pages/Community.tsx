@@ -12,6 +12,7 @@ import {
   Zap
 } from 'lucide-react';
 import { User } from '../types';
+import StartChatButton from '../components/chat/StartChatButton';
 
 // Interfaces para tipar as respostas da API e evitar erros de "unknown"
 interface StatsResponse {
@@ -161,7 +162,10 @@ const Community = () => {
                     <div className="text-center text-gray-500 py-4">A carregar...</div>
                   ) : topStudents.length > 0 ? (
                     topStudents.map((student, index) => (
-                      <UserBadge key={student.id} user={student} showStats={true} />
+                      <div key={student.id} className="flex items-center gap-2">
+                        <div className="flex-1"><UserBadge user={student} showStats={true} /></div>
+                        <StartChatButton targetUserId={student.id} label="" className="p-3 bg-gray-100 text-solve-blue rounded-full hover:bg-solve-blue hover:text-white transition-colors" />
+                      </div>
                     ))
                   ) : (
                     <p className="text-center text-gray-500 py-4">Não foi possível carregar o ranking de estudantes.</p>
