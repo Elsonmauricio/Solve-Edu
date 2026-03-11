@@ -20,6 +20,7 @@ import {
   Eye,
   Bell,
   CheckCircle,
+  Settings,
 } from 'lucide-react';
 
 interface Notification {
@@ -204,6 +205,13 @@ const CompanyDashboard = () => {
               >
                 <Plus size={20} />
                 <span>Novo Desafio</span>
+              </Link>
+              <Link
+                to="/settings"
+                className="flex items-center space-x-2 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:border-gray-400 transition-colors bg-white"
+                title="Configurações do Perfil"
+              >
+                <Settings size={20} />
               </Link>
               <div className="relative">
                 <button 

@@ -54,6 +54,7 @@ router.get('/notifications', authenticate(), AdminController.getMyNotifications)
 router.post('/notifications/read', authenticate(), AdminController.markNotificationsAsRead);
 
 // Solution specific routes
+router.get('/export/grades', authenticate(['SCHOOL', 'ADMIN']), SolutionController.exportGrades); // Definida ANTES de /:id
 router.get('/:id', optionalAuth, SolutionController.getSolution);
 router.put('/:id', authenticate(['STUDENT', 'COMPANY', 'ADMIN']), SolutionController.updateSolution);
 router.delete('/:id', authenticate(['STUDENT', 'ADMIN']), SolutionController.deleteSolution);
@@ -61,6 +62,7 @@ router.post('/:id/interact', authenticate(), SolutionController.toggleInteractio
 router.get('/:id/comments', SolutionController.getComments);
 router.post('/:id/comments', authenticate(), SolutionController.createComment);
 router.post('/:id/toggle-pap', authenticate(['SCHOOL']), SolutionController.togglePAP);
+router.put('/:id/grade', authenticate(['SCHOOL', 'ADMIN']), SolutionController.gradeSolution);
 router.post('/:id/remind', authenticate(['ADMIN']), AdminController.sendSolutionReminder);
 
 export default router;

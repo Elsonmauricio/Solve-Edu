@@ -172,9 +172,9 @@ const SchoolDashboard = () => {
               <button className="flex items-center space-x-2 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:border-gray-400 transition-colors bg-white">
                 <Bell size={20} />
               </button>
-              <button className="flex items-center space-x-2 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:border-gray-400 transition-colors bg-white">
+              <Link to="/settings" className="flex items-center space-x-2 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:border-gray-400 transition-colors bg-white">
                 <Settings size={20} />
-              </button>
+              </Link>
             </div>
           </div>
         </motion.div>

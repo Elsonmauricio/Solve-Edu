@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, CheckSquare, Square } from 'lucide-react';
+import { Eye, CheckSquare, Square, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { Solution } from '../../types';
@@ -64,6 +64,28 @@ const SchoolSolutionsList = () => {
     );
   };
 
+  const handleExportGrades = async () => {
+    try {
+      // Usar a nossa instância do axios (api) para que envie cookies/headers
+      const response = await api.get('/solutions/export/grades', {
+        responseType: 'blob' // Importante para lidar com ficheiros
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'pauta_avaliacoes.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Erro ao exportar pauta:', error);
+      toast.error('Erro ao descarregar a pauta.');
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -71,8 +93,15 @@ const SchoolSolutionsList = () => {
       transition={{ duration: 0.6, delay: 0.4 }}
       {...({ className:"bg-white rounded-2xl shadow-lg border border-gray-200" } as any)}
     >
-      <div className="p-6 border-b border-gray-200">
-        <h2 className="text-xl font-semibold text-gray-900">Validação de Provas de Aptidão Profissional (PAP)</h2>
+      <div className="p-6 border-b border-gray-200 flex justify-between items-center flex-wrap gap-4">
+        <h2 className="text-xl font-semibold text-gray-900">Validação e Avaliação Oficial de Provas (PAP)</h2>
+        <button 
+          onClick={handleExportGrades}
+          className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl transition-colors text-sm font-medium"
+        >
+          <Download size={16} />
+          <span>Exportar Pauta</span>
+        </button>
       </div>
 
       {isLoading ? (
@@ -90,6 +119,7 @@ const SchoolSolutionsList = () => {
                 <th className="px-6 py-4">Aluno</th>
                 <th className="px-6 py-4">Estado</th>
                 <th className="px-6 py-4 text-center">Validado como PAP</th>
+                <th className="px-6 py-4 text-center">Nota</th>
                 <th className="px-6 py-4 text-right">Ações</th>
               </tr>
             </thead>
@@ -112,6 +142,11 @@ const SchoolSolutionsList = () => {
                       {solution.isPAP ? <CheckSquare className="text-green-500" /> : <Square />}
                       <span className="text-sm">{solution.isPAP ? 'Sim' : 'Não'}</span>
                     </button>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <span className="font-semibold text-gray-700">
+                      {solution.schoolGrade || '-'}
+                    </span>
                   </td>
                   <td className="px-6 py-4 text-right">
                     <Link to={`/solutions/${solution.id}`} className="inline-block p-2 text-gray-400 hover:text-solve-blue transition-colors" title="Ver Detalhes">

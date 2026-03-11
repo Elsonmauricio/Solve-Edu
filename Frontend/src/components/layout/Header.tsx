@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useApp } from '../../context/AppContext';
-import { Menu, X, Search, User, Briefcase, GraduationCap, LogOut, LayoutDashboard, Bell } from 'lucide-react';
+import { Menu, X, Search, User, Briefcase, GraduationCap, LogOut, LayoutDashboard, Bell, Settings } from 'lucide-react';
 import logo from '../../assets/Logo.png';
 import NotificationsDropdown from '../layout/NotificationsDropdown';
 import { notificationService } from '../../services/notification.service';
@@ -167,6 +167,13 @@ const Header = () => {
                   )}
                   <span className="text-sm font-medium text-gray-700">{user?.name}</span>
                 </div>
+                <Link
+                  to="/settings"
+                  className="p-2 text-gray-500 hover:text-solve-blue transition-colors"
+                  title="Configurações de Perfil"
+                >
+                  <Settings size={20} />
+                </Link>
                 <button
                   onClick={() => logout()}
                   className="p-2 text-gray-500 hover:text-red-600 transition-colors"
@@ -252,13 +259,23 @@ const Header = () => {
 
                 <div className="pt-4 border-t border-gray-200 space-y-2">
                   {isAuthenticated ? (
-                    <button
-                      onClick={() => logout()}
-                      className="w-full text-left px-3 py-3 text-base font-medium text-red-600 hover:bg-red-50 rounded-lg flex items-center space-x-2"
-                    >
-                      <LogOut size={18} />
-                      <span>Sair</span>
-                    </button>
+                    <>
+                      <Link
+                        to="/settings"
+                        onClick={() => setIsMenuOpen(false)}
+                        className="w-full text-left px-3 py-3 text-base font-medium text-gray-600 hover:bg-gray-50 rounded-lg flex items-center space-x-2"
+                      >
+                        <Settings size={18} />
+                        <span>Configurações do Perfil</span>
+                      </Link>
+                      <button
+                        onClick={() => logout()}
+                        className="w-full text-left px-3 py-3 text-base font-medium text-red-600 hover:bg-red-50 rounded-lg flex items-center space-x-2"
+                      >
+                        <LogOut size={18} />
+                        <span>Sair</span>
+                      </button>
+                    </>
                   ) : (
                     <>
                       <button

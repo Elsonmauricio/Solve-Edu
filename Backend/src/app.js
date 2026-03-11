@@ -49,7 +49,7 @@ app.use(cors({
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 500, // Aumentado para 500 para evitar erros falsos em desenvolvimento
   message: 'Muitas requisições deste IP. Tente novamente mais tarde.',
 });
 app.use('/api/', limiter);

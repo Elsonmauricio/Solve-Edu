@@ -2,6 +2,7 @@ import { validationResult } from 'express-validator';
 import { storageService } from '../services/storage.service.js';
 import { supabase } from '../lib/supabase.js';
 import emailService from '../services/email.service.js';
+import ExcelJS from 'exceljs';
 
 export class SolutionController {
   static async createSolution(req, res) {
@@ -730,6 +731,104 @@ export class SolutionController {
     } catch (error) {
       console.error('Toggle PAP error:', error);
       res.status(500).json({ success: false, message: 'Erro ao atualizar estado PAP.' });
+    }
+  }
+
+  static async gradeSolution(req, res) {
+    try {
+      const { id } = req.params;
+      const { schoolGrade, schoolFeedback } = req.body;
+
+      if (req.userRole !== 'SCHOOL' && req.userRole !== 'ADMIN') {
+        return res.status(403).json({ success: false, message: 'Acesso negado. Apenas escolas podem avaliar avaliações oficiais.' });
+      }
+
+      const { data: solution, error } = await supabase
+        .from('Solution')
+        .update({ schoolGrade, schoolFeedback })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        message: 'Avaliação da escola guardada com sucesso.',
+        data: solution
+      });
+
+    } catch (error) {
+      console.error('Grade solution error:', error);
+      res.status(500).json({ success: false, message: 'Erro ao guardar a avaliação da escola.' });
+    }
+  }
+
+  static async exportGrades(req, res) {
+    try {
+      if (req.userRole !== 'SCHOOL' && req.userRole !== 'ADMIN') {
+        return res.status(403).json({ success: false, message: 'Acesso negado.' });
+      }
+
+      // Buscar soluções dos alunos (para a escola ligada poderia filtrar por isPAP se desejado)
+      // Aqui buscamos todas as soluções com a info do problema e estudante
+      let query = supabase
+        .from('Solution')
+        .select('*, student:StudentProfile(*, user:User(name, email)), problem:Problem(title)');
+
+      const { data: solutions, error } = await query;
+
+      if (error) throw error;
+
+      // Cria um workbook e worksheet
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Avaliações Oficiais');
+
+      // Define columns
+      worksheet.columns = [
+        { header: 'Aluno', key: 'studentName', width: 30 },
+        { header: 'Email', key: 'studentEmail', width: 30 },
+        { header: 'Projeto/Desafio', key: 'problemTitle', width: 40 },
+        { header: 'Data de Submissão', key: 'submittedAt', width: 22 },
+        { header: 'Estado', key: 'status', width: 20 },
+        { header: 'Validado como PAP', key: 'isPAP', width: 20 },
+        { header: 'Nota Escolar', key: 'schoolGrade', width: 15 },
+        { header: 'Feedback Escolar', key: 'schoolFeedback', width: 50 }
+      ];
+
+      // Formatar header
+      worksheet.getRow(1).font = { bold: true };
+      
+      // Add data
+      solutions.forEach(solution => {
+        worksheet.addRow({
+          studentName: solution.student?.user?.name || 'N/A',
+          studentEmail: solution.student?.user?.email || 'N/A',
+          problemTitle: solution.problem?.title || 'N/A',
+          submittedAt: new Date(solution.submittedAt).toLocaleString(),
+          status: solution.status,
+          isPAP: solution.isPAP ? 'Sim' : 'Não',
+          schoolGrade: solution.schoolGrade || 'S/ Nota',
+          schoolFeedback: solution.schoolFeedback || ''
+        });
+      });
+
+      // Response headers para Excel
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      );
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename=' + 'pauta_avaliacoes.xlsx'
+      );
+
+      await workbook.xlsx.write(res);
+      res.end();
+
+    } catch (error) {
+      console.error('Export grades error:', error);
+      res.status(500).json({ success: false, message: 'Erro ao exportar pauta.' });
     }
   }
 }

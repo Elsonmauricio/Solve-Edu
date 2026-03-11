@@ -9,7 +9,7 @@ export interface User {
   email: string;
   name: string;
   avatar?: string;
-  role: 'STUDENT' | 'COMPANY' | 'ADMIN' | 'MENTOR';
+  role: 'STUDENT' | 'COMPANY' | 'ADMIN' | 'MENTOR' | 'SCHOOL';
   isVerified: boolean;
   isActive?: boolean;
   level?: string;
@@ -17,6 +17,7 @@ export interface User {
   updatedAt:string;
   studentProfile?: StudentProfile;
   companyProfile?: CompanyProfile;
+  schoolProfile?: SchoolProfile;
   // Propriedades adicionadas no frontend
   solutionsCount?: number;
   rating?: number;
@@ -41,6 +42,16 @@ export interface CompanyProfile {
   companyName?: string;
   industry?: string;
   problems?: Problem[];
+}
+
+export interface SchoolProfile {
+  id: string;
+  userId: string;
+  user?: User;
+  schoolName?: string;
+  address?: string;
+  contactEmail?: string;
+  phoneNumber?: string;
 }
 
 export interface Problem {

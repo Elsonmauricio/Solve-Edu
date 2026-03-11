@@ -61,6 +61,11 @@ const SolutionDetail: React.FC = () => {
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
 
+  // School Grading States
+  const [schoolGrade, setSchoolGrade] = useState('');
+  const [schoolFeedback, setSchoolFeedback] = useState('');
+  const [isSubmittingGrade, setIsSubmittingGrade] = useState(false);
+
   // Carregar detalhes da solução da API quando o id mudar
   useEffect(() => {
     const loadSolutionDetail = async () => {
@@ -75,6 +80,10 @@ const SolutionDetail: React.FC = () => {
           setIsLiked(response.data.isLiked || false);
           setIsBookmarked(response.data.isBookmarked || false);
           setLikeCount(response.data.likes || 0);
+
+          // Inicializar estados de avaliação da escola
+          setSchoolGrade(response.data.schoolGrade || '');
+          setSchoolFeedback(response.data.schoolFeedback || '');
           
           // Carregar estatísticas do estudante
           if (response.data.student?.id) {
@@ -159,6 +168,25 @@ const SolutionDetail: React.FC = () => {
       }
     } catch (error) {
       toast.error('Ocorreu um erro na sua ação.');
+    }
+  };
+
+  const handleGradeSolution = async () => {
+    if (!id) return;
+    setIsSubmittingGrade(true);
+    try {
+      const res = await api.put(`/solutions/${id}/grade`, {
+        schoolGrade,
+        schoolFeedback
+      });
+      if (res.data.success) {
+        toast.success(res.data.message || 'Avaliação oficial guardada com sucesso!');
+        setSolutionDetail(res.data.data);
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Erro ao guardar avaliação oficial.');
+    } finally {
+      setIsSubmittingGrade(false);
     }
   };
 
@@ -502,6 +530,56 @@ const SolutionDetail: React.FC = () => {
             </div>
             </div>
           </motion.div>
+
+          {/* School Grading Section (Only visible for SCHOOL role) */}
+          {context.user?.role === 'SCHOOL' && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.5 }}
+            >
+              <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
+                <div className="flex items-center space-x-2 mb-4">
+                  <Award className="text-solve-blue w-5 h-5" />
+                  <h3 className="text-lg font-semibold text-gray-900">Avaliação Oficial</h3>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nota (ex: 18 ou A)</label>
+                    <input 
+                      type="text" 
+                      value={schoolGrade}
+                      onChange={(e) => setSchoolGrade(e.target.value)}
+                      placeholder="Nota final"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-solve-blue focus:border-transparent outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Feedback da Instituição</label>
+                    <textarea 
+                      value={schoolFeedback}
+                      onChange={(e) => setSchoolFeedback(e.target.value)}
+                      placeholder="Feedback descritivo opcional..."
+                      rows={3}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-solve-blue focus:border-transparent outline-none transition-all"
+                    />
+                  </div>
+                  <button 
+                    onClick={handleGradeSolution}
+                    disabled={isSubmittingGrade}
+                    className="w-full bg-solve-blue text-white py-2 rounded-xl font-medium hover:bg-solve-purple transition-colors disabled:opacity-50 flex justify-center items-center space-x-2"
+                  >
+                    {isSubmittingGrade ? (
+                      <><Loader size={16} className="animate-spin" /><span> A guardar...</span></>
+                    ) : (
+                      <span>Guardar Avaliação</span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           {/* CTA Buttons */}
           <motion.div

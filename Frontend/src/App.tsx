@@ -32,6 +32,7 @@ import ProblemDetail from './components/problems/ProblemDetail';
 import SolutionDetail from './components/solutions/SolutionDetail';
 import CreateProblem from './components/problems/CreateProblem';
 import SubmitSolution from './components/solutions/SubmitSolution';
+import ProfileSettings from './components/profile/ProfileSettings';
 import './styles/globals.css';
 import ProtectedRoute from './components/auth/ProtectedRoute'; // Confirmação: Este caminho está correto
 import { useUserInitialization } from './hooks/useUserInitialization';
@@ -376,6 +377,10 @@ function App() {
             <Route 
               path="/submit-solution/:id" 
               element={<ProtectedRoute><SubmitSolution /></ProtectedRoute>} 
+            />
+            <Route 
+              path="/settings" 
+              element={<ProtectedRoute><ProfileSettings /></ProtectedRoute>} 
             />
           </Routes>
       </MainLayout>
