@@ -213,18 +213,7 @@ const CompanyDashboard = () => {
               >
                 <Settings size={20} />
               </Link>
-              <div className="relative">
-                <button 
-                  onClick={handleToggleNotifications}
-                  className="flex items-center space-x-2 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:border-gray-400 transition-colors bg-white"
-                >
-                  <Bell size={20} />
-                  {unreadCount > 0 && (
-                    <span className="absolute top-2 right-2 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
-                  )}
-                </button>
-                <NotificationsDropdown notifications={notifications} isOpen={isNotificationsOpen} onClose={() => setIsNotificationsOpen(false)} />
-              </div>
+
             </div>
           </div>
         </motion.div>

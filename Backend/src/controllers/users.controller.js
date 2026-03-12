@@ -96,37 +96,51 @@ export class UserController {
 
       const profileData = updateData.profile;
       delete updateData.profile;
+      
+      const userUpdateData = { ...updateData };
 
-      const prismaUpdateData = { ...updateData };
+      // 1. Update User base fields (if any)
+      let updatedUser = null;
+      if (Object.keys(userUpdateData).length > 0) {
+        const { data: user, error } = await supabase
+          .from('User')
+          .update(userUpdateData)
+          .eq('id', userId)
+          .select('*')
+          .single();
 
-      if (profileData) {
-        if (req.userRole === 'STUDENT') {
-          prismaUpdateData.studentProfile = { update: profileData };
-        } else if (req.userRole === 'COMPANY') {
-          prismaUpdateData.companyProfile = { update: profileData };
-        } else if (req.userRole === 'SCHOOL') {
-          prismaUpdateData.schoolProfile = { update: profileData };
-        }
+        if (error) throw error;
+        updatedUser = user;
+      } else {
+        const { data: user } = await supabase.from('User').select('*').eq('id', userId).single();
+        updatedUser = user;
       }
 
-      // 1. Update User
-      const { data: user, error } = await supabase
-        .from('User')
-        .update(prismaUpdateData)
-        .eq('id', userId)
-        .select('*')
-        .single();
-
-      if (error) throw error;
-
-      // 2. Update Profile (se necessário, lógica similar ao auth.controller)
-      // ... (código simplificado assumindo que o update acima já trata campos base)
-      // Para campos específicos de perfil, seria necessário um segundo update.
+      // 2. Update Profile fields
+      let updatedProfile = null;
+      if (profileData && Object.keys(profileData).length > 0) {
+        if (req.userRole === 'STUDENT') {
+          const { data, error } = await supabase.from('StudentProfile').update(profileData).eq('userId', userId).select('*').single();
+          if (error) throw error;
+          updatedProfile = data;
+          updatedUser.studentProfile = updatedProfile;
+        } else if (req.userRole === 'COMPANY') {
+          const { data, error } = await supabase.from('CompanyProfile').update(profileData).eq('userId', userId).select('*').single();
+          if (error) throw error;
+          updatedProfile = data;
+          updatedUser.companyProfile = updatedProfile;
+        } else if (req.userRole === 'SCHOOL') {
+          const { data, error } = await supabase.from('SchoolProfile').update(profileData).eq('userId', userId).select('*').single();
+          if (error) throw error;
+          updatedProfile = data;
+          updatedUser.schoolProfile = updatedProfile;
+        }
+      }
 
       res.json({
         success: true,
         message: 'Perfil atualizado com sucesso!',
-        data: { user }
+        data: { user: updatedUser }
       });
 
     } catch (error) {

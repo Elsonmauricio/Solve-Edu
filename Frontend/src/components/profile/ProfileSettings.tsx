@@ -5,6 +5,7 @@ import { Save, User, Building, School, Link as LinkIcon, Briefcase, GraduationCa
 import { useApp } from '../../context/AppContext';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
+import { SCHOOLS, INDUSTRIES } from '../../utils/constants';
 
 const ProfileSettings: React.FC = () => {
   const { user, dispatch } = useApp();
@@ -137,7 +138,18 @@ const ProfileSettings: React.FC = () => {
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center"><School className="w-4 h-4 mr-1 text-gray-400"/>Escola</label>
-                    <input type="text" name="school" value={formData.profile.school || ''} onChange={handleProfileChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-solve-blue focus:border-transparent" />
+                    <input
+                      type="text"
+                      name="school"
+                      list="school-suggestions"
+                      value={formData.profile.school || ''}
+                      onChange={handleProfileChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-solve-blue focus:border-transparent bg-white"
+                      placeholder="Ex: Universidade do Porto"
+                    />
+                    <datalist id="school-suggestions">
+                      {SCHOOLS.map(s => <option key={s} value={s} />)}
+                    </datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center"><GraduationCap className="w-4 h-4 mr-1 text-gray-400"/>Curso / Área</label>
@@ -167,7 +179,18 @@ const ProfileSettings: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center"><Briefcase className="w-4 h-4 mr-1 text-gray-400"/>Indústria / Setor</label>
-                    <input type="text" name="industry" value={formData.profile.industry || ''} onChange={handleProfileChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-solve-blue focus:border-transparent" />
+                    <input
+                      type="text"
+                      name="industry"
+                      list="industry-suggestions"
+                      value={formData.profile.industry || ''}
+                      onChange={handleProfileChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-solve-blue focus:border-transparent bg-white"
+                      placeholder="Ex: Tecnologia, Saúde..."
+                    />
+                    <datalist id="industry-suggestions">
+                      {INDUSTRIES.map(i => <option key={i} value={i} />)}
+                    </datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center"><LinkIcon className="w-4 h-4 mr-1 text-gray-400"/>Website (URL)</label>
