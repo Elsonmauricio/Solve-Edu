@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Filter } from 'lucide-react';
+import { Download, Filter, RefreshCw } from 'lucide-react';
 import { adminService } from '../../services/admin.service';
 import MoonLoader from '../common/MoonLoader';
 
@@ -15,20 +15,21 @@ const AdminReports = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [reports, setReports] = useState<ReportData | null>(null);
 
-  useEffect(() => {
-    const fetchReports = async () => {
-      try {
-        setIsLoading(true);
-        const response = await adminService.getReports();
-        if (response.success) {
-          setReports(response.data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch reports:", error);
-      } finally {
-        setIsLoading(false);
+  const fetchReports = async () => {
+    try {
+      setIsLoading(true);
+      const response = await adminService.getReports();
+      if (response.success) {
+        setReports(response.data);
       }
-    };
+    } catch (error) {
+      console.error("Failed to fetch reports:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchReports();
   }, []);
 
@@ -40,9 +41,12 @@ const AdminReports = () => {
             <h1 className="text-3xl font-bold text-gray-900">Relatórios e Analytics</h1>
             <p className="text-gray-600 mt-1">Análise detalhada do desempenho da plataforma</p>
           </div>
-          <button className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors shadow-sm">
-            <Download size={20} />
-            <span>Exportar Dados</span>
+          <button 
+            onClick={fetchReports}
+            className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
+          >
+            <RefreshCw size={20} className={isLoading ? "animate-spin" : ""} />
+            <span>Atualizar Dados</span>
           </button>
         </div>
 

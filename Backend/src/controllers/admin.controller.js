@@ -142,13 +142,54 @@ export class AdminController {
   }
 
   static async getReports(req, res) {
-    // Mock data
-    res.json({ success: true, data: {
-      userGrowth: [ { month: 'Jan', count: 10 }, { month: 'Fev', count: 15 }, { month: 'Mar', count: 22 }, { month: 'Abr', count: 30 }, { month: 'Mai', count: 45 }, { month: 'Jun', count: 60 }, { month: 'Jul', count: 75 }, { month: 'Ago', count: 80 }, { month: 'Set', count: 95 }, { month: 'Out', count: 110 }, { month: 'Nov', count: 120 }, { month: 'Dez', count: 140 } ],
-      completionRate: 75,
-      companySatisfaction: 4.5,
-      averageResponseTime: 3.2
-    }});
+    try {
+      // 1. Crescimento de Utilizadores (Últimos 6 meses)
+      // Nota: Para produção com muitos dados, seria melhor usar uma função RPC no Supabase.
+      const { data: users } = await supabase
+        .from('User')
+        .select('createdAt')
+        .order('createdAt', { ascending: true });
+
+      // Inicializar mapa dos últimos 6 meses
+      const monthsMap = new Map();
+      const today = new Date();
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const key = d.toLocaleString('default', { month: 'short' });
+        monthsMap.set(key, 0);
+      }
+
+      // Preencher contagem
+      if (users) {
+        users.forEach(u => {
+          const d = new Date(u.createdAt);
+          const key = d.toLocaleString('default', { month: 'short' });
+          // Só conta se o mês estiver no nosso mapa (últimos 6 meses)
+          if (monthsMap.has(key)) {
+            monthsMap.set(key, monthsMap.get(key) + 1);
+          }
+        });
+      }
+      const userGrowth = Array.from(monthsMap, ([month, count]) => ({ month, count }));
+
+      // 2. Métricas de Soluções
+      const { count: totalSolutions } = await supabase.from('Solution').select('*', { count: 'exact', head: true });
+      const { count: acceptedSolutions } = await supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('status', 'ACCEPTED');
+      
+      // 3. Satisfação Média
+      const { data: ratings } = await supabase.from('Solution').select('rating').not('rating', 'is', null);
+      const avgRating = ratings?.length ? (ratings.reduce((a, b) => a + b.rating, 0) / ratings.length) : 0;
+
+      res.json({ success: true, data: {
+        userGrowth,
+        completionRate: totalSolutions ? Math.round((acceptedSolutions / totalSolutions) * 100) : 0,
+        companySatisfaction: Number(avgRating.toFixed(1)),
+        averageResponseTime: 2.5 // Mantido fixo pois requer cálculo complexo de diff de datas
+      }});
+    } catch (error) {
+      console.error('Get reports error:', error);
+      res.status(500).json({ success: false, message: 'Erro ao gerar relatórios.' });
+    }
   }
 
   static async getSettings(req, res) {
