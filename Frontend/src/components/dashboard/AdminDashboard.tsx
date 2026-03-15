@@ -298,7 +298,7 @@ const AdminDashboard: React.FC = () => {
                   <p className="text-gray-600 text-sm">Rever desafios e soluções submetidas</p>
                 </Link>
 
-                <Link to="/admin/analytics" className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 text-left group">
+                <Link to="/admin/reports" className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 text-left group">
                   <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
                     <BarChart3 className="w-6 h-6 text-purple-600" />
                   </div>
