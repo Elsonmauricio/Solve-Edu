@@ -154,6 +154,13 @@ export const syncUser = async (req, res, next) => {
         }
 
         user = newUser;
+
+        // Notificar o frontend (Admin Dashboard) em tempo real
+        await supabase.channel('platform-metrics').send({
+          type: 'broadcast',
+          event: 'metrics-update',
+          payload: { trigger: 'new_user', userId: user.id }
+        });
       }
     }
 

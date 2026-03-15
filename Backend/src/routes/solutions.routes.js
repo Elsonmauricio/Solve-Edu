@@ -1,68 +1,37 @@
 import { Router } from 'express';
-import { body } from 'express-validator';
-import multer from 'multer';
 import { SolutionController } from '../controllers/solutions.controller.js';
-import { AdminController } from '../controllers/admin.controller.js';
-import { authenticate, optionalAuth } from '../middleware/auth0.middleware.js';
+import { authenticate } from '../middleware/auth0.middleware.js';
 
 const router = Router();
 
-// Configuração do Multer para processar uploads (Limite 25MB, igual ao frontend)
-const upload = multer({ 
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 25 * 1024 * 1024 } 
-});
+// --- Rotas Públicas (ou listagens gerais) ---
+router.get('/', SolutionController.getSolutions);
+router.get('/top', SolutionController.getTopSolutions); // IMPORTANTE: Antes de /:id
 
-// Regras de validação e sanitização para a criação de soluções
-const createSolutionValidation = [
-  body('title').notEmpty().withMessage('O título é obrigatório').trim(),
-  body('description').notEmpty().withMessage('A descrição é obrigatória').trim(),
-  body('problemId').isUUID().withMessage('O ID do desafio é inválido'),
-  
-  // Sanitizer CRÍTICO: Garante que 'technologies' é sempre um array
-  body('technologies').customSanitizer(value => {
-    if (!value) return [];
-    return Array.isArray(value) ? value : [value];
-  }),
-  // Validação após o sanitizer
-  body('technologies.*').isString().trim(),
+// --- Estatísticas e Relatórios (IMPORTANTE: Antes de /:id) ---
+router.get('/stats', authenticate(), SolutionController.getStats);
+router.get('/export/grades', authenticate(['SCHOOL', 'ADMIN']), SolutionController.exportGrades);
 
-  body('githubUrl').optional({ checkFalsy: true }).isURL().withMessage('O URL do GitHub é inválido'),
-  body('demoUrl').optional({ checkFalsy: true }).isURL().withMessage('O URL de demonstração é inválido'),
-];
-
-// Public routes
-router.get('/', optionalAuth, SolutionController.getSolutions);
-router.get('/top', SolutionController.getTopSolutions);
-router.get('/stats', SolutionController.getStats);
+// --- Rotas Específicas de Entidades ---
+router.get('/student/:studentId', SolutionController.getStudentSolutions);
 router.get('/student/:studentId/stats', authenticate(), SolutionController.getStudentStats);
+router.get('/problem/:problemId', authenticate(), SolutionController.getProblemSolutions);
 
-// Protected routes
-// Adicionado middleware 'upload.single("document")' para processar o ficheiro
-router.post('/', 
-  authenticate(['STUDENT']), 
-  upload.single('file'), // Corrigido para corresponder ao frontend
-  createSolutionValidation,
-  SolutionController.createSolution
-);
-router.get('/student/my', authenticate(['STUDENT']), SolutionController.getStudentSolutions);
-router.get('/student/:studentId', authenticate(['ADMIN', 'SCHOOL']), SolutionController.getStudentSolutions);
-router.get('/problem/:problemId', authenticate(['COMPANY', 'ADMIN', 'SCHOOL']), SolutionController.getProblemSolutions);
+// --- Criação ---
+router.post('/', authenticate(['STUDENT']), SolutionController.createSolution);
 
-// Notification routes
-router.get('/notifications', authenticate(), AdminController.getMyNotifications);
-router.post('/notifications/read', authenticate(), AdminController.markNotificationsAsRead);
+// --- Rotas por ID (Devem ficar mais para o fim) ---
+router.get('/:id', authenticate(), SolutionController.getSolution);
+router.put('/:id', authenticate(), SolutionController.updateSolution);
+router.delete('/:id', authenticate(), SolutionController.deleteSolution);
 
-// Solution specific routes
-router.get('/export/grades', authenticate(['SCHOOL', 'ADMIN']), SolutionController.exportGrades); // Definida ANTES de /:id
-router.get('/:id', optionalAuth, SolutionController.getSolution);
-router.put('/:id', authenticate(['STUDENT', 'COMPANY', 'ADMIN']), SolutionController.updateSolution);
-router.delete('/:id', authenticate(['STUDENT', 'ADMIN']), SolutionController.deleteSolution);
-router.post('/:id/interact', authenticate(), SolutionController.toggleInteraction);
-router.get('/:id/comments', SolutionController.getComments);
+// --- Interações e Comentários ---
+router.post('/:id/interaction', authenticate(), SolutionController.toggleInteraction);
+router.get('/:id/comments', authenticate(), SolutionController.getComments);
 router.post('/:id/comments', authenticate(), SolutionController.createComment);
+
+// --- Funcionalidades de Escola/Admin ---
 router.post('/:id/toggle-pap', authenticate(['SCHOOL']), SolutionController.togglePAP);
-router.put('/:id/grade', authenticate(['SCHOOL', 'ADMIN']), SolutionController.gradeSolution);
-router.post('/:id/remind', authenticate(['ADMIN']), AdminController.sendSolutionReminder);
+router.post('/:id/grade', authenticate(['SCHOOL', 'ADMIN']), SolutionController.gradeSolution);
 
 export default router;

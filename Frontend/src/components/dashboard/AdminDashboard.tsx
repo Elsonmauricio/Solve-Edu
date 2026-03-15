@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { adminService } from '../../services/admin.service';
 import { problemsService } from '../../services/problems.service';
 import { solutionsService } from '../../services/solution.service';
+import { supabase } from '../../lib/supabaseClient';
 import StatsCard from '../ui/StatsCard';
 import { Problem, Solution } from '../../types';
 import { 
@@ -106,11 +107,6 @@ const AdminDashboard: React.FC = () => {
             engagement: parseFloat(engagementRate.toFixed(1)),
             satisfaction: parseFloat(satisfaction.toFixed(1)),
           });
-
-          // Se recebemos dados, o sistema está online
-          setSystemHealth({
-            ...systemHealth, // Mantém os valores antigos até a nova chamada
-          });
         }
       } catch (error) {
         console.error("Failed to fetch admin stats:", error);
@@ -158,15 +154,32 @@ const AdminDashboard: React.FC = () => {
     fetchLists(true);
     fetchSystemHealth();
 
-    // Atualização em tempo real (Polling a cada 15 segundos, sem loading visual)
-    const interval = setInterval(() => {
-      fetchAdminStats(false);
-      fetchLists(false);
+    // Polling para o estado do sistema, que não é baseado em eventos de utilizador.
+    const healthInterval = setInterval(() => {
       fetchSystemHealth();
-    }, 15000);
+    }, 30000); // A cada 30 segundos
 
-    return () => clearInterval(interval);
-  }, []);
+    // Subscrição Realtime para métricas da plataforma
+    const channel = supabase.channel('platform-metrics');
+
+    channel
+      .on('broadcast', { event: 'metrics-update' }, (payload) => {
+        console.log('[Realtime] Atualização de métricas recebida!', payload);
+        // Ao receber um evento, busca os dados mais recentes sem mostrar loading.
+        fetchAdminStats(false);
+        fetchLists(false);
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[Realtime] Subscrito ao canal de métricas da plataforma.');
+        }
+      });
+
+    return () => {
+      clearInterval(healthInterval);
+      supabase.removeChannel(channel);
+    };
+  }, []); // A dependência vazia é intencional para correr apenas na montagem. O polling usa as funções definidas no scope do effect.
 
   const statCards: StatCard[] = stats ? [
     {
@@ -489,9 +502,9 @@ const AdminDashboard: React.FC = () => {
                 </div>
               </div>
               
-              <button className="w-full mt-4 bg-gray-900 text-white py-2 rounded-xl font-medium hover:bg-gray-800 transition-colors">
+              <Link to="/admin/security-logs" className="block w-full mt-4 bg-gray-900 text-white py-2 rounded-xl font-medium hover:bg-gray-800 transition-colors text-center">
                 Ver Logs de Segurança
-              </button>
+              </Link>
             </motion.div>
           </div>
         </div>

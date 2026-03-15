@@ -14,6 +14,9 @@ router.get('/dashboard-stats', adminOnly, AdminController.getDashboardStats);
 // Rota para obter o estado do sistema
 router.get('/system-health', adminOnly, AdminController.getSystemHealth);
 
+// Rota para obter logs de segurança
+router.get('/security-logs', adminOnly, AdminController.getSecurityLogs);
+
 // Rota para obter dados dos relatórios
 router.get('/reports', adminOnly, AdminController.getReports);
 

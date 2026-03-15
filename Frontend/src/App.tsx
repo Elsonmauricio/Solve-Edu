@@ -38,6 +38,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute'; // Confirmação:
 import { useUserInitialization } from './hooks/useUserInitialization';
 import { useApp } from './context/AppContext';
 import ChatWidget from './components/chat/ChatWidget';
+import AdminSecurityLogs from './components/Admin/SecurityLogs';
 
 
 // Componente para proteger rotas por Role (Permissão)
@@ -357,6 +358,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <RoleGuard allowedRoles={['ADMIN']}><AdminSettings /></RoleGuard>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/security-logs" 
+              element={
+                <ProtectedRoute>
+                  <RoleGuard allowedRoles={['ADMIN']}><AdminSecurityLogs /></RoleGuard>
                 </ProtectedRoute>
               } 
             />

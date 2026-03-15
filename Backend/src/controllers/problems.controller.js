@@ -177,6 +177,13 @@ export class ProblemController {
         throw error;
       }
 
+      // Notificar o frontend (Admin Dashboard) em tempo real sobre a nova métrica
+      await supabase.channel('platform-metrics').send({
+        type: 'broadcast',
+        event: 'metrics-update',
+        payload: { trigger: 'new_problem', problemId: problem.id }
+      });
+
       res.status(201).json({ success: true, message: 'Desafio criado com sucesso!', data: problem });
     } catch (error) {
       console.error('Create problem error:', error);

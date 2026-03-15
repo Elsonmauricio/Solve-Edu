@@ -129,6 +129,13 @@ export class SolutionController {
         }
       }
 
+      // Notificar o frontend (Admin Dashboard) em tempo real sobre a nova métrica
+      await supabase.channel('platform-metrics').send({
+        type: 'broadcast',
+        event: 'metrics-update',
+        payload: { trigger: 'new_solution', solutionId: solution.id }
+      });
+
       res.status(201).json({
         success: true,
         message: 'Solução submetida com sucesso!',
@@ -391,6 +398,16 @@ export class SolutionController {
             updateData.feedback
           );
         }
+      }
+
+      // Notificar o dashboard admin em tempo real se houver mudança de estado ou rating
+      // Isto garante que as métricas de "Satisfação" e "Taxa de Aceitação" atualizem instantaneamente
+      if (updateData.status || updateData.rating) {
+        await supabase.channel('platform-metrics').send({
+          type: 'broadcast',
+          event: 'metrics-update',
+          payload: { trigger: 'solution_updated', solutionId: solution.id }
+        });
       }
 
       res.json({
