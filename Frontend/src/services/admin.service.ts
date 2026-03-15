@@ -18,6 +18,14 @@ export const adminService = {
     const response = await api.get('/admin/settings');
     return response.data;
   },
+  getSecurityLogs: async () => {
+    try {
+      const response = await api.get('/admin/security-logs');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
   updateSettings: async (settings: any) => {
     const response = await api.put('/admin/settings', settings);
     return response.data;
