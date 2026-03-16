@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { Toaster, toast } from 'react-hot-toast';
 import MoonLoader from './components/common/MoonLoader';
@@ -37,29 +37,30 @@ import './styles/globals.css';
 import ProtectedRoute from './components/auth/ProtectedRoute'; // Confirmação: Este caminho está correto
 import { useUserInitialization } from './hooks/useUserInitialization';
 import { useApp } from './context/AppContext';
+import { Role } from './types';
 import ChatWidget from './components/chat/ChatWidget';
 import AdminSecurityLogs from './components/Admin/SecurityLogs';
 
 
 // Componente para proteger rotas por Role (Permissão)
-const RoleGuard = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: string[] }) => {
+const RoleGuard = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: Role[] }) => {
   const { user } = useApp();
   const { logout } = useAuth0();
   const location = useLocation();
   const { dispatch } = useApp();
 
   if (!user) {
-    return <Navigate to="/" replace />;
+    return null; // ou um spinner
   }
 
   // Normalizar roles para evitar problemas de case-sensitivity (ex: "student" vs "STUDENT")
-  const userRole = (user.role || "").toUpperCase();
+  const userRole = (user.role || "").toUpperCase() as Role;
 
   // Ecrã de seleção de perfil se a role não estiver definida
   if (!userRole) {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleRoleSelection = async (role: 'STUDENT' | 'COMPANY' | 'SCHOOL') => {
+    const handleRoleSelection = async (role: Role) => {
       setIsSubmitting(true);
       try {
         // Idealmente, esta chamada estaria num ficheiro de serviço (ex: userService.setRole)
@@ -120,7 +121,7 @@ const RoleGuard = ({ children, allowedRoles }: { children: React.ReactNode, allo
     );
   }
 
-  const normalizedAllowedRoles = allowedRoles.map(r => r.toUpperCase());
+  const normalizedAllowedRoles = allowedRoles.map(r => r.toUpperCase()) as Role[];
 
   if (!normalizedAllowedRoles.includes(userRole)) {
     // Se a role não corresponder, redireciona para o dashboard correto
@@ -128,7 +129,7 @@ const RoleGuard = ({ children, allowedRoles }: { children: React.ReactNode, allo
     if (userRole === 'ADMIN') target = '/admin-dashboard';
     if (userRole === 'COMPANY') target = '/company-dashboard';
     if (userRole === 'SCHOOL') target = '/school-dashboard';
-    
+
     // Prevenir loop infinito: Se já estamos na página alvo mas não temos permissão,
     // NÃO redirecionar para "/" (pois o RootRedirect mandaria de volta para cá).
     // Em vez disso, mostrar erro de acesso.
@@ -149,7 +150,6 @@ const RoleGuard = ({ children, allowedRoles }: { children: React.ReactNode, allo
         </div>
       );
     }
-    
     return <Navigate to={target} replace />;
   }
 

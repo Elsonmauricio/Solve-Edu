@@ -177,21 +177,48 @@ export class SolutionController {
       const skip = (pageNum - 1) * limitNum;
 
       // Base query
-      let selectQuery = '*, student:StudentProfile(*, user:User(name, avatar))';
+      let selectQuery = '*, student:StudentProfile(*, user:User(name, avatar)), problem:Problem(title)';
       
       // Se filtrarmos por companyId, precisamos de fazer inner join com Problem
       if (companyId) {
-        selectQuery += ', problem:Problem!inner(title, companyId)';
-      } else {
-        selectQuery += ', problem:Problem(title)';
+        // Sobrescreve a query para garantir o inner join
+        selectQuery = '*, student:StudentProfile(*, user:User(name, avatar)), problem:Problem!inner(title, companyId)';
       }
 
+      // Se o utilizador for uma escola, precisamos de fazer inner join com StudentProfile
+      if (req.userRole === 'SCHOOL' && req.schoolId) {
+        selectQuery = '*, student:StudentProfile!inner(*, user:User(name, avatar)), problem:Problem(title)';
+      }
+      
       let query = supabase.from('Solution').select(selectQuery, { count: 'exact' });
 
       if (problemId) query = query.eq('problemId', problemId);
       if (studentId) query = query.eq('studentId', studentId);
       if (companyId) query = query.eq('problem.companyId', companyId);
       if (status) query = query.eq('status', status);
+
+      // Filtro para escolas
+      if (req.userRole === 'SCHOOL' && req.schoolId) {
+        const { data: studentsOfSchool, error: studentsError } = await supabase
+          .from('StudentProfile')
+          .select('id')
+          .eq('schoolProfileId', req.schoolId);
+
+        if (studentsError) throw studentsError;
+
+        const studentIds = studentsOfSchool.map(s => s.id);
+
+        if (studentIds.length > 0) {
+          query = query.in('studentId', studentIds);
+        } else {
+          // Se a escola não tem alunos, retorna um array vazio
+          return res.json({
+            success: true,
+            data: { data: [], pagination: { total: 0, page: 1, limit: limitNum, totalPages: 0 } }
+          });
+        }
+      }
+
       if (search) {
         query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
       }
@@ -787,11 +814,23 @@ export class SolutionController {
         return res.status(403).json({ success: false, message: 'Acesso negado.' });
       }
 
-      // Buscar soluções dos alunos (para a escola ligada poderia filtrar por isPAP se desejado)
-      // Aqui buscamos todas as soluções com a info do problema e estudante
       let query = supabase
         .from('Solution')
         .select('*, student:StudentProfile(*, user:User(name, email)), problem:Problem(title)');
+
+      // BUG FIX: Filtrar apenas soluções de alunos da escola logada
+      if (req.userRole === 'SCHOOL' && req.schoolId) {
+        const { data: studentsData, error: studentsError } = await supabase
+          .from('StudentProfile')
+          .select('id')
+          .eq('schoolProfileId', req.schoolId);
+
+        if (studentsError) throw studentsError;
+
+        const studentIds = (studentsData || []).map(s => s.id);
+        if (studentIds.length === 0) return res.status(200).json({ success: true, data: [] }); // Retorna vazio se não há alunos
+        query = query.in('studentId', studentIds);
+      }
 
       const { data: solutions, error } = await query;
 

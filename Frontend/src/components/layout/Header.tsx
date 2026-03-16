@@ -189,6 +189,15 @@ const Header = () => {
                 </button>
                 <button
                   onClick={() => {
+                    localStorage.setItem('intended_role', 'SCHOOL');
+                    register('SCHOOL');
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-emerald-700 hover:text-emerald-800 transition-colors"
+                >
+                  Sou Instituição
+                </button>
+                <button
+                  onClick={() => {
                     localStorage.setItem('intended_role', 'COMPANY');
                     register('COMPANY');
                   }}
@@ -274,6 +283,16 @@ const Header = () => {
                         className="block w-full text-left px-3 py-3 text-base font-medium text-solve-blue hover:bg-blue-50 rounded-lg"
                       >
                         Sou Estudante
+                      </button>
+                      <button
+                        onClick={() => { 
+                          setIsMenuOpen(false); 
+                          localStorage.setItem('intended_role', 'SCHOOL');
+                          register('SCHOOL'); 
+                        }}
+                        className="block w-full text-left px-3 py-3 text-base font-medium text-emerald-700 hover:bg-emerald-50 rounded-lg"
+                      >
+                        Sou Instituição
                       </button>
                       <button
                         onClick={() => { 

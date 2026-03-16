@@ -4,12 +4,16 @@
 
 // Tipos baseados nos modelos do Prisma e nos controllers do backend
 
+export type Role = 'STUDENT' | 'COMPANY' | 'ADMIN' | 'MENTOR' | 'SCHOOL';
+
+export type SolutionStatus = 'DRAFT' | 'PENDING_REVIEW' | 'UNDER_REVIEW' | 'ACCEPTED' | 'REJECTED' | 'NEEDS_REVISION' | 'AWARDED';
+
 export interface User {
   id: string;
   email: string;
   name: string;
   avatar?: string;
-  role: 'STUDENT' | 'COMPANY' | 'ADMIN' | 'MENTOR' | 'SCHOOL';
+  role: Role;
   isVerified: boolean;
   isActive?: boolean;
   level?: string;
@@ -84,7 +88,7 @@ export interface Solution {
   demoUrl?: string;
   documentation?: string;
   technologies: string[];
-  status: 'DRAFT' | 'PENDING_REVIEW' | 'UNDER_REVIEW' | 'ACCEPTED' | 'REJECTED' | 'NEEDS_REVISION' | 'AWARDED';
+  status: SolutionStatus;
   feedback?: string;
   rating?: number;
   likes?: number;

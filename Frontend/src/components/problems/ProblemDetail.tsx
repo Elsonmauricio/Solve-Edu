@@ -17,29 +17,7 @@ import {
   Loader,
   LucideIcon
 } from 'lucide-react';
-
-// Interfaces alinhadas com o retorno da API (Prisma)
-interface Company {
-  id: string;
-  companyName: string;
-  industry?: string;
-}
-
-interface Problem {
-  id: number | string; // O ID pode vir como string do backend
-  title: string;
-  description: string;
-  // A API deve retornar o objeto company via 'include'
-  company?: Company | string; 
-  companyId?: string;
-  createdAt: string | Date;
-  difficulty: string;
-  category: string;
-  tags: string[];
-  requirements: string[];
-  deadline: string;
-  reward?: string;
-}
+import { Problem } from '../../types';
 
 const ProblemDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -54,7 +32,7 @@ const ProblemDetail: React.FC = () => {
         setIsLoading(true);
         const response = await problemsService.getById(id);
         if (response.success) {
-          setProblemDetail(response.data as unknown as Problem);
+          setProblemDetail(response.data);
         }
       } catch (error) {
         console.error('Erro ao carregar detalhe do problema:', error);

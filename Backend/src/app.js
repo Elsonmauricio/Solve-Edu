@@ -13,6 +13,7 @@ import problemsRoutes from './routes/problems.routes.js';
 import solutionsRoutes from './routes/solutions.routes.js';
 import usersRoutes from './routes/users.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import schoolRoutes from './routes/school.routes.js';
 import studentRoutes from './routes/student.routes.js';
 import companyRoutes from './routes/company.routes.js';
 import contactRoutes from './routes/contact.routes.js';
@@ -85,11 +86,12 @@ app.use('/api/problems', problemsRoutes);
 app.use('/api/solutions', solutionsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/school', schoolRoutes); // Usar as rotas da escola
 app.use('/api/student', studentRoutes);
 app.use('/api/company', companyRoutes);
 app.use('/api/contact', contactRoutes);
-app.use('/api/notifications', notificationRoutes); // Reusing notificationRoutes for notifications
 app.use('/api/chat', chatRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // WebSocket for real-time notifications
 io.on('connection', (socket) => {

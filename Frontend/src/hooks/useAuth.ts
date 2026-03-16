@@ -15,8 +15,8 @@ export const useAuth = () => {
   const login = () => loginWithRedirect();
 
   // Redireciona para a página de registo do Auth0
-  // Aceita 'STUDENT' ou 'COMPANY' como argumento
-  const register = async (role: 'STUDENT' | 'COMPANY') => {
+  // Aceita 'STUDENT' ou 'COMPANY' ou 'SCHOOL' como argumento
+  const register = async (role: 'STUDENT' | 'COMPANY' | 'SCHOOL' ) => {
     try {
       // Guardar a intenção de role localmente para redundância
       sessionStorage.setItem('selected_role', role);
@@ -24,7 +24,7 @@ export const useAuth = () => {
       await loginWithRedirect({ 
         authorizationParams: { 
           screen_hint: 'signup',
-          user_type: role === 'COMPANY' ? 'company' : 'student'
+          'x-intended-role': role, // Parâmetro personalizado para o backend
         } 
       });
     } catch (error) {

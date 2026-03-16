@@ -14,9 +14,12 @@ const SchoolSolutionsList = () => {
   const fetchSolutions = async () => {
     try {
       setIsLoading(true);
-      const response = await api.get('/school/solutions');
+      // Alterado para usar o endpoint genérico. O backend irá filtrar
+      // automaticamente com base no perfil de 'SCHOOL' do utilizador logado.
+      const response = await api.get('/solutions');
       if (response.data.success) {
-        setSolutions(response.data.data);
+        // A resposta do endpoint genérico é paginada
+        setSolutions(response.data.data.data);
       }
     } catch (error) {
       console.error('Erro ao buscar soluções da escola:', error);

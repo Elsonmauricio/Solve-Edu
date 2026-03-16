@@ -23,34 +23,14 @@ import {
   LucideIcon,
   Send
 } from 'lucide-react';
+import { Solution } from '../../types';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 
-// Interfaces para tipagem
-interface Solution {
-  id: string;
-  title: string;
-  description: string;
-  student: string;
-  school: string;
-  submittedAt: string;
-  status: string;
-  technologies: string[];
-  githubUrl?: string;
-  problemId: string;
-}
-
-interface Problem {
-  id: string;
-  title: string;
-  description: string;
-}
-
 const SolutionDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const context = useApp();
-  const solutions = (context.solutions || []) as unknown as Solution[];
-  const [solutionDetail, setSolutionDetail] = useState<any>(null);
+  const { user } = useApp();
+  const [solutionDetail, setSolutionDetail] = useState<Solution | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [studentStats, setStudentStats] = useState<any>(null);
   const [comments, setComments] = useState<any[]>([]);
@@ -142,7 +122,7 @@ const SolutionDetail: React.FC = () => {
   };
 
   const handleToggleInteraction = async (type: 'LIKE' | 'BOOKMARK') => {
-    if (!id || !context.user) {
+    if (!id || !user) {
       toast.error('Precisa de estar autenticado para interagir.');
       return;
     }
@@ -399,7 +379,7 @@ const SolutionDetail: React.FC = () => {
               {/* Comment Form */}
               <div className="flex space-x-4">
                 <div className="w-10 h-10 bg-gradient-to-r from-solve-blue to-solve-purple rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold">
-                  {context.user?.name?.charAt(0) || 'U'}
+                {user?.name?.charAt(0) || 'U'}
                 </div>
                 <div className="flex-1">
                   <textarea
@@ -532,7 +512,7 @@ const SolutionDetail: React.FC = () => {
           </motion.div>
 
           {/* School Grading Section (Only visible for SCHOOL role) */}
-          {context.user?.role === 'SCHOOL' && (
+          {user?.role === 'SCHOOL' && (
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}

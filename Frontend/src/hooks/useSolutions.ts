@@ -1,15 +1,12 @@
 import { useState, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { solutionsService } from '../services/solution.service';
-import { Solution } from '../types'; // Importar do ficheiro central
+import { Solution, SolutionStatus } from '../types'; // Importar do ficheiro central
 
 // DTO (Data Transfer Object) para a criação de uma solução
 export interface CreateSolutionDto extends Partial<Omit<Solution, 'id' | 'status' | 'student' | 'submittedAt'>> {
   problemId: number;
 }
-
-// Status possíveis para uma solução
-export type SolutionStatus = 'DRAFT' | 'PENDING_REVIEW' | 'UNDER_REVIEW' | 'ACCEPTED' | 'REJECTED' | 'NEEDS_REVISION' | 'AWARDED';
 
 export const useSolutions = () => {
   const context = useApp();
@@ -75,7 +72,7 @@ export const useSolutions = () => {
   ) => {
     setLoading(true);
     try {
-      const response = await solutionsService.review(solutionId, { status, feedback });
+      const response = await solutionsService.review(String(solutionId), { status, feedback });
       const updatedSolution = response.data || response;
 
       const updatedSolutions = solutions.map((solution: Solution) => 
