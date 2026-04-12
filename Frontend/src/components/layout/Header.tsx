@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useApp } from '../../context/AppContext';
+import { useChat } from '../../context/ChatContext';
 import { Menu, X, Search, User, Briefcase, GraduationCap, LogOut, LayoutDashboard, Bell, Settings } from 'lucide-react';
 import logo from '../../assets/Logo.png';
 import NotificationsDropdown from '../layout/NotificationsDropdown';
@@ -15,11 +16,13 @@ interface Notification {
   message: string;
   isRead: boolean;
   createdAt: string;
+  data?: any;
 }
 
 const Header = () => {
   const { register, logout, isAuthenticated } = useAuth();
   const { user } = useApp(); // Usar o utilizador do contexto global (com a role correta da DB)
+  const chat = useChat();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -48,13 +51,34 @@ const Header = () => {
     fetchNotifications();
   }, [isAuthenticated]);
 
+  const handleNotificationClick = async (notification: Notification) => {
+    // Se for uma notificação de mensagem, abrir o chat
+    if (notification.type === 'NEW_MESSAGE' && notification.data?.conversationId) {
+      chat.setActiveConversationId(notification.data.conversationId);
+      chat.setChatOpen(true);
+    }
+    setIsNotificationsOpen(false);
+  };
+
   const handleToggleNotifications = async () => {
     setIsNotificationsOpen(prev => !prev);
     if (!isNotificationsOpen && unreadCount > 0) {
-      // Mark as read on the backend
-      await notificationService.markAsRead();
-      // Update UI immediately
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      try {
+        // Enviar apenas os IDs das notificações não lidas
+        const unreadIds = notifications.filter(n => !n.isRead).map(n => n.id);
+        
+        if (unreadIds.length > 0) {
+          // Wrapping in an object structure which is standard for most backends
+          // Cast to any to bypass potential service type mismatch temporarily if needed
+          // @ts-ignore
+          await notificationService.markAsRead({ ids: unreadIds });
+          // Update UI immediately
+          setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        }
+      } catch (error) {
+        // Silenciar erro visualmente, mas logar para debug
+        console.error("Erro ao marcar notificações como lidas:", error);
+      }
     }
   };
 
@@ -151,7 +175,9 @@ const Header = () => {
                   <NotificationsDropdown 
                     notifications={notifications} 
                     isOpen={isNotificationsOpen} 
-                    onClose={() => setIsNotificationsOpen(false)} />
+                    onClose={() => setIsNotificationsOpen(false)}
+                    onNotificationClick={handleNotificationClick}
+                  />
                 </div>
                 <div className="flex items-center space-x-2">
                   {user?.avatar ? (

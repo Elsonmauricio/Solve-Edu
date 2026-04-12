@@ -1,11 +1,12 @@
 import { validationResult } from 'express-validator';
 import { supabase } from '../lib/supabase.js';
 import { storageService } from '../services/storage.service.js';
+import { sanitizeRichText } from '../utils/sanitizer.js';
+import asyncHandler from '../utils/asyncHandler.js';
 
 export class ProblemController {
   // GET /api/problems
-  static async getAllProblems(req, res) {
-    try {
+  static getAllProblems = asyncHandler(async (req, res) => {
       const {
         page = 1,
         limit = 20,
@@ -54,15 +55,10 @@ export class ProblemController {
       };
 
       res.json({ success: true, data: result });
-    } catch (error) {
-      console.error('Get all problems error:', error);
-      res.status(500).json({ success: false, message: 'Erro ao buscar desafios.' });
-    }
-  }
+  });
 
   // GET /api/problems/active
-  static async getActiveProblems(req, res) {
-    try {
+  static getActiveProblems = asyncHandler(async (req, res) => {
       const { data: problems } = await supabase
         .from('Problem')
         .select('*, company:CompanyProfile(companyName, user:User(avatar)), solutions:Solution(count)')
@@ -72,15 +68,10 @@ export class ProblemController {
         .limit(10);
 
       res.json({ success: true, data: problems });
-    } catch (error) {
-      console.error('Get active problems error:', error);
-      res.status(500).json({ success: false, message: 'Erro ao buscar desafios ativos.' });
-    }
-  }
+  });
 
   // GET /api/problems/featured
-  static async getFeaturedProblems(req, res) {
-    try {
+  static getFeaturedProblems = asyncHandler(async (req, res) => {
       const { data: problems } = await supabase
         .from('Problem')
         .select('*, company:CompanyProfile(companyName, user:User(avatar))')
@@ -89,15 +80,10 @@ export class ProblemController {
         .limit(5);
 
       res.json({ success: true, data: problems });
-    } catch (error) {
-      console.error('Get featured problems error:', error);
-      res.status(500).json({ success: false, message: 'Erro ao buscar desafios em destaque.' });
-    }
-  }
+  });
 
   // GET /api/problems/:id
-  static async getProblemById(req, res) {
-    try {
+  static getProblemById = asyncHandler(async (req, res) => {
       const { id } = req.params;
       const { data: problem } = await supabase
         .from('Problem')
@@ -109,21 +95,11 @@ export class ProblemController {
         return res.status(404).json({ success: false, message: 'Desafio não encontrado.' });
       }
 
-      // Opcional: Incrementar visualizações
-      // supabase.rpc('increment_views', { problem_id: id }) // Se existir RPC
-      // Ou update simples (menos seguro para concorrência)
-      // await supabase.from('Problem').update({ views: (problem.views || 0) + 1 }).eq('id', id);
-
       res.json({ success: true, data: problem });
-    } catch (error) {
-      console.error('Get problem by id error:', error);
-      res.status(500).json({ success: false, message: 'Erro ao buscar o desafio.' });
-    }
-  }
+  });
 
   // POST /api/problems
-  static async createProblem(req, res) {
-    try {
+  static createProblem = asyncHandler(async (req, res) => {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         console.log('Erro de validação ao criar problema:', errors.array());
@@ -150,7 +126,7 @@ export class ProblemController {
       // Construção explícita do objeto para evitar erros de campos inexistentes no DB
       const problemData = {
         title: req.body.title,
-        description: req.body.description,
+        description: sanitizeRichText(req.body.description),
         category: req.body.category,
         difficulty: req.body.difficulty,
         deadline: req.body.deadline,
@@ -185,25 +161,10 @@ export class ProblemController {
       });
 
       res.status(201).json({ success: true, message: 'Desafio criado com sucesso!', data: problem });
-    } catch (error) {
-      console.error('Create problem error:', error);
-      
-      // Dica específica para erro de cache de schema (PGRST204)
-      if (error.code === 'PGRST204') {
-        console.error('⚠️ ALERTA: A cache do Supabase está desatualizada. Execute "NOTIFY pgrst, \'reload config\';" no SQL Editor do Supabase.');
-      }
-
-      res.status(500).json({ 
-        success: false, 
-        message: 'Erro ao criar o desafio.', 
-        error: error.message || error.details || 'Erro desconhecido' 
-      });
-    }
-  }
+  });
 
   // PUT /api/problems/:id
-  static async updateProblem(req, res) {
-    try {
+  static updateProblem = asyncHandler(async (req, res) => {
       const { id } = req.params;
       const companyId = req.companyId;
       
@@ -218,9 +179,14 @@ export class ProblemController {
         return res.status(403).json({ success: false, message: 'Não tem permissão para editar este desafio.' });
       }
 
+      const updateData = { ...req.body };
+      if (updateData.description) {
+        updateData.description = sanitizeRichText(updateData.description);
+      }
+
       const { data: problem, error } = await supabase
         .from('Problem')
-        .update(req.body)
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();
@@ -228,15 +194,10 @@ export class ProblemController {
       if (error) throw error;
 
       res.json({ success: true, message: 'Desafio atualizado com sucesso!', data: problem });
-    } catch (error) {
-      console.error('Update problem error:', error);
-      res.status(500).json({ success: false, message: 'Erro ao atualizar o desafio.' });
-    }
-  }
+  });
 
   // DELETE /api/problems/:id
-  static async deleteProblem(req, res) {
-    try {
+  static deleteProblem = asyncHandler(async (req, res) => {
       const { id } = req.params;
       const companyId = req.companyId;
 
@@ -253,15 +214,10 @@ export class ProblemController {
       await supabase.from('Problem').delete().eq('id', id);
 
       res.json({ success: true, message: 'Desafio eliminado com sucesso!' });
-    } catch (error) {
-      console.error('Delete problem error:', error);
-      res.status(500).json({ success: false, message: 'Erro ao eliminar o desafio.' });
-    }
-  }
+  });
 
   // GET /api/problems/company/:companyId
-  static async getCompanyProblems(req, res) {
-    try {
+  static getCompanyProblems = asyncHandler(async (req, res) => {
       // Se vier da rota /company/my usa o ID do token, senão usa o parametro da URL
       const companyId = req.path.includes('/my') ? req.companyId : req.params.companyId;
 
@@ -278,9 +234,5 @@ export class ProblemController {
       if (error) throw error;
 
       res.json({ success: true, data: problems || [] });
-    } catch (error) {
-      console.error('Get company problems error:', error);
-      res.status(500).json({ success: false, message: 'Erro ao buscar desafios da empresa.' });
-    }
-  }
+  });
 }

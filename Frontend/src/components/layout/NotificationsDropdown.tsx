@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Bell, CheckCircle, MessageSquare, Award } from 'lucide-react';
 
 interface Notification {
-  id: string;
+  id: string; 
   type: string;
   title: string;
   message: string;
@@ -13,6 +13,7 @@ interface Notification {
   data?: {
     solutionId?: string;
     problemId?: string;
+    conversationId?: string;
   };
 }
 
@@ -20,6 +21,7 @@ interface NotificationsDropdownProps {
   notifications: Notification[];
   isOpen: boolean;
   onClose: () => void;
+  onNotificationClick?: (notification: Notification) => void;
 }
 
 const getIconForType = (type: string) => {
@@ -30,6 +32,8 @@ const getIconForType = (type: string) => {
       return <CheckCircle className="w-5 h-5 text-green-500" />;
     case 'NEW_COMMENT':
       return <MessageSquare className="w-5 h-5 text-blue-500" />;
+    case 'NEW_MESSAGE':
+      return <MessageSquare className="w-5 h-5 text-solve-blue" />;
     default:
       return <Bell className="w-5 h-5 text-gray-500" />;
   }
@@ -42,10 +46,13 @@ const getLinkForNotification = (notification: Notification) => {
   if (notification.data?.problemId) {
     return `/problems/${notification.data.problemId}`;
   }
+  if (notification.type === 'NEW_MESSAGE') {
+    return '#'; // O clique será gerido pelo handler
+  }
   return '#';
 };
 
-const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({ notifications, isOpen, onClose }) => {
+const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({ notifications, isOpen, onClose, onNotificationClick }) => {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -61,7 +68,15 @@ const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({ notificat
           <div className="max-h-96 overflow-y-auto">
             {notifications.length > 0 ? (
               notifications.map((notif) => (
-                <Link to={getLinkForNotification(notif)} key={notif.id} onClick={onClose}>
+                <Link 
+                  to={getLinkForNotification(notif)} 
+                  key={notif.id} 
+                  onClick={(e) => {
+                    if (onNotificationClick) onNotificationClick(notif);
+                    if (notif.type === 'NEW_MESSAGE') e.preventDefault(); // Impede navegação se for chat
+                    else onClose();
+                  }}
+                >
                   <div className={`p-4 flex items-start space-x-3 hover:bg-gray-50 ${!notif.isRead ? 'bg-blue-50' : ''}`}>
                     <div className="flex-shrink-0 mt-1">
                       {getIconForType(notif.type)}

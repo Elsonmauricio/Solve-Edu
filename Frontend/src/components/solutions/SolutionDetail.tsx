@@ -239,41 +239,41 @@ const SolutionDetail: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-200 mb-6">
+            <div className="bg-white rounded-2xl p-4 sm:p-8 shadow-lg border border-gray-200 mb-6">
             {/* Header */}
-            <div className="flex items-start justify-between mb-6">
+            <div className="flex flex-col mb-6">
               <div className="flex-1">
-                <div className="flex items-center space-x-4 mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-solve-teal to-solve-blue rounded-xl flex items-center justify-center">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-solve-teal to-solve-blue rounded-xl flex items-center justify-center flex-shrink-0">
                     <Award className="text-white" size={24} />
                   </div>
                   <div className="flex-1">
-                    <h1 className="text-3xl font-black text-gray-900 mb-2">
+                    <h1 className="text-2xl sm:text-3xl font-black text-gray-900 mb-2 break-words">
                       {displaySolution.title}
                     </h1>
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                      <div className="flex items-center gap-2">
                         <User size={16} className="text-gray-400" />
-                        <span className="text-gray-600 font-medium">
+                        <span className="text-gray-600 font-medium text-sm sm:text-base">
                           {displaySolution.student?.user?.name || 'Estudante'}
                         </span>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center gap-2">
                         <School size={16} className="text-gray-400" />
-                        <span className="text-gray-600">
+                        <span className="text-gray-600 text-sm sm:text-base">
                           {displaySolution.student?.school || 'Escola não informada'}
                         </span>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center gap-2">
                         <Calendar size={16} className="text-gray-400" />
-                        <span className="text-gray-500 text-sm">Submetida em {new Date(displaySolution.submittedAt).toLocaleDateString()}</span>
+                        <span className="text-gray-500 text-xs sm:text-sm">Submetida em {new Date(displaySolution.submittedAt).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Status */}
-                <div className="flex items-center space-x-4 mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
                   <span className={`px-4 py-2 rounded-full text-sm font-medium ${getStatusColor(displaySolution.status)}`}>
                     {displaySolution.status}
                   </span>
@@ -309,8 +309,8 @@ const SolutionDetail: React.FC = () => {
 
             {/* Description */}
             <div className="prose max-w-none mb-8">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Descrição da Solução</h3>
-              <p className="text-gray-700 leading-relaxed text-lg">
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">Descrição da Solução</h3>
+              <p className="text-gray-700 leading-relaxed text-base sm:text-lg whitespace-pre-wrap">
                 {displaySolution.description}
               </p>
             </div>
@@ -370,14 +370,14 @@ const SolutionDetail: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-200">
+            <div className="bg-white rounded-2xl p-4 sm:p-8 shadow-lg border border-gray-200">
             <h3 className="text-xl font-semibold text-gray-900 mb-6">
               Comentários e Feedback
             </h3>
             
             <div className="space-y-6">
               {/* Comment Form */}
-              <div className="flex space-x-4">
+              <div className="flex flex-col sm:flex-row gap-4">
                 <div className="w-10 h-10 bg-gradient-to-r from-solve-blue to-solve-purple rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold">
                 {user?.name?.charAt(0) || 'U'}
                 </div>
@@ -406,7 +406,7 @@ const SolutionDetail: React.FC = () => {
               <div className="space-y-4">
                 {comments.length > 0 ? (
                   comments.map((comment) => (
-                    <div key={comment.id} className="flex space-x-4">
+                    <div key={comment.id} className="flex gap-4 p-3 rounded-xl hover:bg-gray-50 transition-colors">
                       <div className="w-10 h-10 bg-gray-200 rounded-full flex-shrink-0 overflow-hidden">
                         {comment.user?.avatar ? (
                           <img src={comment.user.avatar} alt={comment.user.name} className="w-full h-full object-cover" />
@@ -417,9 +417,9 @@ const SolutionDetail: React.FC = () => {
                         )}
                       </div>
                       <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <span className="font-semibold text-gray-900">{comment.user?.name}</span>
-                          <span className="text-gray-500 text-sm">
+                        <div className="flex flex-wrap items-center gap-x-2 mb-1">
+                          <span className="font-semibold text-gray-900 text-sm sm:text-base">{comment.user?.name}</span>
+                          <span className="text-gray-500 text-xs sm:text-sm">
                             • {comment.user?.companyProfile?.companyName || comment.user?.role || 'Utilizador'}
                           </span>
                           <span className="text-gray-400 text-xs">• {new Date(comment.createdAt).toLocaleDateString()}</span>

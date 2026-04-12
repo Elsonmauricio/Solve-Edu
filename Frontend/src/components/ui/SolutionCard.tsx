@@ -52,11 +52,11 @@ const SolutionCard: React.FC<SolutionCardProps> = ({ solution }) => {
               <h3 className="font-bold text-gray-900 text-lg line-clamp-2">
                 {solution.title}
               </h3>
-              <div className="flex items-center space-x-2 mt-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
                 <User size={14} className="text-gray-400" />
-                <span className="text-sm text-gray-500">{typeof solution.student === 'string' ? solution.student : solution.student?.user?.name || "Estudante"}</span>
-                <span className="text-gray-300">•</span>
-                <span className="text-sm text-gray-500">{(solution as any).school || (typeof solution.student !== 'string' ? solution.student?.school : '')}</span>
+                <span className="text-sm text-gray-500 truncate max-w-[120px] sm:max-w-none">{typeof solution.student === 'string' ? solution.student : solution.student?.user?.name || "Estudante"}</span>
+                <span className="text-gray-300 hidden xs:inline">•</span>
+                <span className="text-sm text-gray-500 truncate max-w-[150px] sm:max-w-none">{(solution as any).school || (typeof solution.student !== 'string' ? solution.student?.school : '')}</span>
               </div>
             </div>
           </div>
@@ -83,9 +83,9 @@ const SolutionCard: React.FC<SolutionCardProps> = ({ solution }) => {
       </div>
 
       {/* Stats and Status */}
-      <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-1">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-sm text-gray-500 mb-4">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex items-center gap-1">
             <Calendar size={14} />
             <span>{solution.submittedAt}</span>
           </div>
@@ -106,13 +106,13 @@ const SolutionCard: React.FC<SolutionCardProps> = ({ solution }) => {
           )}
         </div>
         
-        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(solution.status)}`}>
+        <span className={`self-start sm:self-auto px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(solution.status)}`}>
           {solution.status}
         </span>
       </div>
 
       {/* Action Buttons */}
-      <div className="flex space-x-3">
+      <div className="flex gap-3">
         <Link
           to={`/solutions/${solution.id}`}
           className="flex-1 bg-gradient-to-r from-solve-teal to-solve-blue text-white text-center py-3 rounded-xl font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"

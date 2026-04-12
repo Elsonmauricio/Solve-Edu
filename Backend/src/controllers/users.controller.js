@@ -1,9 +1,9 @@
 import { validationResult } from 'express-validator';
 import { supabase } from '../lib/supabase.js';
+import asyncHandler from '../utils/asyncHandler.js';
 
 export class UserController {
-  static async getUserProfile(req, res) {
-    try {
+  static getUserProfile = asyncHandler(async (req, res) => {
       // Usar o objeto user já carregado e corrigido pelo middleware (req.user)
       // Isto evita uma nova query à BD que poderia retornar dados desatualizados (ex: role null)
       const user = req.user;
@@ -40,6 +40,13 @@ export class UserController {
           const { data } = await supabase.from('SchoolProfile').select('*').eq('userId', userId).maybeSingle();
           profile = data;
         }
+      } else if (user.role === 'MENTOR') {
+        if (user.mentorProfile) {
+          profile = user.mentorProfile;
+        } else {
+          const { data } = await supabase.from('MentorProfile').select('*').eq('userId', userId).maybeSingle();
+          profile = data;
+        }
       }
 
       // Get additional stats based on role
@@ -62,24 +69,16 @@ export class UserController {
         studentProfile: user.role === 'STUDENT' ? profile : undefined,
         companyProfile: user.role === 'COMPANY' ? profile : undefined,
         schoolProfile: user.role === 'SCHOOL' ? profile : undefined,
+        mentorProfile: user.role === 'MENTOR' ? profile : undefined,
       };
 
       res.json({
         success: true,
         data: responseData
       });
+  }); // Garante o fechamento correto do asyncHandler
 
-    } catch (error) {
-      console.error('Get user profile error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Erro ao buscar perfil.' 
-      });
-    }
-  }
-
-  static async updateUserProfile(req, res) {
-    try {
+  static updateUserProfile = asyncHandler(async (req, res) => {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -134,6 +133,11 @@ export class UserController {
           if (error) throw error;
           updatedProfile = data;
           updatedUser.schoolProfile = updatedProfile;
+        } else if (req.userRole === 'MENTOR') {
+          const { data, error } = await supabase.from('MentorProfile').update(profileData).eq('userId', userId).select('*').single();
+          if (error) throw error;
+          updatedProfile = data;
+          updatedUser.mentorProfile = updatedProfile;
         }
       }
 
@@ -142,23 +146,14 @@ export class UserController {
         message: 'Perfil atualizado com sucesso!',
         data: { user: updatedUser }
       });
+  }); // Garante o fechamento correto do asyncHandler
 
-    } catch (error) {
-      console.error('Update user profile error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Erro ao atualizar perfil.' 
-      });
-    }
-  }
-
-  static async setUserRole(req, res) {
-    try {
+  static setUserRole = asyncHandler(async (req, res) => {
       const userId = req.userId;
       const { role } = req.body;
 
       // 1. Validar a role recebida
-      const validRoles = ['STUDENT', 'COMPANY', 'SCHOOL'];
+      const validRoles = ['STUDENT', 'COMPANY', 'SCHOOL', 'MENTOR'];
       if (!role || !validRoles.includes(role.toUpperCase())) {
         return res.status(400).json({ success: false, message: 'O perfil selecionado é inválido.' });
       }
@@ -195,6 +190,10 @@ export class UserController {
         const { data, error } = await supabase.from('SchoolProfile').insert({ userId }).select().single();
         profile = data;
         profileError = error;
+      } else if (normalizedRole === 'MENTOR') {
+        const { data, error } = await supabase.from('MentorProfile').insert({ userId }).select().single();
+        profile = data;
+        profileError = error;
       }
 
       if (profileError) throw profileError;
@@ -203,20 +202,12 @@ export class UserController {
       updatedUser.studentProfile = normalizedRole === 'STUDENT' ? profile : null;
       updatedUser.companyProfile = normalizedRole === 'COMPANY' ? profile : null;
       updatedUser.schoolProfile = normalizedRole === 'SCHOOL' ? profile : null;
+      updatedUser.mentorProfile = normalizedRole === 'MENTOR' ? profile : null;
 
       res.json({ success: true, message: 'Perfil definido com sucesso!', data: updatedUser });
+  }); // Garante o fechamento correto do asyncHandler
 
-    } catch (error) {
-      console.error('Set user role error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Ocorreu um erro ao definir o seu perfil.' 
-      });
-    }
-  }
-
-  static async getUserStats(req, res) {
-    try {
+  static getUserStats = asyncHandler(async (req, res) => {
       const userId = req.userId;
       const userRole = req.userRole;
       const studentId = req.studentId;
@@ -317,29 +308,21 @@ export class UserController {
           // Contar alunos associados a esta escola (assumindo que StudentProfile tem schoolId ou string matching)
           // Nota: Como ainda não tens uma relação direta de ID, vamos contar por nome da escola por enquanto ou retornar 0
           supabase.from('StudentProfile').select('*', { count: 'exact', head: true }).eq('school', req.user.schoolProfile?.schoolName || '').then(r => r.count || 0),
-          
-          // Para projetos, seria ideal ter uma relação. Por agora, retornamos 0 ou implementamos lógica futura
-          Promise.resolve(0), 
-          Promise.resolve(0)
+          supabase.from('Solution').select('id, student!inner(schoolProfileId)', { count: 'exact', head: true }).eq('student.schoolProfileId', req.schoolId).then(r => r.count || 0),
+          supabase.from('Solution').select('id, student!inner(schoolProfileId)', { count: 'exact', head: true }).eq('student.schoolProfileId', req.schoolId).eq('status', 'ACCEPTED').then(r => r.count || 0)
         ]);
 
         // Média de notas (placeholder)
         stats = { totalStudents, activeProjects, completedPaps, averageGrade: 0 };
+      } else if (userRole === 'MENTOR') {
+        stats = { mentoredStudents: 0, reviewsPending: 0, sessionHours: 0 };
       }
 
       res.json({
         success: true,
         data: stats,
       });
-
-    } catch (error) {
-      console.error('Get user stats error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Erro ao buscar estatísticas.' 
-      });
-    }
-  }
+  }); // Garante o fechamento correto do asyncHandler
 
   static async getTopStudents(req, res) {
     try {

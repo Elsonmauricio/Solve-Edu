@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@auth0/auth0-react": "^2.9.0",
+    "@paypal/react-paypal-js": "^9.0.1",
+    "@react-pdf/renderer": "^4.3.2",
     "@supabase/supabase-js": "^2.98.0",
     "axios": "^1.13.2",
     "framer-motion": "^10.16.4",

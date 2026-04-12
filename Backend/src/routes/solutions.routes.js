@@ -1,37 +1,50 @@
 import { Router } from 'express';
 import { SolutionController } from '../controllers/solutions.controller.js';
-import { authenticate } from '../middleware/auth0.middleware.js';
+import { authenticate, optionalAuth } from '../middleware/auth0.middleware.js';
 
 const router = Router();
 
-// --- Rotas Públicas (ou listagens gerais) ---
-router.get('/', SolutionController.getSolutions);
-router.get('/top', SolutionController.getTopSolutions); // IMPORTANTE: Antes de /:id
-
-// --- Estatísticas e Relatórios (IMPORTANTE: Antes de /:id) ---
+// ==========================================
+// Rotas de Estatísticas e Exportação
+// ==========================================
 router.get('/stats', authenticate(), SolutionController.getStats);
+router.get('/top', optionalAuth, SolutionController.getTopSolutions);
+
+// Rota para exportar pauta (Excel) - Deve vir antes de /:id para não colidir
 router.get('/export/grades', authenticate(['SCHOOL', 'ADMIN']), SolutionController.exportGrades);
 
-// --- Rotas Específicas de Entidades ---
-router.get('/student/:studentId', SolutionController.getStudentSolutions);
-router.get('/student/:studentId/stats', authenticate(), SolutionController.getStudentStats);
-router.get('/problem/:problemId', authenticate(), SolutionController.getProblemSolutions);
+// ==========================================
+// Rotas de Estudante
+// ==========================================
+router.get('/student/:studentId/stats', optionalAuth, SolutionController.getStudentStats);
+router.get('/student/:studentId', optionalAuth, SolutionController.getStudentSolutions);
 
-// --- Criação ---
+// ==========================================
+// Rotas CRUD Básicas
+// ==========================================
+router.get('/', optionalAuth, SolutionController.getSolutions);
 router.post('/', authenticate(['STUDENT']), SolutionController.createSolution);
 
-// --- Rotas por ID (Devem ficar mais para o fim) ---
-router.get('/:id', authenticate(), SolutionController.getSolution);
-router.put('/:id', authenticate(), SolutionController.updateSolution);
-router.delete('/:id', authenticate(), SolutionController.deleteSolution);
+// ==========================================
+// Funcionalidades de Escola/Professor (Avaliação Oficial)
+// ==========================================
+// Atribuir nota escolar (0-20 ou A-F)
+router.put('/:id/grade', authenticate(['SCHOOL', 'ADMIN']), SolutionController.gradeSolution);
+// Validar como Prova de Aptidão Profissional (PAP)
+router.post('/:id/toggle-pap', authenticate(['SCHOOL', 'ADMIN']), SolutionController.togglePAP);
 
-// --- Interações e Comentários ---
-router.post('/:id/interaction', authenticate(), SolutionController.toggleInteraction);
-router.get('/:id/comments', authenticate(), SolutionController.getComments);
+// ==========================================
+// Operações em Soluções Específicas
+// ==========================================
+router.get('/:id', optionalAuth, SolutionController.getSolution);
+router.put('/:id', authenticate(['STUDENT', 'COMPANY', 'ADMIN']), SolutionController.updateSolution);
+router.delete('/:id', authenticate(['STUDENT', 'ADMIN']), SolutionController.deleteSolution);
+
+// ==========================================
+// Interações e Comentários
+// ==========================================
+router.post('/:id/interact', authenticate(), SolutionController.toggleInteraction);
+router.get('/:id/comments', optionalAuth, SolutionController.getComments);
 router.post('/:id/comments', authenticate(), SolutionController.createComment);
-
-// --- Funcionalidades de Escola/Admin ---
-router.post('/:id/toggle-pap', authenticate(['SCHOOL']), SolutionController.togglePAP);
-router.post('/:id/grade', authenticate(['SCHOOL', 'ADMIN']), SolutionController.gradeSolution);
 
 export default router;

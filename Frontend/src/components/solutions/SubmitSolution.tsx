@@ -198,10 +198,10 @@ const SubmitSolution = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 mb-8">
+        <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg border border-gray-200 mb-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">{problem.title}</h2>
-        <p className="text-gray-600 mb-4">{typeof problem.company === 'string' ? problem.company : problem.company?.companyName || "Confidencial"}</p>
-        <p className="text-gray-700">{problem.description}</p>
+        <p className="text-gray-600 mb-4 text-sm sm:text-base">{typeof problem.company === 'string' ? problem.company : problem.company?.companyName || "Confidencial"}</p>
+        <p className="text-gray-700 text-sm sm:text-base leading-relaxed">{problem.description}</p>
         </div>
       </motion.div>
 
@@ -210,8 +210,8 @@ const SubmitSolution = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
       >
-        <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-200">
-        <h1 className="text-3xl font-black text-gray-900 mb-2">Submeter Solução</h1>
+        <div className="bg-white rounded-2xl p-4 sm:p-8 shadow-lg border border-gray-200">
+        <h1 className="text-2xl sm:text-3xl font-black text-gray-900 mb-2">Submeter Solução</h1>
         <p className="text-gray-600 mb-8">
           Partilhe a sua solução inovadora para este desafio. Esta pode ser a sua Prova de Aptidão Profissional!
         </p>
@@ -410,7 +410,7 @@ const SubmitSolution = () => {
           </div>
 
           {/* Submit Buttons */}
-          <div className="flex space-x-4 pt-6 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-200">
             <button
               type="button"
               onClick={() => navigate(-1)}

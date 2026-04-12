@@ -58,10 +58,27 @@ export const RealtimeProvider = ({ children }: { children: React.ReactNode }) =>
                   },
                 }
               );
-
-              // Dica: Se tiveres um estado global de notificações no AppContext, 
-              // podes fazer dispatch aqui para atualizar o contador sem refresh:
-              // dispatch({ type: 'ADD_NOTIFICATION', payload: newNotification });
+            }
+          )
+          // ESCUTAR NOVAS MENSAGENS EM TEMPO REAL (ROBUSTEZ)
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'Message',
+            },
+            (payload) => {
+              // Dispara um evento global que o ChatContext ou componentes podem escutar.
+              // Isto garante que a lista de mensagens atualize sem refresh.
+              const newMessage = payload.new as any;
+              // Só dispara evento global se o utilizador não for o remetente
+              if (newMessage && newMessage.sender_id !== user.id) { 
+                const messageEvent = new CustomEvent('supabase-new-message', { 
+                  detail: newMessage 
+                });
+                window.dispatchEvent(messageEvent);
+              }
             }
           )
           .subscribe((status) => {

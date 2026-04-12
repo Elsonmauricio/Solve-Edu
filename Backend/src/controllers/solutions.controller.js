@@ -3,10 +3,11 @@ import { storageService } from '../services/storage.service.js';
 import { supabase } from '../lib/supabase.js';
 import emailService from '../services/email.service.js';
 import ExcelJS from 'exceljs';
+import { sanitizeRichText } from '../utils/sanitizer.js';
+import asyncHandler from '../utils/asyncHandler.js';
 
 export class SolutionController {
-  static async createSolution(req, res) {
-    try {
+  static createSolution = asyncHandler(async (req, res) => {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         // Devolve a primeira mensagem de erro para ser mostrada no toast do frontend
@@ -67,7 +68,7 @@ export class SolutionController {
       // Create solution
       const solutionData = {
         title,
-        description,
+        description: sanitizeRichText(description),
         problemId,
         technologies, // Vem como array do sanitizer
         studentId,
@@ -86,14 +87,7 @@ export class SolutionController {
         .single();
 
       if (createError) {
-        console.error('Erro Supabase ao inserir solução:', createError);
-        // Trata erros específicos do Supabase
-        if (createError.code === '23503') { // foreign key violation
-          const message = createError.details?.includes('problemId')
-            ? 'O desafio associado não foi encontrado.'
-            : 'O perfil do estudante não foi encontrado. Por favor, tente fazer login novamente.';
-          return res.status(400).json({ success: false, message: message, code: 'FK_VIOLATION' });
-        }
+        // O erro será capturado pelo errorMiddleware global
         throw createError;
       }
 
@@ -141,25 +135,9 @@ export class SolutionController {
         message: 'Solução submetida com sucesso!',
         data: solution,
       });
+  });
 
-    } catch (error) {
-      console.error('Create solution error:', error);
-
-      // Dica específica para erro de cache de schema (PGRST204)
-      if (error.code === 'PGRST204') {
-        console.error('⚠️ ALERTA: A cache do Supabase está desatualizada ou faltam colunas na tabela Solution. Execute "NOTIFY pgrst, \'reload config\';" no SQL Editor.');
-      }
-
-      res.status(500).json({ 
-        success: false, 
-        message: error.message || 'Erro ao submeter solução.',
-        error: error.details || 'Erro desconhecido'
-      });
-    }
-  }
-
-  static async getSolutions(req, res) {
-    try {
+  static getSolutions = asyncHandler(async (req, res) => {
       const {
         page = 1,
         limit = 20,
@@ -244,19 +222,9 @@ export class SolutionController {
         success: true,
         data: result,
       });
+  });
 
-    } catch (error) {
-      console.error('Get solutions error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Erro ao buscar soluções.',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  }
-
-  static async getSolution(req, res) {
-    try {
+  static getSolution = asyncHandler(async (req, res) => {
       const { id } = req.params;
 
       const { data: solution, error } = await supabase
@@ -317,18 +285,9 @@ export class SolutionController {
         success: true,
         data: solution,
       });
+  });
 
-    } catch (error) {
-      console.error('Get solution error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Erro ao buscar solução.' 
-      });
-    }
-  }
-
-  static async updateSolution(req, res) {
-    try {
+  static updateSolution = asyncHandler(async (req, res) => {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -389,6 +348,10 @@ export class SolutionController {
         }
       }
 
+      // Sanitizar campos de texto rico antes do update
+      if (updateData.description) updateData.description = sanitizeRichText(updateData.description);
+      if (updateData.feedback) updateData.feedback = sanitizeRichText(updateData.feedback);
+
       const { data: solution, error } = await supabase
         .from('Solution')
         .update(updateData)
@@ -442,18 +405,9 @@ export class SolutionController {
         message: 'Solução atualizada com sucesso!',
         data: solution,
       });
+  });
 
-    } catch (error) {
-      console.error('Update solution error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Erro ao atualizar solução.' 
-      });
-    }
-  }
-
-  static async deleteSolution(req, res) {
-    try {
+  static deleteSolution = asyncHandler(async (req, res) => {
       const { id } = req.params;
 
       // Check if solution exists
@@ -490,18 +444,9 @@ export class SolutionController {
         success: true,
         message: 'Solução eliminada com sucesso!',
       });
+  });
 
-    } catch (error) {
-      console.error('Delete solution error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Erro ao eliminar solução.' 
-      });
-    }
-  }
-
-  static async getStudentSolutions(req, res) {
-    try {
+  static getStudentSolutions = asyncHandler(async (req, res) => {
       const studentId = req.studentId || req.params.studentId;
 
       const { data: solutions, error } = await supabase
@@ -513,18 +458,9 @@ export class SolutionController {
         success: true,
         data: solutions,
       });
+  });
 
-    } catch (error) {
-      console.error('Get student solutions error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Erro ao buscar soluções do estudante.' 
-      });
-    }
-  }
-
-  static async getProblemSolutions(req, res) {
-    try {
+  static getProblemSolutions = asyncHandler(async (req, res) => {
       const { problemId } = req.params;
 
       // Check if user can view solutions
@@ -563,18 +499,9 @@ export class SolutionController {
         success: true,
         data: solutions,
       });
+  });
 
-    } catch (error) {
-      console.error('Get problem solutions error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Erro ao buscar soluções do desafio.' 
-      });
-    }
-  }
-
-  static async toggleInteraction(req, res) {
-    try {
+  static toggleInteraction = asyncHandler(async (req, res) => {
       const { id } = req.params; // solutionId
       const { type } = req.body; // 'LIKE' ou 'BOOKMARK'
       const userId = req.userId;
@@ -602,14 +529,9 @@ export class SolutionController {
       const { count } = await supabase.from('SolutionInteraction').select('*', { count: 'exact', head: true }).eq('solutionId', id).eq('type', 'LIKE');
 
       res.json({ success: true, data: { isSet, likes: count } });
-    } catch (error) {
-      console.error(`Toggle ${type} error:`, error);
-      res.status(500).json({ success: false, message: 'Erro ao interagir com a solução.' });
-    }
-  }
+  });
   
-  static async getTopSolutions(req, res) {
-    try {
+  static getTopSolutions = asyncHandler(async (req, res) => {
       const { data: solutions } = await supabase
         .from('Solution')
         .select('*, student:StudentProfile(*, user:User(*)), problem:Problem(*)')
@@ -621,18 +543,9 @@ export class SolutionController {
         success: true,
         data: solutions || [],
       });
+  });
 
-    } catch (error) {
-      console.error('Get top solutions error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Erro ao buscar melhores soluções.' 
-      });
-    }
-  }
-
-  static async getStats(req, res) {
-    try {
+  static getStats = asyncHandler(async (req, res) => {
       const { count: total } = await supabase.from('Solution').select('*', { count: 'exact', head: true });
       const { count: accepted } = await supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('status', 'ACCEPTED');
       const { count: pending } = await supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('status', 'PENDING_REVIEW');
@@ -659,18 +572,9 @@ export class SolutionController {
         success: true,
         data: stats,
       });
+  });
 
-    } catch (error) {
-      console.error('Get solutions stats error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Erro ao buscar estatísticas.' 
-      });
-    }
-  }
-
-  static async getStudentStats(req, res) {
-    try {
+  static getStudentStats = asyncHandler(async (req, res) => {
       const { studentId } = req.params;
       
       const { count: total } = await supabase
@@ -703,14 +607,9 @@ export class SolutionController {
           averageRating: avgRating
         }
       });
-    } catch (error) {
-      console.error('Get student stats error:', error);
-      res.status(500).json({ success: false, message: 'Erro ao buscar estatísticas do estudante.' });
-    }
-  }
+  });
 
-  static async getComments(req, res) {
-    try {
+  static getComments = asyncHandler(async (req, res) => {
       const { id } = req.params; // Solution ID
       const { data: comments, error } = await supabase
         .from('Comment')
@@ -721,14 +620,9 @@ export class SolutionController {
       if (error) throw error;
 
       res.json({ success: true, data: comments });
-    } catch (error) {
-      console.error('Get comments error:', error);
-      res.status(500).json({ success: false, message: 'Erro ao buscar comentários.' });
-    }
-  }
+  });
 
-  static async createComment(req, res) {
-    try {
+  static createComment = asyncHandler(async (req, res) => {
       const { id } = req.params; // Solution ID
       const { content } = req.body;
       const userId = req.userId;
@@ -738,7 +632,7 @@ export class SolutionController {
         .insert({
           solutionId: id,
           userId,
-          content,
+          content: sanitizeRichText(content),
           createdAt: new Date()
         })
         .select('*, user:User(id, name, avatar, role)')
@@ -747,14 +641,9 @@ export class SolutionController {
       if (error) throw error;
 
       res.status(201).json({ success: true, message: 'Comentário adicionado.', data: comment });
-    } catch (error) {
-      console.error('Create comment error:', error);
-      res.status(500).json({ success: false, message: 'Erro ao criar comentário.' });
-    }
-  }
+  });
 
-  static async togglePAP(req, res) {
-    try {
+  static togglePAP = asyncHandler(async (req, res) => {
       const { id } = req.params;
       
       if (req.userRole !== 'SCHOOL') {
@@ -772,14 +661,9 @@ export class SolutionController {
 
       if (error) throw error;
       res.json({ success: true, message: updated.isPAP ? 'Marcado como PAP.' : 'Desmarcado como PAP.', data: updated });
-    } catch (error) {
-      console.error('Toggle PAP error:', error);
-      res.status(500).json({ success: false, message: 'Erro ao atualizar estado PAP.' });
-    }
-  }
+  });
 
-  static async gradeSolution(req, res) {
-    try {
+  static gradeSolution = asyncHandler(async (req, res) => {
       const { id } = req.params;
       const { schoolGrade, schoolFeedback } = req.body;
 
@@ -789,7 +673,10 @@ export class SolutionController {
 
       const { data: solution, error } = await supabase
         .from('Solution')
-        .update({ schoolGrade, schoolFeedback })
+        .update({ 
+          schoolGrade, 
+          schoolFeedback: sanitizeRichText(schoolFeedback) 
+        })
         .eq('id', id)
         .select()
         .single();
@@ -801,15 +688,9 @@ export class SolutionController {
         message: 'Avaliação da escola guardada com sucesso.',
         data: solution
       });
+  });
 
-    } catch (error) {
-      console.error('Grade solution error:', error);
-      res.status(500).json({ success: false, message: 'Erro ao guardar a avaliação da escola.' });
-    }
-  }
-
-  static async exportGrades(req, res) {
-    try {
+  static exportGrades = asyncHandler(async (req, res) => {
       if (req.userRole !== 'SCHOOL' && req.userRole !== 'ADMIN') {
         return res.status(403).json({ success: false, message: 'Acesso negado.' });
       }
@@ -828,8 +709,11 @@ export class SolutionController {
         if (studentsError) throw studentsError;
 
         const studentIds = (studentsData || []).map(s => s.id);
-        if (studentIds.length === 0) return res.status(200).json({ success: true, data: [] }); // Retorna vazio se não há alunos
-        query = query.in('studentId', studentIds);
+        if (studentIds.length === 0) {
+           query = query.in('studentId', ['00000000-0000-0000-0000-000000000000']); // Dummy ID para retornar 0 resultados mas manter o fluxo do Excel
+        } else {
+           query = query.in('studentId', studentIds);
+        }
       }
 
       const { data: solutions, error } = await query;
@@ -881,10 +765,5 @@ export class SolutionController {
 
       await workbook.xlsx.write(res);
       res.end();
-
-    } catch (error) {
-      console.error('Export grades error:', error);
-      res.status(500).json({ success: false, message: 'Erro ao exportar pauta.' });
-    }
-  }
+  });
 }

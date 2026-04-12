@@ -9,7 +9,7 @@ const FaqItem = ({ question, answer }: { question: string, answer: string }) => 
     <div className="border-b border-gray-200 last:border-0">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full py-6 flex items-center justify-between text-left focus:outline-none"
+        className="w-full py-4 sm:py-6 flex items-center justify-between text-left focus:outline-none gap-4"
       >
         <span className="text-lg font-medium text-gray-900">{question}</span>
         {isOpen ? <ChevronUp className="text-solve-blue" /> : <ChevronDown className="text-gray-400" />}
@@ -65,7 +65,7 @@ const Help = () => {
           <p className="text-xl text-gray-600">Perguntas frequentes sobre a plataforma</p>
         </motion.div>
 
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-8">
           {faqs.map((faq, index) => (
             <FaqItem key={index} question={faq.question} answer={faq.answer} />
           ))}

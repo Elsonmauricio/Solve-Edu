@@ -1,10 +1,10 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import { useApp } from './AppContext';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-hot-toast';
+import { supabase } from '../lib/supabaseClient';
 import api from '../services/api';
+import { useApp } from './AppContext';
 
-interface Message {
+export interface Message {
   id: string;
   conversation_id: string;
   sender_id: string;
@@ -13,76 +13,89 @@ interface Message {
   is_read: boolean;
 }
 
-interface Conversation {
+export interface Participant {
   id: string;
-  participants: any[]; // Simplificado para o exemplo
+  name: string;
+  avatar: string;
+}
+
+export interface Conversation {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  participants: Participant[];
   lastMessage?: Message;
 }
 
-interface ChatContextType {
+interface ChatContextData {
   conversations: Conversation[];
-  activeConversationId: string | null;
   messages: Message[];
-  setActiveConversationId: (id: string | null) => void;
-  sendMessage: (content: string, receiverId?: string) => Promise<void>;
-  startConversation: (targetUserId: string) => Promise<string>;
-  loading: boolean;
+  activeConversationId: string | null;
   isChatOpen: boolean;
-  setChatOpen: (isOpen: boolean) => void;
-  unreadCount: number;
+  isLoadingMessages: boolean;
+  setChatOpen: (open: boolean) => void;
+  setActiveConversationId: (id: string | null) => void;
+  startConversation: (targetUserId: string) => Promise<string>;
+  sendMessage: (content: string) => Promise<void>;
+  refreshConversations: () => Promise<void>;
 }
 
-const ChatContext = createContext<ChatContextType | undefined>(undefined);
+const ChatContext = createContext<ChatContextData>({} as ChatContextData);
 
 export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useApp();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(false);
   const [isChatOpen, setChatOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  
+  // Ref para guardar o canal atual e evitar vazamento de memória nas subscrições
+  const channelRef = useRef<any>(null);
 
-  // 1. Carregar Conversas do Utilizador
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const fetchConversations = async () => {
-      setLoading(true);
-      try {
-        const response = await api.get('/chat/conversations');
-        if (response.data.success) {
-          setConversations(response.data.data);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar conversas:', error);
+  const refreshConversations = useCallback(async () => {
+    if (!user) return;
+    try {
+      const response = await api.get('/chat/conversations');
+      if (response.data.success) {
+        setConversations(response.data.data);
       }
-      setLoading(false);
-    };
+    } catch (error) {
+      console.error('Erro ao buscar conversas:', error);
+    }
+  }, [user]);
 
-    fetchConversations();
-  }, [user?.id]);
-
-  // 2. Carregar Mensagens da Conversa Ativa e Subscrever Realtime
+  // Efeito principal: Carregar mensagens e subscrever ao Realtime
   useEffect(() => {
-    if (!activeConversationId) return;
+    if (!activeConversationId) {
+      setMessages([]);
+      return;
+    }
 
+    // 1. Carregar histórico inicial via API
     const fetchMessages = async () => {
+      setIsLoadingMessages(true);
       try {
         const response = await api.get(`/chat/${activeConversationId}/messages`);
         if (response.data.success) {
           setMessages(response.data.data);
         }
       } catch (error) {
-        console.error('Erro ao carregar mensagens:', error);
+        console.error('Erro ao buscar mensagens:', error);
+        toast.error('Não foi possível carregar as mensagens.');
+      } finally {
+        setIsLoadingMessages(false);
       }
     };
 
     fetchMessages();
 
-    // Subscrição Realtime para MENSAGENS desta conversa
+    // 2. Subscrever ao Supabase Realtime (Websockets)
+    // Filtramos eventos INSERT na tabela Message especificamente para esta conversa
+    if (channelRef.current) supabase.removeChannel(channelRef.current);
+
     const channel = supabase
-      .channel(`chat:${activeConversationId}`)
+      .channel(`chat_room:${activeConversationId}`)
       .on(
         'postgres_changes',
         {
@@ -92,118 +105,78 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           filter: `conversation_id=eq.${activeConversationId}`,
         },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new as Message]);
+          const newMessage = payload.new as Message;
+          // Adicionar mensagem ao estado local instantaneamente
+          setMessages((prev) => {
+            if (prev.some(msg => msg.id === newMessage.id)) return prev; // Evita duplicados
+            return [...prev, newMessage];
+          });
+        }
+      )
+      // Escutar atualizações de mensagens (ex: quando são marcadas como lidas)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'Message', filter: `conversation_id=eq.${activeConversationId}` },
+        (payload) => {
+          const updatedMsg = payload.new as Message;
+          setMessages(prev => prev.map(m => m.id === updatedMsg.id ? updatedMsg : m));
+        }
+      )
+      // 2.2. Broadcast: Recebe a mensagem instantaneamente via Websocket
+      .on(
+        'broadcast',
+        { event: 'new-message' },
+        (payload) => {
+          const newMessage = payload.payload as Message;
+          setMessages((prev) => 
+            prev.some(msg => msg.id === newMessage.id) ? prev : [...prev, newMessage]
+          );
         }
       )
       .subscribe();
 
+    channelRef.current = channel;
+
     return () => {
-      supabase.removeChannel(channel);
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
     };
   }, [activeConversationId]);
 
-  // 3. Subscrição GLOBAL para Notificações e Contagem de Não Lidas
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const channel = supabase
-      .channel('global-messages')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'Message',
-          // Nota: O filtro ideal seria receiver_id, mas como a tabela não tem, 
-          // confiamos no RLS ou filtramos no cliente se necessário.
-        },
-        (payload) => {
-          const newMessage = payload.new as Message;
-
-          // Ignorar mensagens enviadas por mim mesmo
-          if (newMessage.sender_id === user.id) return;
-
-          // Se o chat estiver fechado OU se estivermos noutra conversa
-          if (!isChatOpen || activeConversationId !== newMessage.conversation_id) {
-            setUnreadCount((prev) => prev + 1);
-            
-            // Tentar encontrar o nome do remetente na lista de conversas carregadas
-            const conversation = conversations.find(c => c.id === newMessage.conversation_id);
-            const sender = conversation?.participants.find((p: any) => p.id === newMessage.sender_id);
-            const senderName = sender?.name || 'Alguém';
-
-            toast(`Nova mensagem de ${senderName}`, { icon: '💬' });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id, isChatOpen, activeConversationId, conversations]);
-
-  // 4. Função para Iniciar Conversa (ou obter existente)
-  const startConversation = async (targetUserId: string): Promise<string> => {
-    if (!user?.id) throw new Error("User not logged in");
-
-    try {
-      const response = await api.post('/chat/start', { targetUserId });
-      if (response.data.success) {
-        // Recarregar conversas para atualizar a lista
-        // (Numa versão melhor, adicionaríamos apenas a nova conversa ao estado)
-        return response.data.conversationId;
-      }
-      throw new Error(response.data.message);
-    } catch (error) {
-      console.error('Erro ao iniciar conversa:', error);
-      throw error;
+  const startConversation = async (targetUserId: string) => {
+    const response = await api.post('/chat/start', { targetUserId });
+    if (response.data.success) {
+      await refreshConversations();
+      return response.data.conversationId;
     }
+    throw new Error('Falha ao iniciar conversa');
   };
 
-  // 5. Enviar Mensagem
-  const sendMessage = async (content: string, receiverId?: string) => {
-    if (!user?.id) return;
-
-    let conversationId = activeConversationId;
-
-    if (!conversationId && receiverId) {
-      conversationId = await startConversation(receiverId);
-      setActiveConversationId(conversationId);
-    }
-
-    if (conversationId) {
-      try {
-        await api.post('/chat/send', { conversationId, content });
-      } catch (error) {
-        toast.error('Erro ao enviar mensagem');
-        console.error(error);
+  const sendMessage = async (content: string) => {
+    if (!activeConversationId) return;
+    
+    try {
+      const response = await api.post('/chat/send', { conversationId: activeConversationId, content });
+      if (response.data.success && response.data.data) {
+        const sentMessage = response.data.data;
+        // Adição otimista com verificação de duplicados (caso o realtime seja mais rápido)
+        setMessages((prev) => 
+          prev.some(msg => msg.id === sentMessage.id) ? prev : [...prev, sentMessage]
+        );
       }
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error);
+      toast.error('Falha ao enviar mensagem');
     }
   };
 
   return (
     <ChatContext.Provider value={{
-      conversations,
-      activeConversationId,
-      messages,
-      setActiveConversationId,
-      sendMessage,
-      startConversation,
-      loading,
-      isChatOpen,
-      setChatOpen,
-      unreadCount
+      conversations, messages, activeConversationId, isChatOpen, isLoadingMessages,
+      setChatOpen, setActiveConversationId, startConversation, sendMessage, refreshConversations
     }}>
       {children}
     </ChatContext.Provider>
   );
 };
 
-export const useChat = () => {
-  const context = useContext(ChatContext);
-  if (context === undefined) {
-    throw new Error('useChat must be used within a ChatProvider');
-  }
-  return context;
-};
+export const useChat = () => useContext(ChatContext);

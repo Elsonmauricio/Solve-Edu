@@ -2,12 +2,17 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, Users, ArrowRight } from 'lucide-react';
 import { Problem } from '../../types';
+import { useApp } from '../../context/AppContext';
+import FeatureProblemButton from '../problems/FeatureProblemButton';
 
 interface ProblemCardProps {
   problem: Problem;
 }
 
 const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
+  const { user } = useApp();
+  const isOwner = user?.role === 'COMPANY' && user.companyProfile?.id === problem.companyId;
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 hover:border-solve-blue transition-colors group h-full flex flex-col">
       <div className="flex justify-between items-start mb-3">
@@ -37,12 +42,21 @@ const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
           </div>
         </div>
         
-        <Link 
-          to={`/problems/${problem.id}`}
-          className="text-solve-blue hover:text-solve-purple text-sm font-medium flex items-center"
-        >
-          Ver <ArrowRight size={14} className="ml-1" />
-        </Link>
+        <div className="flex items-center gap-3">
+          {isOwner && (
+            <FeatureProblemButton 
+              problemId={String(problem.id)}
+              isFeatured={(problem as any).isFeatured}
+              onSuccess={() => window.location.reload()}
+            />
+          )}
+          <Link 
+            to={`/problems/${problem.id}`}
+            className="text-solve-blue hover:text-solve-purple text-sm font-medium flex items-center"
+          >
+            Ver <ArrowRight size={14} className="ml-1" />
+          </Link>
+        </div>
       </div>
     </div>
   );

@@ -1,9 +1,21 @@
 export const errorHandler = (err, req, res, next) => {
-  console.error('Error:', err);
+  // Log colorido para facilitar o debug no terminal
+  const errorColor = '\x1b[31m';
+  const resetColor = '\x1b[0m';
+  console.error(`${errorColor}[API Error] ${req.method} ${req.path}${resetColor}`, err.message);
 
   // Default error
   const statusCode = err.statusCode || 500;
   const message = err.message || 'Erro interno do servidor';
+
+  // Erros de Autenticação do Auth0 (express-oauth2-jwt-bearer)
+  if (err.name === 'UnauthorizedError' || err.status === 401) {
+    return res.status(401).json({
+      success: false,
+      message: 'Não autorizado. Token em falta ou inválido.',
+      code: 'UNAUTHORIZED'
+    });
+  }
 
   // Validation errors
   if (err.name === 'ValidationError') {

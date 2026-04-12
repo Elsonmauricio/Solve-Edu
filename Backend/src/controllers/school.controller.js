@@ -1,12 +1,12 @@
 import { supabase } from '../lib/supabase.js';
+import asyncHandler from '../utils/asyncHandler.js';
 
 export class SchoolController {
   /**
    * Regista um novo aluno associado à escola.
    * POST /api/school/students
    */
-  static async registerStudent(req, res) {
-    try {
+  static registerStudent = asyncHandler(async (req, res) => {
       const schoolName = req.user.schoolProfile?.schoolName;
       const schoolProfileId = req.schoolId; // Obtido do middleware
       const { name, email } = req.body;
@@ -70,24 +70,17 @@ export class SchoolController {
         success: true, 
         message: 'Aluno registado! Quando ele entrar na plataforma com este email, a conta será ativada automaticamente.' 
       });
-
-    } catch (error) {
-      console.error('Register student error:', error);
-      res.status(500).json({ success: false, message: 'Erro ao registar aluno.' });
-    }
-  }
+  });
 
   /**
    * Obtém estatísticas para o dashboard da escola.
    */
-  static async getSchoolDashboard(req, res) {
-    try {
+  static getSchoolDashboard = asyncHandler(async (req, res) => {
       const schoolProfileId = req.schoolId;
 
       const [totalStudents, totalSolutions, acceptedSolutions] = await Promise.all([
         supabase.from('StudentProfile').select('*', { count: 'exact', head: true }).eq('schoolProfileId', schoolProfileId).then(r => r.count),
-        // Join implícito para filtrar soluções de estudantes desta escola
-        supabase.from('Solution').select('student!inner(schoolProfileId)', { count: 'exact', head: true }).eq('student.schoolProfileId', schoolProfileId).then(r => r.count),
+        supabase.from('Solution').select('id, student!inner(schoolProfileId)', { count: 'exact', head: true }).eq('student.schoolProfileId', schoolProfileId).then(r => r.count),
         supabase.from('Solution').select('student!inner(schoolProfileId)', { count: 'exact', head: true })
           .eq('student.schoolProfileId', schoolProfileId)
           .eq('status', 'ACCEPTED')
@@ -103,42 +96,28 @@ export class SchoolController {
           acceptanceRate: totalSolutions > 0 ? (acceptedSolutions / totalSolutions) * 100 : 0,
         },
       });
-    } catch (error) {
-      console.error('Get school dashboard error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao buscar estatísticas da escola.',
-      });
-    }
-  }
+  }); // Removido o try/catch manual pois o asyncHandler já trata o erro
 
   /**
    * Lista os alunos associados a uma escola.
    */
-  static async getSchoolStudents(req, res) {
-    try {
+  static getSchoolStudents = asyncHandler(async (req, res) => {
       const schoolProfileId = req.schoolId;
 
-      const { data: students } = await supabase
+      const { data: students, error } = await supabase
         .from('User')
         .select('id, name, email, avatar, level, studentProfile:StudentProfile!inner(course, year)')
         .eq('studentProfile.schoolProfileId', schoolProfileId);
 
+      if (error) throw error;
+
       res.json({ success: true, data: students });
-    } catch (error) {
-      console.error('Get school students error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao buscar alunos da escola.',
-      });
-    }
-  }
+  });
 
   /**
    * Lista as soluções dos alunos de uma escola.
    */
-  static async getSchoolSolutions(req, res) {
-    try {
+  static getSchoolSolutions = asyncHandler(async (req, res) => {
       const schoolProfileId = req.schoolId;
 
       const { data: solutions, error } = await supabase
@@ -150,12 +129,5 @@ export class SchoolController {
       if (error) throw error;
 
       res.json({ success: true, data: solutions });
-    } catch (error) {
-      console.error('Get school solutions error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao buscar soluções da escola.',
-      });
-    }
-  }
+  });
 }

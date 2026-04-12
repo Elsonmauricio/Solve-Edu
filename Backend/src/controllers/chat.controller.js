@@ -68,6 +68,16 @@ export class ChatController {
       const userId = req.userId;
       const { conversationId, content } = req.body;
 
+      // Validação de Segurança
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'Utilizador não autenticado.' });
+      }
+
+      if (!conversationId || !content) {
+        return res.status(400).json({ success: false, message: 'Dados da mensagem incompletos.' });
+      }
+
+      // 1. Inserir a mensagem
       const { data: message, error } = await supabase
         .from('Message')
         .insert({
@@ -80,10 +90,48 @@ export class ChatController {
 
       if (error) throw error;
 
+      // 2. Atualizar o timestamp da conversa (para subir no topo da lista)
+      await supabase
+        .from('Conversation')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', conversationId);
+
+      // 3. Notificar via Broadcast (Ultra-rápido)
+      // Isto permite que o frontend receba a mensagem sem depender apenas da replicação da BD
+      await supabase.channel(`chat_room:${conversationId}`).send({
+        type: 'broadcast',
+        event: 'new-message',
+        payload: message
+      });
+
+      // 4. Notificar o destinatário (Criar registo na tabela Notification)
+      // Descobrir quem é o outro participante da conversa
+      const { data: participants } = await supabase
+        .from('ConversationParticipant')
+        .select('user_id')
+        .eq('conversation_id', conversationId)
+        .neq('user_id', userId);
+
+      if (participants && participants.length > 0) {
+        const notifications = participants.map(p => ({
+          userId: p.user_id,
+          type: 'NEW_MESSAGE',
+          title: 'Nova Mensagem',
+          message: `Nova mensagem de ${req.userName || 'alguém'}`,
+          data: { conversationId, senderId: userId },
+          isRead: false
+        }));
+
+        // Inserir notificação (sem bloquear erro, apenas log)
+        const { error: notifError } = await supabase.from('Notification').insert(notifications);
+        if (notifError) console.error('Erro ao criar notificação de chat:', notifError);
+      }
+
       res.json({ success: true, data: message });
 
     } catch (error) {
-      console.error('Send message error:', error);
+      // Log detalhado para ajudar no debug
+      console.error('Send message error:', error.message || error);
       res.status(500).json({ success: false, message: 'Erro ao enviar mensagem.' });
     }
   }
@@ -93,33 +141,42 @@ export class ChatController {
     try {
       const userId = req.userId;
 
-      // Buscar IDs das conversas
-      const { data: participantRows, error } = await supabase
+      // 1. Buscar IDs das conversas onde sou participante
+      const { data: myParticipations, error: partError } = await supabase
         .from('ConversationParticipant')
-        .select('conversation_id, Conversation(*)')
+        .select('conversation_id')
         .eq('user_id', userId);
 
-      if (error) throw error;
+      if (partError) throw partError;
 
-      const rawConvs = participantRows.map(row => row.Conversation);
-      const convIds = rawConvs.map(c => c.id);
+      const convIds = myParticipations.map(p => p.conversation_id);
 
       if (convIds.length === 0) {
         return res.json({ success: true, data: [] });
       }
 
-      // Buscar os outros participantes para mostrar nomes/fotos
-      const { data: others } = await supabase
+      // 2. Buscar detalhes das conversas
+      const { data: conversations, error: convError } = await supabase
+        .from('Conversation')
+        .select('*')
+        .in('id', convIds)
+        .order('updated_at', { ascending: false });
+
+      if (convError) throw convError;
+
+      // 3. Buscar os outros participantes
+      const { data: participants } = await supabase
         .from('ConversationParticipant')
         .select('conversation_id, User(id, name, avatar)')
-        .in('conversation_id', convIds)
-        .neq('user_id', userId);
+        .in('conversation_id', convIds);
 
-      const enrichedConvs = rawConvs.map(conv => {
-        const participants = others
-          ?.filter(o => o.conversation_id === conv.id)
-          .map(o => o.User) || [];
-        return { ...conv, participants };
+      // 4. Montar objeto final
+      const enrichedConvs = conversations.map(conv => {
+        const convParticipants = participants
+          ?.filter(p => p.conversation_id === conv.id && p.User.id !== userId)
+          .map(p => p.User) || [];
+        
+        return { ...conv, participants: convParticipants };
       });
 
       res.json({ success: true, data: enrichedConvs });
@@ -134,14 +191,35 @@ export class ChatController {
   static async getMessages(req, res) {
     try {
       const { conversationId } = req.params;
+      const userId = req.userId;
       
-      // TODO: Verificar se o utilizador pertence à conversa por segurança
+      // Verificar se o utilizador pertence à conversa por segurança
+      const { data: participant } = await supabase
+        .from('ConversationParticipant')
+        .select('conversation_id')
+        .eq('conversation_id', conversationId)
+        .eq('user_id', userId)
+        .maybeSingle();
 
+      if (!participant) {
+        return res.status(403).json({ success: false, message: 'Não tem permissão para aceder a esta conversa.' });
+      }
+
+      // 1. Obter as mensagens
       const { data, error } = await supabase
         .from('Message')
         .select('*')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true });
+
+      // 2. Marcar mensagens do outro utilizador como lidas
+      if (data && data.length > 0) {
+        await supabase
+          .from('Message')
+          .update({ is_read: true })
+          .eq('conversation_id', conversationId)
+          .neq('sender_id', userId); // Apenas as mensagens que eu recebi
+      }
 
       if (error) throw error;
 

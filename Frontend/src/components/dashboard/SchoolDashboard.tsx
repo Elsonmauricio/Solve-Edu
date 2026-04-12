@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { PDFDownloadLink } from '@react-pdf/renderer';
 import { useApp } from '../../context/AppContext';
 import StatsCard from '../ui/StatsCard';
 import { schoolService } from '../../services/school.service';
+import { notificationService } from '../../services/notification.service';
 import SchoolSolutionsList from '../layout/SchoolSolutionsList'; // Importar o novo componente
+import CertificateDocument from '../pdf/CertificateDocument'; // Importar o componente do PDF
 import UserBadge from '../ui/UserBadge';
 import { toast } from 'react-hot-toast';
 import { 
@@ -18,12 +21,15 @@ import {
   FileText,
   TrendingUp,
   Search,
-  X
+  X,
+  Download
 } from 'lucide-react';
 
 const SchoolDashboard = () => {
   const { user } = useApp();
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalStudents: 0,
     activeProjects: 0,
@@ -68,9 +74,21 @@ const SchoolDashboard = () => {
       }
     };
 
+    const fetchNotifications = async () => {
+      try {
+        const response = await notificationService.getMyNotifications();
+        if (response.success) {
+          setNotifications(response.data || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch notifications:", error);
+      }
+    };
+
     fetchStats();
     fetchStudents();
-  }, []);
+    fetchNotifications();
+  }, [user]);
 
   const handleRegisterStudent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,6 +114,12 @@ const SchoolDashboard = () => {
       setIsSubmitting(false);
     }
   };
+
+  // Filtrar alunos com base na pesquisa
+  const filteredStudents = students.filter(student => 
+    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    student.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const schoolStats = {
     user: {
@@ -141,6 +165,9 @@ const SchoolDashboard = () => {
       }
     ]
   };
+
+  // Calcular métricas adicionais para o gráfico de barras
+  const studentsWithProjectPercentage = stats.totalStudents > 0 ? (stats.activeProjects / stats.totalStudents) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
@@ -215,6 +242,8 @@ const SchoolDashboard = () => {
                 <div className="relative">
                   <input 
                     type="text" 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="Pesquisar aluno..." 
                     className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-solve-blue focus:border-transparent outline-none"
                   />
@@ -224,8 +253,8 @@ const SchoolDashboard = () => {
               
               <div className="p-6">
                 <div className="space-y-4">
-                  {students.length > 0 ? (
-                    students.slice(0, 5).map((student) => (
+                  {filteredStudents.length > 0 ? (
+                    filteredStudents.slice(0, 5).map((student) => (
                     <div key={student.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
                       <div className="flex items-center space-x-4">
                         <img 
@@ -241,15 +270,31 @@ const SchoolDashboard = () => {
                         </div>
                       </div>
                       <div className="text-right">
-                        {/* Placeholder para status real se disponível futuramente */}
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          Registado
-                        </span>
+                        <PDFDownloadLink
+                          document={
+                            <CertificateDocument
+                              studentName={student.name}
+                              courseName={student.studentProfile?.course || 'Programação de Informática'}
+                              schoolName={schoolStats.user.schoolName}
+                              startDate="2023/2024" // Exemplo - idealmente viria do perfil do aluno
+                              endDate="2025/2026" // Exemplo
+                              city="Portugal" // Default dinâmico
+                              currentDate={new Date().toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' })}
+                              studentEmail={student.email}
+                              studentPhone={student.phone || '+351000000000'} // Exemplo - adicionar campo no perfil
+                            />
+                          }
+                          fileName={`Certificado_${student.name.replace(/\s/g, '_')}.pdf`}
+                          className="inline-flex items-center space-x-2 px-3 py-1.5 border border-transparent text-xs font-medium rounded-full shadow-sm text-white bg-solve-teal hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-solve-teal"
+                        >
+                          <Download size={14} />
+                          <span>Certificado</span>
+                        </PDFDownloadLink>
                       </div>
                     </div>
                   ))
                   ) : (
-                    <p className="text-center text-gray-500 py-4">Nenhum aluno registado recentemente.</p>
+                    <p className="text-center text-gray-500 py-4">Nenhum aluno encontrado.</p>
                   )}
                 </div>
                 <div className="mt-6 text-center">
@@ -324,11 +369,11 @@ const SchoolDashboard = () => {
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600">Parcerias Ativas</span>
-                    <span className="font-semibold text-gray-900">12</span>
+                    <span className="text-gray-600">Alunos com Projeto</span>
+                    <span className="font-semibold text-gray-900">{studentsWithProjectPercentage.toFixed(0)}%</span>
                   </div>
                   <div className="w-full bg-gray-100 rounded-full h-2">
-                    <div className="bg-blue-500 h-2 rounded-full" style={{ width: '60%' }}></div>
+                    <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${Math.min(studentsWithProjectPercentage, 100)}%` }}></div>
                   </div>
                 </div>
               </div>
@@ -343,10 +388,18 @@ const SchoolDashboard = () => {
             >
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Avisos</h3>
               <div className="space-y-3">
-                <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-100">
-                  <p className="text-sm text-yellow-800 font-medium">Prazo de entrega PAP</p>
-                  <p className="text-xs text-yellow-600 mt-1">Faltam 15 dias para o fim do prazo.</p>
-                </div>
+                {notifications.length > 0 ? (
+                  notifications.slice(0, 3).map((notif) => (
+                    <div key={notif.id} className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                      <p className="text-sm text-blue-800 font-medium">{notif.title}</p>
+                      <p className="text-xs text-blue-600 mt-1">{notif.message}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 text-center">
+                    <p className="text-sm text-gray-500">Sem novos avisos.</p>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>
