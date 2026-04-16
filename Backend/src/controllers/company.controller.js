@@ -137,7 +137,11 @@ export class CompanyController {
           try {
             const clientId = process.env.PAYPAL_CLIENT_ID;
             const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
-            const environment = new paypal.core.SandboxEnvironment(clientId, clientSecret);
+            // Melhoria: Usar LiveEnvironment se estiver em produção
+            const environment = process.env.NODE_ENV === 'production' 
+              ? new paypal.core.LiveEnvironment(clientId, clientSecret)
+              : new paypal.core.SandboxEnvironment(clientId, clientSecret);
+              
             const client = new paypal.core.PayPalHttpClient(environment);
 
             const payoutRequest = {
