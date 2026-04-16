@@ -64,11 +64,13 @@ export const useUserInitialization = () => {
             if (backendUser.role) localStorage.removeItem('intended_role');
 
           } else {
-            console.error("[UserInit] Erro do Backend:", profileRes);
+            console.error("[UserInit] Resposta Inválida:", profileRes);
             throw new Error(profileRes.message || 'Falha ao carregar perfil do utilizador.');
           }
         } catch (error: any) {
-          console.error("[UserInit] Erro Crítico:", error);
+          // Log mais detalhado do erro do Axios
+          console.error("[UserInit] Erro Crítico:", error.response?.data?.message || error.message);
+          
           // Se o erro for 401, o token é inválido/expirado
           if (error.response && error.response.status === 401) {
             logout({ logoutParams: { returnTo: window.location.origin } });

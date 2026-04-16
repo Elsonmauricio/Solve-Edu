@@ -1,8 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Github, ExternalLink, Star, Eye, MessageCircle, User, Calendar } from 'lucide-react';
+import { Github, ExternalLink, Star, Eye, MessageCircle, User, Calendar, FileText } from 'lucide-react';
 import { Solution } from '../../types';
+import { supabase } from '../../lib/supabaseClient';
 
 interface SolutionCardProps {
   solution: Solution;
@@ -32,6 +33,24 @@ const SolutionCard: React.FC<SolutionCardProps> = ({ solution }) => {
       'Django': 'text-green-600 bg-green-100',
     };
     return colors[tech] || 'text-gray-600 bg-gray-100';
+  };
+
+  const handleViewAttachment = async () => {
+    const filePath = (solution as any).files && (solution as any).files[0];
+    if (!filePath) return;
+
+    // Se for uma URL completa, abre direto, senão gera URL assinada
+    if (filePath.startsWith('http')) {
+      window.open(filePath, '_blank');
+      return;
+    }
+
+    const { data, error } = await supabase.storage
+      .from('solutions')
+      .createSignedUrl(filePath, 60); // Link válido por 60 segundos
+
+    if (error) return console.error('Erro ao gerar link:', error);
+    if (data) window.open(data.signedUrl, '_blank');
   };
 
   return (
@@ -103,6 +122,16 @@ const SolutionCard: React.FC<SolutionCardProps> = ({ solution }) => {
               <Github size={14} />
               <span>GitHub</span>
             </a>
+          )}
+          {(solution as any).files && (solution as any).files.length > 0 && (
+            <button
+              onClick={handleViewAttachment}
+              className="flex items-center space-x-1 text-solve-teal hover:underline focus:outline-none"
+              title="Ver ficheiro da solução"
+            >
+              <FileText size={14} />
+              <span>Documentação</span>
+            </button>
           )}
         </div>
         

@@ -13,12 +13,16 @@ import {
 } from 'lucide-react';
 import { User } from '../types';
 import StartChatButton from '../components/chat/StartChatButton';
+import { useApiFetch } from '../hooks/useApiFetch';
 
 // Interfaces para tipar as respostas da API e evitar erros de "unknown"
 interface StatsResponse {
   success: boolean;
   data: {
     accepted: number;
+    totalCompanies: number;
+    totalStudents: number;
+    totalComments: number;
   };
 }
 
@@ -29,27 +33,29 @@ interface TopSolutionsResponse {
 
 const Community = () => {
   const [communityStats, setCommunityStats] = useState({
-    activeMembers: 2847,
-    activeDiscussions: 156,
+    activeMembers: 0,
+    activeDiscussions: 0,
     acceptedSolutions: 0
   });
   const [topStudents, setTopStudents] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const { authenticatedFetch } = useApiFetch(); // Importa e desestrutura o hook
+
   useEffect(() => {
     const fetchCommunityData = async () => {
       try {
-        // Cast explícito para garantir que o TypeScript reconhece a estrutura das respostas
         const [statsRes, topSolutionsRes] = await Promise.all([
-          solutionsService.getStats() as Promise<any>,
+          authenticatedFetch('/api/solutions/stats') as Promise<StatsResponse>, // Usa authenticatedFetch para as estatísticas
           solutionsService.getTopSolutions() as Promise<any>
         ]);
 
-        if (statsRes.success) {
-          setCommunityStats(prev => ({
-            ...prev,
-            acceptedSolutions: statsRes.data.accepted
-          }));
+        if (statsRes.success && statsRes.data) {
+          setCommunityStats({
+            activeMembers: (statsRes.data.totalStudents || 0) + (statsRes.data.totalCompanies || 0),
+            activeDiscussions: statsRes.data.totalComments || 0,
+            acceptedSolutions: statsRes.data.accepted || 0
+          });
         }
 
         if (topSolutionsRes.success && topSolutionsRes.data) {
@@ -61,7 +67,7 @@ const Community = () => {
               }
 
               const studentData = solution.student; // Agora é um objeto
-              const userData = studentData.user; // Agora é seguro aceder
+              const userData = Array.isArray(studentData.user) ? studentData.user[0] : studentData.user; // Trata se for array
               
               return {
                 id: userData.id || studentData.id || "unknown",
@@ -85,8 +91,8 @@ const Community = () => {
     };
 
     // CHAMAR a função fetchCommunityData
-    fetchCommunityData();
-  }, []); // O array de dependências vazio garante que isto corre apenas uma vez
+    fetchCommunityData(); 
+  }, [authenticatedFetch]); // Adicionado authenticatedFetch ao array de dependências
 
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
@@ -174,33 +180,9 @@ const Community = () => {
               </div>
             </motion.div>
 
-            {/* Forum Topics */}
-            <motion.div
-             {...({ className: "bg-white rounded-2xl shadow-lg border border-gray-200" } as any)}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.6 }}
-            >
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    💬 Tópicos do Fórum
-                  </h2>
-                  <button className="text-solve-blue hover:text-solve-purple font-medium">
-                    Novo Tópico
-                  </button>
-                </div>
+            
               </div>
-              
-              <div className="p-6">
-                <div className="text-center py-8 text-gray-500">
-                  <MessageCircle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                  <h3 className="text-lg font-semibold text-gray-700">Fórum em breve</h3>
-                  <p>Estamos a trabalhar para trazer um espaço de discussão para a comunidade.</p>
-                </div>
-              </div>
-            </motion.div>
-          </div>
+            
 
           {/* Sidebar */}
           <div className="space-y-6">

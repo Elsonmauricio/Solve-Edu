@@ -550,6 +550,22 @@ export class SolutionController {
       const { count: accepted } = await supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('status', 'ACCEPTED');
       const { count: pending } = await supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('status', 'PENDING_REVIEW');
 
+      // Obter contagem de empresas e estudantes para a Landing Page
+      const { count: totalCompanies } = await supabase.from('CompanyProfile').select('*', { count: 'exact', head: true });
+      const { count: totalStudents } = await supabase.from('StudentProfile').select('*', { count: 'exact', head: true });
+
+      // Obter contagem de comentários (Discussões)
+      const { count: totalComments } = await supabase.from('Comment').select('*', { count: 'exact', head: true });
+
+      // Obter a soma real de todas as recompensas pagas
+      const { data: rewardData } = await supabase
+        .from('Transaction')
+        .select('amount')
+        .eq('type', 'REWARD')
+        .eq('status', 'COMPLETED');
+
+      const totalRewardsSum = rewardData?.reduce((acc, curr) => acc + (curr.amount || 0), 0) || 0;
+
       // Calcular média de avaliações global
       const { data: ratings } = await supabase
         .from('Solution')
@@ -564,6 +580,10 @@ export class SolutionController {
         total,
         accepted,
         pending,
+        totalCompanies: totalCompanies || 0,
+        totalStudents: totalStudents || 0,
+        totalComments: totalComments || 0,
+        totalRewards: totalRewardsSum,
         acceptanceRate: total > 0 ? (accepted / total) * 100 : 0,
         averageRating: avgRating
       };

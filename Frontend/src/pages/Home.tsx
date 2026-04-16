@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Target, Users, Trophy, Star, Zap, LucideIcon } from 'lucide-react';
-import { solutionsService } from '../services/solution.service';
+import { ArrowRight, Target, Users, Trophy, Star, Zap, LucideIcon } from 'lucide-react'; // solutionsService is no longer needed here
+import { useApiFetch } from '../hooks/useApiFetch';
 
 interface Feature {
   icon: LucideIcon;
@@ -20,12 +20,14 @@ interface StatsResponse {
   success: boolean;
   data: {
     accepted: number;
+    totalCompanies: number;
+    totalStudents: number;
+    totalRewards: number | string;
   };
 }
 
 const Home: React.FC = () => {
   // Mapeamento de cores para classes Tailwind.
-  // Isto garante que o compilador JIT do Tailwind deteta as classes completas.
   const colorClasses: { [key: string]: { bg: string; text: string } } = {
     blue: { bg: 'bg-blue-100', text: 'text-blue-600' },
     purple: { bg: 'bg-purple-100', text: 'text-purple-600' },
@@ -60,6 +62,7 @@ const Home: React.FC = () => {
     }
   ];
 
+  const { authenticatedFetch } = useApiFetch();
   const [stats, setStats] = useState<Stat[]>([
     { number: '0+', label: 'Soluções Aceites' },
     { number: '200+', label: 'Empresas Parceiras' },
@@ -68,13 +71,22 @@ const Home: React.FC = () => {
   ]);
 
   useEffect(() => {
-    const fetchStats = async (): Promise<void> => {
+    const fetchStatsData = async (): Promise<void> => {
       try {
-        const response: StatsResponse = await solutionsService.getStats();
-        if (response.success) {
-          setStats(prevStats => [
-            { number: `${response.data.accepted}+`, label: 'Soluções Aceites' },
-            ...prevStats.slice(1)
+        const result = await authenticatedFetch('/api/solutions/stats');
+        if (result.success && result.data) {
+          setStats([
+            { number: `${result.data.accepted || 0}+`, label: 'Soluções Aceites' },
+            { number: `${result.data.totalCompanies || 0}+`, label: 'Empresas Parceiras' },
+            { number: `${result.data.totalStudents || 0}+`, label: 'Estudantes Ativos' },
+            { 
+              number: typeof result.data.totalRewards === 'number' 
+                ? result.data.totalRewards >= 1000 
+                  ? `€${(result.data.totalRewards / 1000).toFixed(0)}K+` 
+                  : `€${result.data.totalRewards}+`
+                : `€${result.data.totalRewards || '0'}+`, 
+              label: 'Em Recompensas' 
+            }
           ]);
         }
       } catch (error: any) {
@@ -85,8 +97,8 @@ const Home: React.FC = () => {
         console.error("Failed to fetch stats:", error);
       }
     };
-    fetchStats();
-  }, []);
+    fetchStatsData();
+  }, [authenticatedFetch]); // Adicionado authenticatedFetch ao array de dependências
 
   return (
     <div className="pt-16">

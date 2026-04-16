@@ -18,8 +18,8 @@ export const useAuth = () => {
   // Aceita 'STUDENT' ou 'COMPANY' ou 'SCHOOL' como argumento
   const register = async (role: 'STUDENT' | 'COMPANY' | 'SCHOOL' ) => {
     try {
-      // Guardar a intenção de role localmente para redundância
-      sessionStorage.setItem('selected_role', role);
+      // Guardar a intenção de role para o hook de inicialização enviar ao backend
+      localStorage.setItem('intended_role', role);
       
       await loginWithRedirect({ 
         authorizationParams: { 

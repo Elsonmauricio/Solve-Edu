@@ -36,6 +36,10 @@ export const syncUser = async (req, res, next) => {
 
   // Se o email não estiver no token (comum em Access Tokens), tentar buscar do endpoint /userinfo
   if (!email) {
+    // Verifica se fetch existe (Node 18+) ou usa um polyfill se necessário
+    if (typeof fetch === 'undefined') {
+      console.warn('[Auth0] Global fetch is not available. Userinfo sync might fail.');
+    } else {
     try {
       const accessToken = req.headers.authorization?.split(' ')[1];
       if (accessToken) {
@@ -53,6 +57,7 @@ export const syncUser = async (req, res, next) => {
       }
     } catch (error) {
       console.warn('Warning: Could not fetch userinfo from Auth0:', error.message);
+    }
     }
   }
 
