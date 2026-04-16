@@ -1,14 +1,24 @@
 {
-  "cleanUrls": true,
-  "trailingSlash": false,
+  "version": 2,
+  "builds": [
+    {
+      "src": "Backend/src/app.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "Frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/index.js"
+      "destination": "Backend/src/app.js"
     },
     {
-      "source": "/((?!assets/|favicon.ico|vite.svg).*)",
-      "destination": "/index.html"
+      "source": "/(.*)",
+      "destination": "Frontend/$1"
     }
   ]
 }
