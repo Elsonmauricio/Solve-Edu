@@ -1,0 +1,14 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/((?!assets/|favicon.ico|vite.svg).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
