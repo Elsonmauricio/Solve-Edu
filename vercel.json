@@ -17,12 +17,8 @@
       "destination": "Backend/src/app.js"
     },
     {
-      "source": "/assets/(.*)",
-      "destination": "/Frontend/assets/$1"
-    },
-    {
-      "source": "/((?!api/|assets/).*)",
-      "destination": "/Frontend/index.html"
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
     }
   ]
 }

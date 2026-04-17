@@ -5,18 +5,10 @@ import { useCallback } from 'react';
 export const useApiFetch = () => {
   const { getAccessTokenSilently, isAuthenticated } = useAuth0();
   
-  // Determine API URL dynamically
-  let apiUrl = '';
-  if (import.meta.env.VITE_API_URL) {
-    // Se VITE_API_URL for explicitamente definida, usa-a (útil para ambientes específicos ou domínios separados)
-    apiUrl = import.meta.env.VITE_API_URL;
-  } else if (import.meta.env.PROD) {
-    // Em produção, usa a origem da janela atual para chamadas de API (garante que previews chamem o seu próprio backend)
-    apiUrl = window.location.origin;
-  } else {
-    // Em desenvolvimento, usa localhost
-    apiUrl = 'http://localhost:5000';
-  }
+  // Em produção, usamos caminhos relativos ('') para evitar problemas de CORS e URLs trocadas.
+  // Em desenvolvimento, continuamos a usar o localhost.
+  const apiUrl = import.meta.env.VITE_API_URL || 
+                 (import.meta.env.PROD ? '' : 'http://localhost:5000');
 
   const authenticatedFetch = useCallback(async (endpoint: string, options: any = {}) => {
     try {
