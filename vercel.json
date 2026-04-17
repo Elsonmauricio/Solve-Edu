@@ -12,7 +12,6 @@
     }
   ],
   "rewrites": [
-    { "handle": "filesystem" },
     {
       "source": "/api/(.*)",
       "destination": "Backend/src/app.js"
