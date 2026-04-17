@@ -12,13 +12,11 @@
     }
   ],
   "rewrites": [
+    { "handle": "filesystem" },
     {
       "source": "/api/(.*)",
       "destination": "Backend/src/app.js"
     },
-    {
-      "source": "/((?!api/|assets/|favicon.ico|vite.svg|Logo-.*.png).*)",
-      "destination": "/index.html"
-    }
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
