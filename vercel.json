@@ -18,11 +18,11 @@
     },
     {
       "source": "/assets/(.*)",
-      "destination": "/Frontend/assets/$1"
+      "destination": "/$1"
     },
     {
       "source": "/((?!api/).*)",
-      "destination": "/Frontend/index.html"
+      "destination": "/index.html"
     }
   ]
 }

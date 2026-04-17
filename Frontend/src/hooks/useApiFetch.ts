@@ -4,7 +4,11 @@ import { useCallback } from 'react';
 
 export const useApiFetch = () => {
   const { getAccessTokenSilently, isAuthenticated } = useAuth0();
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  
+  // Em produção no Vercel, se usarmos caminhos relativos para o mesmo domínio, 
+  // evitamos problemas de CORS e de configuração de URL.
+  const apiUrl = import.meta.env.VITE_API_URL || 
+                 (import.meta.env.PROD ? window.location.origin : 'http://localhost:5000');
 
   const authenticatedFetch = useCallback(async (endpoint: string, options: any = {}) => {
     try {
