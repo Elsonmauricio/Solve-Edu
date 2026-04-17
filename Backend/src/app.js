@@ -142,11 +142,14 @@ app.use('*', (req, res) => {
 // Start server
 const PORT = process.env.PORT || 5000;
 
-server.listen(PORT, () => {
-  console.log(`🚀 Server running in ${process.env.NODE_ENV || 'development'} mode`);
-  console.log(`📡 API available at http://localhost:${PORT}/api`);
-  console.log(`🔌 WebSocket server running on port ${PORT}`);
-});
+// Apenas inicia o servidor se não estivermos no Vercel (Serverless)
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  server.listen(PORT, () => {
+    console.log(`🚀 Server running in ${process.env.NODE_ENV || 'development'} mode`);
+    console.log(`📡 API available at http://localhost:${PORT}/api`);
+    console.log(`🔌 WebSocket server running on port ${PORT}`);
+  });
+}
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
@@ -155,3 +158,4 @@ process.on('unhandledRejection', (err) => {
 });
 
 export { io };
+export default app;

@@ -2,6 +2,6 @@
   "name": "solve-edu-monorepo",
   "private": true,
   "scripts": {
-    "build": "npm install --prefix Frontend && npm run build --prefix Frontend"
+    "build": "cd Frontend && npm install && npm run build"
   }
 }
