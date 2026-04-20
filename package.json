@@ -3,5 +3,8 @@
   "private": true,
   "scripts": {
     "build": "npm install --prefix Frontend && npm run build --prefix Frontend"
+  },
+  "engines": {
+    "node": "20.x"
   }
 }

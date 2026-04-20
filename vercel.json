@@ -2,13 +2,13 @@
   "version": 2,
   "functions": {
     "Backend/src/app.js": {
-      "runtime": "nodejs20.x"
+      "maxDuration": 15
     }
   },
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "Backend/src/app.js"
+      "destination": "/Backend/src/app.js"
     },
     {
       "source": "/((?!api|assets|static|favicon.ico).*)",
