@@ -8,6 +8,8 @@ import { Menu, X, Search, User, Briefcase, GraduationCap, LogOut, LayoutDashboar
 import logo from '../../assets/Logo.png';
 import NotificationsDropdown from '../layout/NotificationsDropdown';
 import { notificationService } from '../../services/notification.service';
+import { supabase } from '../../lib/supabaseClient';
+import { toast } from 'react-hot-toast';
 
 interface Notification {
   id: string;
@@ -35,20 +37,44 @@ const Header = () => {
   ];
 
   useEffect(() => {
-    const fetchNotifications = async () => {
-      if (isAuthenticated) {
-        try {
-          const response = await notificationService.getMyNotifications();
-          if (response.success) {
-            setNotifications(response.data);
-          }
-        } catch (error: any) {
-          console.error("Failed to fetch notifications:", error);
-        }
-      }
+    if (!isAuthenticated || !user?.id) return;
+
+    // 1. Carregar notificações iniciais
+    const loadInitial = async () => {
+      const response = await notificationService.getMyNotifications();
+      if (response.success) setNotifications(response.data);
     };
-    fetchNotifications();
-  }, [isAuthenticated]);
+    loadInitial();
+
+    // 2. Configurar Subscrição Realtime
+    const channel = supabase
+      .channel(`user-notifications-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'Notification',
+          filter: `userId=eq.${user.id}`
+        },
+        (payload) => {
+          const newNotif = payload.new as Notification;
+          setNotifications(prev => [newNotif, ...prev]);
+          
+          // Feedback visual imediato
+          toast.success(newNotif.title, {
+            icon: '🔔',
+            duration: 5000
+          });
+        }
+      )
+      .subscribe();
+
+    // 3. Cleanup ao desmontar
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isAuthenticated, user?.id]);
 
   const handleNotificationClick = async (notification: Notification) => {
     // Se for uma notificação de mensagem, abrir o chat
@@ -67,10 +93,8 @@ const Header = () => {
         const unreadIds = notifications.filter(n => !n.isRead).map(n => n.id);
         
         if (unreadIds.length > 0) {
-          // Wrapping in an object structure which is standard for most backends
-          // Cast to any to bypass potential service type mismatch temporarily if needed
-          // @ts-ignore
-          await notificationService.markAsRead({ ids: unreadIds });
+          // Tenta enviar o payload. Se o erro 400 persistir, verifique a definição no notification.service.ts
+          await notificationService.markAsRead({ notificationIds: unreadIds });
           // Update UI immediately
           setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
         }

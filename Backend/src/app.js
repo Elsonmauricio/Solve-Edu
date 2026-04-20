@@ -4,8 +4,6 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import morgan from 'morgan';
-import http from 'http';
-import { Server } from 'socket.io';
 
 // Import routes
 import authRoutes from './routes/auth.routes.js';
@@ -30,7 +28,6 @@ dotenv.config();
 
 // Initialize Express app
 const app = express();
-const server = http.createServer(app);
 
 // Configuração dinâmica de CORS para aceitar subdomínios do Vercel
 const allowedOrigins = [
@@ -49,10 +46,6 @@ const corsOptions = {
   },
   credentials: true,
 };
-
-const io = new Server(server, {
-  cors: corsOptions,
-});
 
 // Security middleware
 app.use(helmet());
@@ -106,41 +99,6 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
 
-// WebSocket for real-time notifications
-io.on('connection', (socket) => {
-  console.log('New client connected:', socket.id);
-
-  // Join user to their room
-  socket.on('join', (userId) => {
-    socket.join(`user:${userId}`);
-    console.log(`User ${userId} joined their room`);
-  });
-
-  // Handle solution submission notifications
-  socket.on('solutionSubmitted', (data) => {
-    const { companyId, solutionId, problemTitle } = data;
-    io.to(`user:${companyId}`).emit('newSolution', {
-      solutionId,
-      problemTitle,
-      timestamp: new Date().toISOString(),
-    });
-  });
-
-  // Handle solution review notifications
-  socket.on('solutionReviewed', (data) => {
-    const { studentId, solutionId, status } = data;
-    io.to(`user:${studentId}`).emit('solutionStatusUpdate', {
-      solutionId,
-      status,
-      timestamp: new Date().toISOString(),
-    });
-  });
-
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
-  });
-});
-
 // Error handling middleware (should be last)
 app.use(errorHandler);
 
@@ -157,18 +115,16 @@ const PORT = process.env.PORT || 5000;
 
 // Apenas inicia o servidor se não estivermos no Vercel (Serverless)
 if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
-  server.listen(PORT, () => {
+  app.listen(PORT, () => {
     console.log(`🚀 Server running in ${process.env.NODE_ENV || 'development'} mode`);
     console.log(`📡 API available at http://localhost:${PORT}/api`);
-    console.log(`🔌 WebSocket server running on port ${PORT}`);
   });
 }
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled Promise Rejection:', err);
-  server.close(() => process.exit(1));
+  process.exit(1);
 });
 
-export { io };
 export default app;

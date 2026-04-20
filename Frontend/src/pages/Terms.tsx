@@ -41,7 +41,7 @@ const Terms = () => {
                 Responsabilidade sobre Conteúdos
               </h2>
               <p className="text-gray-600">
-                A SolveEdu não se responsabiliza pelo conteúdo submetido pelos utilizadores. 
+                A Solve Edu não se responsabiliza pelo conteúdo submetido pelos utilizadores. 
                 Conteúdos ofensivos, ilegais ou que violem direitos de autor serão removidos.
               </p>
             </section>
@@ -53,7 +53,7 @@ const Terms = () => {
               </h2>
               <p className="text-gray-600">
                 As recompensas são da inteira responsabilidade das empresas promotoras. 
-                A SolveEdu atua apenas como intermediária na divulgação e submissão.
+                A Solve Edu atua apenas como intermediária na divulgação e submissão.
               </p>
             </section>
           </div>

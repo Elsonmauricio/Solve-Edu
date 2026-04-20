@@ -6,7 +6,7 @@ export class ChatController {
   // Iniciar uma nova conversa ou obter uma existente
   static async startConversation(req, res) {
     try {
-      const userId = req.userId; // ID do utilizador logado (vindo do middleware)
+      const userId = req.userId?.trim();
       const { targetUserId } = req.body;
 
       if (!targetUserId) {
@@ -45,12 +45,14 @@ export class ChatController {
       if (createError) throw createError;
 
       // 3. Adicionar participantes
+      console.log(`[Chat] A registar participantes para a nova conversa ${newConv.id}`);
       const { error: partError } = await supabase
         .from('ConversationParticipant')
         .insert([
           { conversation_id: newConv.id, user_id: userId },
           { conversation_id: newConv.id, user_id: targetUserId }
-        ]);
+        ])
+        .select(); // Força o retorno para garantir que a escrita foi concluída
 
       if (partError) throw partError;
 
@@ -65,16 +67,41 @@ export class ChatController {
   // Enviar uma mensagem
   static async sendMessage(req, res) {
     try {
-      const userId = req.userId;
-      const { conversationId, content } = req.body;
+      const userId = req.userId?.trim();
+      const { conversationId: rawConvId, content } = req.body;
+      const conversationId = rawConvId?.trim();
 
       // Validação de Segurança
       if (!userId) {
+        console.error('[Chat] Tentativa de envio sem userId no req');
         return res.status(401).json({ success: false, message: 'Utilizador não autenticado.' });
       }
 
       if (!conversationId || !content) {
+        console.error('[Chat] Dados incompletos:', { conversationId, hasContent: !!content, body: req.body });
         return res.status(400).json({ success: false, message: 'Dados da mensagem incompletos.' });
+      }
+
+      // 0. Verificação de Segurança: O utilizador pertence a esta conversa?
+      const isAdmin = req.userRole === 'ADMIN';
+      
+      const { data: participant } = await supabase
+        .from('ConversationParticipant')
+        .select('conversation_id')
+        .eq('conversation_id', conversationId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!participant && !isAdmin) {
+        console.warn(`[Chat] Acesso negado. User ID: "${userId}", Convo ID: "${conversationId}", Role: ${req.userRole}`);
+        // Log extra para verificar se o participante existe de facto
+        const { data: check } = await supabase.from('ConversationParticipant')
+          .select('conversation_id')
+          .eq('conversation_id', conversationId)
+          .limit(1);
+        console.log(`[Chat Debug] Existem participantes nesta conversa? ${check?.length > 0 ? 'Sim' : 'Não'}`);
+
+        return res.status(403).json({ success: false, message: 'Não tem permissão para enviar mensagens nesta conversa.' });
       }
 
       // 1. Inserir a mensagem
@@ -114,7 +141,7 @@ export class ChatController {
 
       if (participants && participants.length > 0) {
         const notifications = participants.map(p => ({
-          userId: p.user_id,
+          userId: p.user_id, // Corrigido para camelCase para corresponder à tabela Notification
           type: 'NEW_MESSAGE',
           title: 'Nova Mensagem',
           message: `Nova mensagem de ${req.userName || 'alguém'}`,
@@ -201,7 +228,9 @@ export class ChatController {
         .eq('user_id', userId)
         .maybeSingle();
 
-      if (!participant) {
+      const isAdmin = req.userRole === 'ADMIN';
+
+      if (!participant && !isAdmin) {
         return res.status(403).json({ success: false, message: 'Não tem permissão para aceder a esta conversa.' });
       }
 

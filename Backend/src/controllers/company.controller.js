@@ -5,6 +5,41 @@ import { sanitizeRichText } from '../utils/sanitizer.js';
 import asyncHandler from '../utils/asyncHandler.js';
 
 export class CompanyController {
+  /**
+   * Obtém as empresas com mais desafios ativos para o ranking da comunidade.
+   * GET /api/company/featured
+   */
+  static getFeaturedCompanies = asyncHandler(async (req, res) => {
+    // 1. Buscar empresas e contar os seus problemas ativos
+    // Usamos uma query que traz o perfil e faz o count dos problemas relacionados
+    const { data: companies, error } = await supabase
+      .from('CompanyProfile')
+      .select(`
+        id,
+        companyName,
+        industry,
+        description,
+        website,
+        user:User(avatar),
+        problems:Problem(id, status)
+      `)
+      .limit(5);
+
+    if (error) throw error;
+
+    // 2. Formatar os dados para o frontend
+    const formattedCompanies = companies.map(company => ({
+      id: company.id,
+      name: company.companyName,
+      industry: company.industry,
+      avatar: Array.isArray(company.user) ? company.user[0]?.avatar : company.user?.avatar,
+      activeChallenges: company.problems ? company.problems.filter((p) => p.status === 'ACTIVE').length : 0
+    })).filter(c => c.activeChallenges > 0) // Apenas empresas com desafios ativos
+       .sort((a, b) => b.activeChallenges - a.activeChallenges);
+
+    res.json({ success: true, data: formattedCompanies });
+  });
+
   static getDashboardStats = asyncHandler(async (req, res) => {
       const companyId = req.companyId;
 
@@ -387,3 +422,5 @@ export class CompanyController {
       res.json({ success: true, message: 'Payout libertado com sucesso!' });
   });
 }
+
+export default CompanyController;

@@ -1,54 +1,46 @@
 import { supabase } from '../lib/supabase.js';
+import asyncHandler from '../utils/asyncHandler.js';
 
 export class StudentController {
-  static async getDashboardStats(req, res) {
-    try {
-      const studentId = req.studentId;
+  /**
+   * Obtém o ranking dos top estudantes baseados em soluções aceites e rating.
+   * GET /api/student/ranking
+   */
+  static getRanking = asyncHandler(async (req, res) => {
+    // 1. Buscar estudantes e as suas soluções aceites
+    const { data, error } = await supabase
+      .from('StudentProfile')
+      .select(`
+        id,
+        school,
+        year,
+        user:User(id, name, avatar),
+        solutions:Solution(rating, status)
+      `)
+      .eq('Solution.status', 'ACCEPTED');
 
-      if (!studentId) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Perfil de estudante não encontrado.' 
-        });
-      }
+    if (error) throw error;
 
-      // Executa todas as queries em paralelo para performance
-      const [
-        submittedCount,
-        acceptedCount,
-        ongoingCount,
-        ratingStats
-      ] = await Promise.all([
-        // Total submetido
-        supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('studentId', studentId).then(r => r.count || 0),
-        // Total aceites
-        supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('studentId', studentId).eq('status', 'ACCEPTED').then(r => r.count || 0),
-        // Em análise (Ongoing)
-        supabase.from('Solution').select('*', { count: 'exact', head: true }).eq('studentId', studentId).in('status', ['PENDING_REVIEW', 'NEEDS_REVISION']).then(r => r.count || 0),
-        // Média de Rating
-        supabase.from('Solution').select('rating').eq('studentId', studentId).not('rating', 'is', null)
-      ]);
+    // 2. Processar agregação (contagem e média)
+    const ranking = (data || []).map(student => {
+      const acceptedSolutions = student.solutions || [];
+      const totalRating = acceptedSolutions.reduce((sum, sol) => sum + (Number(sol.rating) || 0), 0);
+      
+      return {
+        id: student.user?.id || student.id,
+        name: student.user?.name || "Estudante",
+        avatar: student.user?.avatar,
+        school: student.school || "Instituição não definida",
+        level: `Nível ${student.year || 1}`,
+        solutionsCount: acceptedSolutions.length,
+        rating: acceptedSolutions.length > 0 ? totalRating / acceptedSolutions.length : 0
+      };
+    })
+    .sort((a, b) => b.solutionsCount - a.solutionsCount || b.rating - a.rating)
+    .slice(0, 5);
 
-      // Calcular média manualmente
-      let averageRating = 0;
-      if (ratingStats.data && ratingStats.data.length > 0) {
-        const sum = ratingStats.data.reduce((a, b) => a + (b.rating || 0), 0);
-        averageRating = parseFloat((sum / ratingStats.data.length).toFixed(1));
-      }
-
-      res.json({
-        success: true,
-        data: {
-          submittedCount,
-          acceptedCount,
-          ongoingCount,
-          averageRating
-        }
-      });
-
-    } catch (error) {
-      console.error('Get student dashboard stats error:', error);
-      res.status(500).json({ success: false, message: 'Erro ao buscar estatísticas.' });
-    }
-  }
+    res.json({ success: true, data: ranking });
+  });
 }
+
+export default StudentController;

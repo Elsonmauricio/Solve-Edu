@@ -31,13 +31,27 @@ export class NotificationController {
   static async markNotificationsAsRead(req, res) {
     try {
       const userId = req.userId;
-      const { notificationIds } = req.body; // Espera um array de IDs
+      
+      // Lógica robusta para extrair IDs: pode vir como array direto, ou dentro de um objeto
+      let notificationIds = [];
+      if (Array.isArray(req.body)) {
+        notificationIds = req.body;
+      } else if (req.body && typeof req.body === 'object') {
+        notificationIds = req.body.notificationIds || req.body.ids || [];
+      }
 
-      if (!notificationIds || !Array.isArray(notificationIds) || notificationIds.length === 0) {
+      if (notificationIds.length === 0) {
+        // Se o frontend enviar um objeto vazio, apenas respondemos sucesso para não poluir o log
+        if (Object.keys(req.body).length === 0) {
+          return res.json({ success: true, message: 'Nada para atualizar.' });
+        }
+        console.error('[Notifications] Payload inválido recebido:', JSON.stringify(req.body));
         return res.status(400).json({ success: false, message: 'É necessário fornecer um array de IDs de notificação.' });
       }
 
-      await supabase.from('Notification').update({ isRead: true }).eq('userId', userId).in('id', notificationIds);
+      const idsArray = Array.isArray(notificationIds) ? notificationIds : [notificationIds];
+
+      await supabase.from('Notification').update({ isRead: true }).eq('userId', userId).in('id', idsArray);
 
       res.json({ success: true, message: 'Notificações marcadas como lidas.' });
     } catch (error) {
