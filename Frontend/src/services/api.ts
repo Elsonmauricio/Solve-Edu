@@ -1,8 +1,9 @@
 import axios from 'axios';
 
 const api = axios.create({
-  // URL do seu backend. Certifique-se que a porta 5000 está correta.
-  baseURL: 'http://localhost:5000/api',
+  // Em produção, usamos o prefixo relativo para que o Vercel Rewrite funcione.
+  // Em desenvolvimento, o Vite proxy ou o URL completo trata disso.
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   headers: {
     'Content-Type': 'application/json',
   },
