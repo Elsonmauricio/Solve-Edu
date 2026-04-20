@@ -31,7 +31,6 @@ const Header = () => {
   const navigation = [
     { name: 'Problemas', href: '/problems', icon: Search },
     { name: 'Soluções', href: '/solutions', icon: Briefcase },
-    { name: 'Como Funciona', href: '/how-it-works', icon: GraduationCap },
     { name: 'Comunidade', href: '/community', icon: User },
   ];
 
