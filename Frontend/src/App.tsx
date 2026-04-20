@@ -184,8 +184,8 @@ function App() {
   const { user } = useApp();
 
   if (error) {
-    const isServiceNotFound = error.message.includes("Service not found");
-    const isUnauthorizedResource = error.message.includes("is not authorized to access resource server");
+    const isServiceNotFound = error.message?.includes("Service not found");
+    const isUnauthorizedResource = error.message?.includes("is not authorized to access resource server");
     const requestedAudience = import.meta.env.VITE_AUTH0_AUDIENCE;
 
     return (
