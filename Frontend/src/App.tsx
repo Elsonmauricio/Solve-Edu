@@ -8,31 +8,9 @@ import Footer from './components/layout/Footer';
 import { GraduationCap, Building, School } from 'lucide-react';
 import api from './services/api';
 import QuantumBackground from './components/layout/QuantumBackground';
-import Home from './pages/Home';
-import Problems from './pages/Problems';
-import Solutions from './pages/Solutions';
-import HowItWorks from './pages/HowItWorks';
-import Community from './pages/Community';
-import Privacy from './pages/Privacy';
-import Terms from './pages/Terms';
-import Security from './pages/Security';
-import ChildProtection from './pages/ChildProtection';
 import Help from './components/layout/Help';
 import Contact from './components/layout/Contact';
 import ComingSoon from './pages/ComingSoon'; // Importar componente genérico
-import StudentDashboard from './components/dashboard/StudentDashboard';
-import CompanyDashboard from './components/dashboard/CompanyDashboard';
-import AdminDashboard from './components/dashboard/AdminDashboard';
-import AdminUsers from './components/Admin/AdminUsers';
-import AdminContent from './components/Admin/AdminContent';
-import AdminReports from './components/Admin/AdminReports';
-import AdminSettings from './components/Admin/AdminSettings';
-import SchoolDashboard from './components/dashboard/SchoolDashboard';
-import ProblemDetail from './components/problems/ProblemDetail';
-import SolutionDetail from './components/solutions/SolutionDetail';
-import CreateProblem from './components/problems/CreateProblem';
-import SubmitSolution from './components/solutions/SubmitSolution';
-import ProfileSettings from './components/profile/ProfileSettings';
 import './styles/globals.css';
 import ProtectedRoute from './components/auth/ProtectedRoute'; // Confirmação: Este caminho está correto
 import { useUserInitialization } from './hooks/useUserInitialization';
@@ -41,6 +19,29 @@ import { Role } from './types';
 import ChatWidget from './components/chat/ChatWidget';
 import AdminSecurityLogs from './components/Admin/SecurityLogs';
 
+// Lazy Loading de Páginas e Componentes Pesados
+const Home = lazy(() => import('./pages/Home'));
+const Problems = lazy(() => import('./pages/Problems'));
+const Solutions = lazy(() => import('./pages/Solutions'));
+const HowItWorks = lazy(() => import('./pages/HowItWorks'));
+const Community = lazy(() => import('./pages/Community'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+const Terms = lazy(() => import('./pages/Terms'));
+const Security = lazy(() => import('./pages/Security'));
+const ChildProtection = lazy(() => import('./pages/ChildProtection'));
+const StudentDashboard = lazy(() => import('./components/dashboard/StudentDashboard'));
+const CompanyDashboard = lazy(() => import('./components/dashboard/CompanyDashboard'));
+const AdminDashboard = lazy(() => import('./components/dashboard/AdminDashboard'));
+const AdminUsers = lazy(() => import('./components/Admin/AdminUsers'));
+const AdminContent = lazy(() => import('./components/Admin/AdminContent'));
+const AdminReports = lazy(() => import('./components/Admin/AdminReports'));
+const AdminSettings = lazy(() => import('./components/Admin/AdminSettings'));
+const SchoolDashboard = lazy(() => import('./components/dashboard/SchoolDashboard'));
+const ProblemDetail = lazy(() => import('./components/problems/ProblemDetail'));
+const SolutionDetail = lazy(() => import('./components/solutions/SolutionDetail'));
+const CreateProblem = lazy(() => import('./components/problems/CreateProblem'));
+const SubmitSolution = lazy(() => import('./components/solutions/SubmitSolution'));
+const ProfileSettings = lazy(() => import('./components/profile/ProfileSettings'));
 
 // Componente para proteger rotas por Role (Permissão)
 const RoleGuard = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: Role[] }) => {
@@ -275,6 +276,7 @@ function App() {
           }}
         />
       <MainLayout>
+        <Suspense fallback={<MoonLoader />}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/problems" element={<Problems />} />
@@ -392,6 +394,7 @@ function App() {
               element={<ProtectedRoute><ProfileSettings /></ProtectedRoute>} 
             />
           </Routes>
+        </Suspense>
       </MainLayout>
     </Router>
   );

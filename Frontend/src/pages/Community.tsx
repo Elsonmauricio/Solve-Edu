@@ -167,7 +167,15 @@ const Community = () => {
               <div className="p-6">
                 <div className="space-y-4">
                   {loading ? (
-                    <div className="text-center text-gray-500 py-4">A carregar...</div>
+                    [1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center space-x-4 animate-pulse">
+                        <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                          <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                        </div>
+                      </div>
+                    ))
                   ) : topStudents.length > 0 ? (
                     topStudents.map((student, index) => (
                       <div key={student.id} className="flex items-center gap-2">
@@ -201,7 +209,15 @@ const Community = () => {
               
               <div className="space-y-4">
                 {loading ? (
-                  <div className="text-center text-gray-500 py-4">A carregar...</div>
+                  [1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center space-x-3 animate-pulse">
+                      <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+                        <div className="h-2 bg-gray-200 rounded w-1/2"></div>
+                      </div>
+                    </div>
+                  ))
                 ) : featuredCompanies.length > 0 ? (
                   featuredCompanies.map((company) => (
                     <div key={company.id} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg transition-colors">
