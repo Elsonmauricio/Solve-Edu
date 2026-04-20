@@ -2,6 +2,6 @@
   "name": "solve-edu-monorepo",
   "private": true,
   "scripts": {
-    "build": "echo 'Build process managed by vercel.json builders'"
+    "build": "npm install --prefix Frontend && npm run build --prefix Frontend"
   }
 }
