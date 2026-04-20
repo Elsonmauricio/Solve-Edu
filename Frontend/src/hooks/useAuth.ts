@@ -23,6 +23,7 @@ export const useAuth = () => {
       
       await loginWithRedirect({ 
         authorizationParams: { 
+          redirect_uri: window.location.origin,
           screen_hint: 'signup',
           'x-intended-role': role, // Parâmetro personalizado para o backend
         } 
