@@ -63,7 +63,7 @@ app.use(cors(corsOptions));
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500, // Aumentado para 500 para evitar erros falsos em desenvolvimento
+  max: process.env.NODE_ENV === 'production' ? 1000 : 500, 
   message: 'Muitas requisições deste IP. Tente novamente mais tarde.',
 });
 app.use('/api/', limiter);
