@@ -9,10 +9,10 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "/api/index.js"
+      "destination": "api/index.js"
     },
     {
-      "source": "/((?!api|assets|static|favicon.ico|index.html|vite.svg|logo.*).*)",
+      "source": "/((?!api|assets|static|favicon.ico|index.html|vite.svg|logo.*|@vite).*)",
       "destination": "/index.html"
     }
   ]
