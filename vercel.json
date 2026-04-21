@@ -1,18 +1,18 @@
 {
   "version": 2,
   "functions": {
-    "api/index.js": {
+    "api/*.js": {
       "maxDuration": 15
     }
   },
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "api/index.js"
+      "destination": "/api/index.js"
     },
     {
-      "source": "/((?!api|assets|static|favicon.ico|index.html).*)",
-      "destination": "/Frontend/dist/index.html"
+      "source": "/((?!api|assets|static|favicon.ico).*)",
+      "destination": "/index.html"
     }
   ],
   "cleanUrls": true
