@@ -62,14 +62,23 @@ const limiter = rateLimit({
   max: process.env.NODE_ENV === 'production' ? 1000 : 500, 
   message: 'Muitas requisições deste IP. Tente novamente mais tarde.',
 });
-app.use('/api/', limiter);
+app.use('/api', limiter);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Middleware para corrigir o prefixo /api/api enviado pelo Frontend
+app.use((req, res, next) => {
+  if (req.url.startsWith('/api/api')) {
+    req.url = req.url.replace('/api/api', '/api');
+    console.log(`[Path Fix] Redirected duplicated prefix: ${req.url}`);
+  }
+  next();
+});
+
 // Logging middleware
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === 'development' || process.env.VERCEL) {
   app.use(morgan('dev'));
 }
 

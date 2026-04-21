@@ -8,11 +8,11 @@
   },
   "rewrites": [
     {
-      "source": "/api/(.*)",
+      "source": "/api/:path*",
       "destination": "/api/index.js"
     },
     {
-      "source": "/((?!api|assets|static|favicon.ico|index.html|vite.svg|logo.*|@vite|manifest.json).*)",
+      "source": "/((?!api|assets|static|favicon.ico|index.html|vite.svg|logo.*|@vite|manifest.json|@fs).*)",
       "destination": "/index.html"
     }
   ]
