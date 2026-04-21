@@ -2,7 +2,7 @@
   "name": "solve-edu-monorepo",
   "private": true,
   "scripts": {
-    "build": "npm install --prefix Frontend && npm run build --prefix Frontend"
+    "build": "npm install --prefix Backend && npm install --prefix Frontend && npm run build --prefix Frontend"
   },
   "engines": {
     "node": "20.x"

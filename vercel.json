@@ -11,8 +11,9 @@
       "destination": "api/index.js"
     },
     {
-      "source": "/((?!api|assets|static|favicon.ico).*)",
-      "destination": "/index.html"
+      "source": "/((?!api|assets|static|favicon.ico|index.html).*)",
+      "destination": "/Frontend/dist/index.html"
     }
-  ]
+  ],
+  "cleanUrls": true
 }
