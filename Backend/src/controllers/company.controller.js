@@ -111,7 +111,7 @@ export class CompanyController {
       // 1. Obter a solução e verificar se pertence à empresa
       const { data: solution, error: solutionError } = await supabase
         .from('Solution')
-        .select('*, problem:Problem(companyId, title), student:StudentProfile(user:User(email, name))')
+        .select('*, problem:Problem(id, companyId, title), student:StudentProfile(user:User(email, name))')
         .eq('id', solutionId)
         .single();
 
@@ -143,6 +143,18 @@ export class CompanyController {
         .single();
       
       if (updateError) throw updateError;
+
+      // 2.1 Fluxo de Transição de Estado: Fechar o desafio
+      // Isto garante que o desafio não apareça mais como ativo no marketplace
+      const targetProblemId = solution.problem.id || solution.problemId;
+      const { error: problemUpdateError } = await supabase
+        .from('Problem')
+        .update({ status: 'COMPLETED' })
+        .eq('id', targetProblemId);
+
+      if (problemUpdateError) {
+        console.error('[CompanyController] Erro ao fechar desafio:', problemUpdateError);
+      }
 
       // 3. Se houver recompensa, criar a transação
       if (rewardAmount > 0) {

@@ -31,8 +31,9 @@ const Header = () => {
   const location = useLocation();
 
   const navigation = [
-    { name: 'Problemas', href: '/problems', icon: Search },
+    { name: 'Desafios', href: '/problems', icon: Search },
     { name: 'Soluções', href: '/solutions', icon: Briefcase },
+    { name: 'Talentos', href: '/talent', icon: GraduationCap },
     { name: 'Comunidade', href: '/community', icon: User },
   ];
 
@@ -93,8 +94,7 @@ const Header = () => {
         const unreadIds = notifications.filter(n => !n.isRead).map(n => n.id);
         
         if (unreadIds.length > 0) {
-          // Tenta enviar o payload. Se o erro 400 persistir, verifique a definição no notification.service.ts
-          await notificationService.markAsRead({ notificationIds: unreadIds });
+          await notificationService.markAsRead(unreadIds);
           // Update UI immediately
           setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
         }

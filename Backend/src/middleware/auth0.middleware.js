@@ -26,6 +26,7 @@ const normalizeRole = (role) => {
  * Este processo é conhecido como "Just-In-Time (JIT) Provisioning".
  */
 export const syncUser = async (req, res, next) => {
+  const startTime = Date.now();
   const auth0Id = req.auth.payload.sub;
   
   // Tentar obter dados do payload do token
@@ -41,6 +42,7 @@ export const syncUser = async (req, res, next) => {
       console.warn('[Auth0] Global fetch is not available. Userinfo sync might fail.');
     } else {
     try {
+      const auth0FetchStart = Date.now();
       const accessToken = req.headers.authorization?.split(' ')[1];
       if (accessToken) {
         const response = await fetch(`https://${process.env.AUTH0_DOMAIN}/userinfo`, {
@@ -55,6 +57,7 @@ export const syncUser = async (req, res, next) => {
           email_verified = userInfo.email_verified;
         }
       }
+      console.log(`[Perf] Auth0 /userinfo fetch took: ${Date.now() - auth0FetchStart}ms`);
     } catch (error) {
       console.warn('Warning: Could not fetch userinfo from Auth0:', error.message);
     }
@@ -63,11 +66,13 @@ export const syncUser = async (req, res, next) => {
 
   try {
     // 1. Tentar encontrar o utilizador pelo auth0Id
+    const dbLookupStart = Date.now();
     let { data: user, error } = await supabase
       .from('User')
       .select('*')
       .eq('auth0Id', auth0Id)
       .maybeSingle(); // Usa maybeSingle para evitar erro PGRST116 se não existir
+    console.log(`[Perf] Supabase User lookup took: ${Date.now() - dbLookupStart}ms`);
 
     // Se o utilizador existe mas não tem role definida, atualiza-o.
     if (user && !user.role) {
@@ -184,6 +189,7 @@ export const syncUser = async (req, res, next) => {
     let cProfile = null;
     let scProfile = null;
 
+    const profileStart = Date.now();
     if (user.role === 'STUDENT') {
       let { data } = await supabase.from('StudentProfile').select('*').eq('userId', user.id).maybeSingle();
       if (!data) {
@@ -212,6 +218,7 @@ export const syncUser = async (req, res, next) => {
       scProfile = data;
       user.schoolProfile = scProfile;
     }
+    console.log(`[Perf] Profile sync took: ${Date.now() - profileStart}ms`);
 
     // Anexa a informação do utilizador da TUA base de dados ao objeto `req`.
     req.userId = user.id;
@@ -229,6 +236,7 @@ export const syncUser = async (req, res, next) => {
       req.schoolId = scProfile.id;
     }
 
+    console.log(`[Perf] Total syncUser middleware took: ${Date.now() - startTime}ms`);
     next();
   } catch (error) {
     console.error('Error syncing user:', error);

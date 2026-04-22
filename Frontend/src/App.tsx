@@ -22,6 +22,7 @@ import AdminSecurityLogs from './components/Admin/SecurityLogs';
 // Lazy Loading de Páginas e Componentes Pesados
 const Home = lazy(() => import('./pages/Home'));
 const Problems = lazy(() => import('./pages/Problems'));
+const Talent = lazy(() => import('./pages/Talent'));
 const Solutions = lazy(() => import('./pages/Solutions'));
 const HowItWorks = lazy(() => import('./pages/HowItWorks'));
 const Community = lazy(() => import('./pages/Community'));
@@ -295,7 +296,7 @@ function App() {
             {/* Rotas "Em Breve" para links do Futuros */}
             <Route path="/resources" element={<ComingSoon title="Recursos Educativos" />} />
             <Route path="/mentorship" element={<ComingSoon title="Programa de Mentoria" />} />
-            <Route path="/talent" element={<ComingSoon title="Encontrar Talentos" />} />
+            <Route path="/talent" element={<Talent />} />
             <Route path="/success-stories" element={<ComingSoon title="Casos de Sucesso" />} />
             <Route path="/partnerships" element={<ComingSoon title="Parcerias" />} />
             <Route path="/company/team" element={<ComingSoon title="Gestão de Equipa" />} />

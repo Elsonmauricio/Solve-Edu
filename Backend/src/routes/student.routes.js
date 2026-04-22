@@ -1,10 +1,9 @@
-import { Router } from 'express';
+import express from 'express';
 import { StudentController } from '../controllers/student.controller.js';
-import { authenticate } from '../middleware/auth0.middleware.js';
+import { optionalAuth } from '../middleware/auth0.middleware.js';
 
-const router = Router();
+const router = express.Router();
 
-// O ranking deve ser visível para todos os tipos de utilizadores da comunidade
-router.get('/ranking', authenticate(['STUDENT', 'COMPANY', 'ADMIN', 'SCHOOL']), StudentController.getRanking);
+router.get('/', optionalAuth, StudentController.getAllStudents);
 
 export default router;

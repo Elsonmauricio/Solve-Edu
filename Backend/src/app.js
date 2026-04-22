@@ -99,7 +99,7 @@ app.use('/api/solutions', solutionsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/school', schoolRoutes); // Usar as rotas da escola
-app.use('/api/student', studentRoutes);
+app.use('/api/students', studentRoutes);
 app.use('/api/company', companyRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/chat', chatRoutes);

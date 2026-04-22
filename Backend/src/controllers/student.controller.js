@@ -1,46 +1,72 @@
 import { supabase } from '../lib/supabase.js';
-import asyncHandler from '../utils/asyncHandler.js';
 
 export class StudentController {
   /**
-   * Obtém o ranking dos top estudantes baseados em soluções aceites e rating.
-   * GET /api/student/ranking
+   * Lista todos os estudantes com os seus perfis detalhados
    */
-  static getRanking = asyncHandler(async (req, res) => {
-    // 1. Buscar estudantes e as suas soluções aceites
-    const { data, error } = await supabase
-      .from('StudentProfile')
-      .select(`
-        id,
-        school,
-        year,
-        user:User(id, name, avatar),
-        solutions:Solution(rating, status)
-      `)
-      .eq('Solution.status', 'ACCEPTED');
+  static async getAllStudents(req, res) {
+    try {
+      const { search, skill, location } = req.query;
 
-    if (error) throw error;
+      let query = supabase
+        .from('User')
+        .select(`
+          id,
+          name,
+          avatar,
+          StudentProfile (
+            school,
+            bio,
+            skills,
+            location,
+            rating,
+            solutionsCount
+          )
+        `);
 
-    // 2. Processar agregação (contagem e média)
-    const ranking = (data || []).map(student => {
-      const acceptedSolutions = student.solutions || [];
-      const totalRating = acceptedSolutions.reduce((sum, sol) => sum + (Number(sol.rating) || 0), 0);
-      
-      return {
-        id: student.user?.id || student.id,
-        name: student.user?.name || "Estudante",
-        avatar: student.user?.avatar,
-        school: student.school || "Instituição não definida",
-        level: `Nível ${student.year || 1}`,
-        solutionsCount: acceptedSolutions.length,
-        rating: acceptedSolutions.length > 0 ? totalRating / acceptedSolutions.length : 0
-      };
-    })
-    .sort((a, b) => b.solutionsCount - a.solutionsCount || b.rating - a.rating)
-    .slice(0, 5);
+      // Filtro base: apenas estudantes
+      query = query.eq('role', 'STUDENT');
 
-    res.json({ success: true, data: ranking });
-  });
+      // Melhoria de Engenharia: Apenas mostrar estudantes que já preencheram competências
+      // Isso garante que o recrutador não veja perfis "vazios".
+      // Opcional: query = query.eq('StudentProfile.isPublic', true); 
+      query = query.not('StudentProfile.skills', 'is', null);
+
+      // Filtros Dinâmicos
+      if (search) {
+        query = query.ilike('name', `%${search}%`);
+      }
+
+      if (location) {
+        query = query.filter('StudentProfile.location', 'ilike', `%${location}%`);
+      }
+
+      if (skill && skill !== 'Todas as áreas') {
+        // Assume que skills é um array no Postgres
+        query = query.contains('StudentProfile->skills', [skill]);
+      }
+
+      const { data, error } = await query.order('name');
+
+      if (error) throw error;
+
+      // Normalização dos dados para o Frontend
+      const students = data.map(user => ({
+        id: user.id,
+        name: user.name,
+        avatar: user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`,
+        role: 'Estudante',
+        school: user.StudentProfile?.school || 'Ensino Profissional',
+        skills: user.StudentProfile?.skills || [],
+        rating: user.StudentProfile?.rating || 0,
+        solutionsCount: user.StudentProfile?.solutionsCount || 0,
+        location: user.StudentProfile?.location || 'Localização não definida'
+      }));
+
+      res.json({ success: true, data: students });
+    } catch (error) {
+      console.error('[StudentController] Error:', error);
+      res.status(500).json({ success: false, message: 'Erro ao carregar lista de talentos.' });
+    }
+  }
 }
-
-export default StudentController;

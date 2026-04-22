@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
@@ -36,6 +36,7 @@ const SolutionDetail: React.FC = () => {
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const commentInputRef = useRef<HTMLTextAreaElement>(null);
   // Estados para interações
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
@@ -383,6 +384,7 @@ const SolutionDetail: React.FC = () => {
                 </div>
                 <div className="flex-1">
                   <textarea
+                    ref={commentInputRef}
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     placeholder="Partilhe a sua opinião sobre esta solução..."
@@ -574,12 +576,25 @@ const SolutionDetail: React.FC = () => {
             </p>
             
             <div className="space-y-3">
-              <button className="w-full bg-white text-solve-blue py-3 rounded-xl font-semibold hover:bg-gray-100 transition-colors flex items-center justify-center space-x-2">
-                <ThumbsUp size={16} />
-                <span>Apoiar Solução</span>
+              <button 
+                onClick={() => handleToggleInteraction('LIKE')}
+                className={`w-full py-3 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2 ${
+                  isLiked 
+                    ? 'bg-blue-50 text-solve-blue border border-solve-blue/30' 
+                    : 'bg-white text-solve-blue hover:bg-gray-100'
+                }`}
+              >
+                <ThumbsUp size={16} className={isLiked ? 'fill-current' : ''} />
+                <span>{isLiked ? 'Solução Apoiada' : 'Apoiar Solução'}</span>
               </button>
               
-              <button className="w-full bg-transparent border border-white text-white py-3 rounded-xl font-semibold hover:bg-white/10 transition-colors flex items-center justify-center space-x-2">
+              <button 
+                onClick={() => {
+                  commentInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  commentInputRef.current?.focus();
+                }}
+                className="w-full bg-transparent border border-white text-white py-3 rounded-xl font-semibold hover:bg-white/10 transition-colors flex items-center justify-center space-x-2"
+              >
                 <MessageCircle size={16} />
                 <span>Deixar Comentário</span>
               </button>

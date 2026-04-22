@@ -10,6 +10,8 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,
+        proxyTimeout: 15000, // Espera até 15s pelo backend
+        timeout: 15000,
         // Adiciona esta linha se o teu backend tiver rotas como app.get('/problems') em vez de app.get('/api/problems')
         // Se o teu backend JÁ usa o prefixo /api, podes remover ou comentar a linha abaixo.
       }

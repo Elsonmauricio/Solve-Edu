@@ -7,7 +7,7 @@ const router = Router();
 // ==========================================
 // Rotas de Estatísticas e Exportação
 // ==========================================
-router.get('/stats', authenticate(), SolutionController.getStats);
+router.get('/stats', optionalAuth, SolutionController.getStats);
 router.get('/top', optionalAuth, SolutionController.getTopSolutions);
 
 // Rota para exportar pauta (Excel) - Deve vir antes de /:id para não colidir

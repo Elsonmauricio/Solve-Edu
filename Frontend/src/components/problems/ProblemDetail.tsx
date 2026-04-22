@@ -48,7 +48,10 @@ const ProblemDetail: React.FC = () => {
   const displayProblem: Problem | null = problemDetail;
 
   // A contagem de soluções deve vir diretamente da API
-  const solutionsCount = (displayProblem as any)?._count?.solutions ?? 0;
+  // Melhoria: Verifica múltiplas fontes possíveis para a contagem (count ou array de soluções)
+  const solutionsCount = (displayProblem as any)?._count?.solutions ?? 
+                        (displayProblem as any)?.solutions?.length ?? 
+                        0;
 
   // Helper para obter nome da empresa de forma segura
   const getCompanyName = (p: Problem) => {
@@ -86,6 +89,13 @@ const ProblemDetail: React.FC = () => {
       'ENGINEERING': 'text-cyan-600 bg-cyan-100',
     };
     return colors[category] || 'text-gray-600 bg-gray-100';
+  };
+
+  const getStatusBadge = (status: string) => {
+    if (status === 'COMPLETED') {
+      return 'text-gray-600 bg-gray-200 border border-gray-300';
+    }
+    return 'text-green-600 bg-green-100 border border-green-200';
   };
 
   if (isLoading) {
@@ -160,6 +170,9 @@ const ProblemDetail: React.FC = () => {
 
                 {/* Tags */}
                 <div className="flex flex-wrap gap-2 mb-6">
+                  <span className={`px-4 py-2 rounded-full text-sm font-bold ${getStatusBadge(displayProblem.status || 'ACTIVE')}`}>
+                    {displayProblem.status === 'COMPLETED' ? 'ENCERRADO' : 'ATIVO'}
+                  </span>
                   <span className={`px-4 py-2 rounded-full text-sm font-medium ${getDifficultyColor(displayProblem.difficulty || 'Fácil')}`}>
                     {displayProblem.difficulty || 'Fácil'}
                   </span>
@@ -289,24 +302,49 @@ const ProblemDetail: React.FC = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
           >
-            <div className="bg-gradient-to-r from-solve-blue to-solve-purple rounded-2xl p-6 text-white">
-            <h3 className="text-lg font-semibold mb-2">Pronto para o desafio?</h3>
-            <p className="text-blue-100 mb-6 text-sm">
-              Desenvolva a sua solução e transforme-a na sua PAP
-            </p>
-            
-            <Link
-              to={`/submit-solution/${displayProblem.id}`}
-              className="block w-full bg-white text-solve-blue text-center py-3 rounded-xl font-semibold hover:bg-gray-100 transition-colors mb-3"
-            >
-              Submeter Solução
-            </Link>
-            
-            <button className="block w-full bg-transparent border border-white text-white text-center py-3 rounded-xl font-semibold hover:bg-white/10 transition-colors">
-              Salvar para Depois
-            </button>
-          </div>
-        </motion.div>
+            {displayProblem.status === 'COMPLETED' ? (
+              <div className="bg-gray-100 rounded-2xl p-6 border border-gray-200">
+                <div className="flex items-center space-x-2 text-green-600 mb-2">
+                  <CheckCircle size={20} />
+                  <h3 className="text-lg font-semibold">Desafio Resolvido</h3>
+                </div>
+                <p className="text-gray-600 mb-4 text-sm">
+                  Este desafio já foi concluído com sucesso. Uma solução foi validada e aceite pela empresa.
+                </p>
+                
+                <div className="space-y-2">
+                  <Link
+                    to="/problems"
+                    className="block w-full bg-white border border-gray-300 text-gray-700 text-center py-3 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+                  >
+                    Explorar outros Desafios
+                  </Link>
+                  
+                  {/* Se houver uma solução vencedora, poderíamos linkar aqui */}
+                  <Link
+                    to="/solutions"
+                    className="block w-full bg-solve-blue/10 text-solve-blue text-center py-3 rounded-xl font-semibold hover:bg-solve-blue/20 transition-colors"
+                  >
+                    Ver Soluções Aceites
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gradient-to-r from-solve-blue to-solve-purple rounded-2xl p-6 text-white">
+                <h3 className="text-lg font-semibold mb-2">Pronto para o desafio?</h3>
+                <p className="text-blue-100 mb-6 text-sm">
+                  Desenvolva a sua solução e transforme-a na sua PAP
+                </p>
+                <Link
+                  to={`/submit-solution/${displayProblem.id}`}
+                  className="block w-full bg-white text-solve-blue text-center py-3 rounded-xl font-semibold hover:bg-gray-100 transition-colors mb-3"
+                >
+                  Submeter Solução
+                </Link>
+              </div>
+            )}
+          </motion.div>
+       
 
           {/* Company Info */}
           <motion.div
