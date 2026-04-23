@@ -4,16 +4,15 @@
     {
       "src": "Frontend/package.json",
       "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
+      "config": { "outputDirectory": "dist" }
     },
     {
       "src": "Backend/src/app.js",
       "use": "@vercel/node"
     }
   ],
-  "routes": [
-    { "src": "/api/(.*)", "dest": "Backend/src/app.js" },
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "Backend/src/app.js" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

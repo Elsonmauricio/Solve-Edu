@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "npm install --prefix Frontend && npm run build --prefix Frontend"
+    "build": "echo 'Build handled by vercel.json'"
   },
   "dependencies": {
     "express": "^4.18.2",
