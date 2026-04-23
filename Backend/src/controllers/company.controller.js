@@ -50,45 +50,55 @@ export class CompanyController {
         });
       }
 
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const startOfDayISO = startOfDay.toISOString();
+
       const [
-        activeProblems,
-        totalSolutionsReceived,
-        pendingReviews,
-        totalRewardsData
+        problemsRes,
+        solutionsRes,
+        rewardsRes
       ] = await Promise.all([
-        // Problemas Ativos
-        supabase.from('Problem').select('*', { count: 'exact', head: true }).eq('companyId', companyId).eq('status', 'ACTIVE').then(r => r.count || 0),
-        
-        // Total de Soluções Recebidas em todos os problemas da empresa
-        supabase.from('Solution').select('problem!inner(companyId)', { count: 'exact', head: true }).eq('problem.companyId', companyId).then(r => r.count || 0),
-
-        // Soluções pendentes de revisão
-        supabase.from('Solution').select('problem!inner(companyId)', { count: 'exact', head: true })
-          .eq('problem.companyId', companyId)
-          .eq('status', 'PENDING_REVIEW')
-          .then(r => r.count || 0),
-
-        // Total de recompensas pagas pela empresa.
-        // Isto assume que existe uma tabela 'Transaction'.
-        supabase.from('Transaction')
-          .select('amount')
-          .eq('companyId', companyId)
-          .eq('type', 'REWARD')
-          .eq('status', 'COMPLETED')
+        // 1. Buscar todos os problemas da empresa para estatísticas
+        supabase.from('Problem').select('id, status, createdAt').eq('companyId', companyId),
+        // 2. Buscar todas as soluções ligadas aos problemas da empresa
+        supabase.from('Solution').select('status, rating, submittedAt, reviewedAt, problem!inner(companyId)').eq('problem.companyId', companyId),
+        // 3. Buscar transações de recompensa concluídas
+        supabase.from('Transaction').select('amount').eq('companyId', companyId).eq('type', 'REWARD').eq('status', 'COMPLETED')
       ]);
 
-      // Calcula o total de recompensas a partir dos dados retornados.
-      const totalRewards = totalRewardsData.data 
-        ? totalRewardsData.data.reduce((sum, tx) => sum + tx.amount, 0) 
-        : 0;
+      const problems = problemsRes.data || [];
+      const solutions = solutionsRes.data || [];
+      const rewards = rewardsRes.data || [];
+
+      // Cálculos de agregados e métricas "Hoje"
+      const activeProblems = problems.filter(p => p.status === 'ACTIVE').length;
+      const newProblemsToday = problems.filter(p => p.createdAt >= startOfDayISO).length;
+
+      const totalSolutions = solutions.length;
+      const acceptedSolutions = solutions.filter(s => s.status === 'ACCEPTED').length;
+      const pendingReviews = solutions.filter(s => s.status === 'PENDING_REVIEW').length;
+      const newSolutionsToday = solutions.filter(s => s.submittedAt >= startOfDayISO).length;
+      const newlyAcceptedSolutionsToday = solutions.filter(s => s.status === 'ACCEPTED' && s.reviewedAt && s.reviewedAt >= startOfDayISO).length;
+
+      const ratings = solutions.map(s => s.rating).filter(r => r != null);
+      const averageSolutionRating = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
+      const acceptanceRate = totalSolutions > 0 ? (acceptedSolutions / totalSolutions) * 100 : 0;
+      const totalRewards = rewards.reduce((sum, tx) => sum + (tx.amount || 0), 0);
 
       res.json({
         success: true,
         data: {
           activeProblems,
-          totalSolutionsReceived,
+          totalSolutions,
+          acceptedSolutions,
           pendingReviews,
-          totalRewards
+          totalRewards,
+          averageSolutionRating,
+          acceptanceRate,
+          newProblemsToday,
+          newSolutionsToday,
+          newlyAcceptedSolutionsToday
         }
       });
   });
