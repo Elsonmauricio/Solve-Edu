@@ -1,3 +1,18 @@
 {
-  "outputDirectory": "Frontend/dist"
+  "version": 2,
+  "builds": [
+    {
+      "src": "Frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": { "outputDirectory": "dist" }
+    },
+    {
+      "src": "Backend/src/app.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "Backend/src/app.js" },
+    { "src": "/(.*)", "dest": "Frontend/dist/$1" }
+  ]
 }
