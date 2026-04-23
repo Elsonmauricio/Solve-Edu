@@ -35,8 +35,18 @@ export const syncUser = async (req, res, next) => {
   let picture = req.auth.payload.picture;
   let email_verified = req.auth.payload.email_verified;
 
-  // Se o email não estiver no token (comum em Access Tokens), tentar buscar do endpoint /userinfo
-  if (!email) {
+  try {
+    // 1. Tentar encontrar o utilizador pelo auth0Id PRIMEIRO (Evita chamadas de rede desnecessárias)
+    const dbLookupStart = Date.now();
+    let { data: user, error } = await supabase
+      .from('User')
+      .select('*')
+      .eq('auth0Id', auth0Id)
+      .maybeSingle();
+    console.log(`[Perf] Supabase User lookup took: ${Date.now() - dbLookupStart}ms`);
+
+    // 2. Só vamos ao Auth0 se o utilizador não existir na BD e não tivermos email no token
+    if (!user && !email) {
     // Verifica se fetch existe (Node 18+) ou usa um polyfill se necessário
     if (typeof fetch === 'undefined') {
       console.warn('[Auth0] Global fetch is not available. Userinfo sync might fail.');
@@ -63,16 +73,6 @@ export const syncUser = async (req, res, next) => {
     }
     }
   }
-
-  try {
-    // 1. Tentar encontrar o utilizador pelo auth0Id
-    const dbLookupStart = Date.now();
-    let { data: user, error } = await supabase
-      .from('User')
-      .select('*')
-      .eq('auth0Id', auth0Id)
-      .maybeSingle(); // Usa maybeSingle para evitar erro PGRST116 se não existir
-    console.log(`[Perf] Supabase User lookup took: ${Date.now() - dbLookupStart}ms`);
 
     // Se o utilizador existe mas não tem role definida, atualiza-o.
     if (user && !user.role) {
@@ -153,7 +153,8 @@ export const syncUser = async (req, res, next) => {
             name: displayName,
             avatar: picture,
             role: role,
-            isVerified: email_verified || false
+            isVerified: email_verified || false,
+            level: 'Iniciante'
           })
           .select()
           .single();

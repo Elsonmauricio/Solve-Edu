@@ -99,7 +99,8 @@ app.use('/api/solutions', solutionsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/school', schoolRoutes); // Usar as rotas da escola
-app.use('/api/students', studentRoutes);
+app.use('/api/students', studentRoutes); // Mantemos o plural
+app.use('/api/student', studentRoutes);  // Adicionamos o singular como alias para evitar 404 do frontend
 app.use('/api/company', companyRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/chat', chatRoutes);

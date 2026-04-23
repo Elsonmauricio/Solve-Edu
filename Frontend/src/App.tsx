@@ -23,6 +23,7 @@ import AdminSecurityLogs from './components/Admin/SecurityLogs';
 const Home = lazy(() => import('./pages/Home'));
 const Problems = lazy(() => import('./pages/Problems'));
 const Talent = lazy(() => import('./pages/Talent'));
+const TalentDetail = lazy(() => import('./pages/TalentDetail'));
 const Solutions = lazy(() => import('./pages/Solutions'));
 const HowItWorks = lazy(() => import('./pages/HowItWorks'));
 const Community = lazy(() => import('./pages/Community'));
@@ -50,28 +51,38 @@ const RoleGuard = ({ children, allowedRoles }: { children: React.ReactNode, allo
   const { logout } = useAuth0();
   const location = useLocation();
   const { dispatch } = useApp();
+  const [step, setStep] = useState<'ROLE_SELECTION' | 'PROFILE_COMPLETION'>('ROLE_SELECTION');
 
   if (!user) {
     return null; // ou um spinner
   }
 
-  // Normalizar roles para evitar problemas de case-sensitivity (ex: "student" vs "STUDENT")
   const userRole = (user.role || "").toUpperCase() as Role;
+  
+  // Verificação de Integridade: O perfil está minimamente preenchido?
+  // Melhoria: Lidar com o facto de o perfil poder vir como objeto ou array do backend
+  const sProfile = Array.isArray(user.studentProfile) ? user.studentProfile[0] : user.studentProfile;
+  const cProfile = Array.isArray(user.companyProfile) ? user.companyProfile[0] : user.companyProfile;
+  const scProfile = Array.isArray(user.schoolProfile) ? user.schoolProfile[0] : user.schoolProfile;
 
-  // Ecrã de seleção de perfil se a role não estiver definida
-  if (!userRole) {
+  const isProfileIncomplete = 
+    (userRole === 'STUDENT' && (!sProfile?.skills || sProfile?.skills?.length === 0)) ||
+    (userRole === 'COMPANY' && !cProfile?.companyName) ||
+    (userRole === 'SCHOOL' && !scProfile?.schoolName);
+
+  // Ecrã de seleção de perfil OU conclusão de perfil
+  if (!userRole || (isProfileIncomplete && location.pathname !== '/settings')) {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleRoleSelection = async (role: Role) => {
       setIsSubmitting(true);
       try {
-        // Idealmente, esta chamada estaria num ficheiro de serviço (ex: userService.setRole)
         const response = await api.put('/users/me/role', { role });
         
         if (response.data.success && response.data.data) {
           dispatch({ type: 'SET_USER', payload: response.data.data });
-          toast.success('Perfil definido com sucesso! A redirecionar...');
-          // A re-renderização do App irá tratar do redirecionamento
+          setStep('PROFILE_COMPLETION');
+          toast.success('Tipo de conta definido! Vamos configurar os detalhes do seu perfil.');
         } else {
           toast.error(response.data.message || 'Não foi possível definir o perfil.');
         }
@@ -81,6 +92,12 @@ const RoleGuard = ({ children, allowedRoles }: { children: React.ReactNode, allo
         setIsSubmitting(false);
       }
     };
+
+    if (step === 'PROFILE_COMPLETION' || isProfileIncomplete) {
+      return (
+        <Navigate to="/settings" state={{ from: 'onboarding', message: 'Por favor, complete os dados obrigatórios do seu perfil para continuar.' }} replace />
+      );
+    }
 
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
@@ -297,6 +314,7 @@ function App() {
             <Route path="/resources" element={<ComingSoon title="Recursos Educativos" />} />
             <Route path="/mentorship" element={<ComingSoon title="Programa de Mentoria" />} />
             <Route path="/talent" element={<Talent />} />
+            <Route path="/talent/:id" element={<TalentDetail />} />
             <Route path="/success-stories" element={<ComingSoon title="Casos de Sucesso" />} />
             <Route path="/partnerships" element={<ComingSoon title="Parcerias" />} />
             <Route path="/company/team" element={<ComingSoon title="Gestão de Equipa" />} />

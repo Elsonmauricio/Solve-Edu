@@ -1,16 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 
-import { Save, User, Building, School, Link as LinkIcon, Briefcase, GraduationCap, MapPin, Mail, Phone } from 'lucide-react';
+import { Save, User, Building, School, Link as LinkIcon, Briefcase, GraduationCap, MapPin, Mail, Phone, Plus, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { SCHOOLS, INDUSTRIES } from '../../utils/constants';
 
+// Lista de competências baseada nas categorias da página de Talentos
+const SKILLS_LIST = [
+  'React', 'Node.js', 'TypeScript', 'JavaScript', 'Python', 'Java', 'C++', 
+  'UI/UX Design', 'Figma', 'Tailwind CSS', 'Next.js', 'PostgreSQL', 'MongoDB', 
+  'SQL', 'Machine Learning', 'AI', 'Data Science', 'Mobile Development', 
+  'Frontend Development', 'Backend Development', 'Fullstack Development',
+  'DevOps', 'Cloud Computing', 'AWS', 'Azure', 'Cibersegurança', 'Blockchain',
+  'Robótica', 'IoT', 'Marketing Digital', 'Gestão de Projetos', 'Software Architecture'
+];
+
 const ProfileSettings: React.FC = () => {
   const { user, dispatch } = useApp();
   const { getAccessTokenSilently } = useAuth0();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newSkill, setNewSkill] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     avatar: '',
@@ -22,7 +33,8 @@ const ProfileSettings: React.FC = () => {
       let initialProfile = {};
       
       if (user.role === 'STUDENT' && user.studentProfile) {
-        initialProfile = { ...user.studentProfile };
+        const studentProfile = user.studentProfile as any;
+        initialProfile = { ...studentProfile, skills: studentProfile.skills || [] };
       } else if (user.role === 'COMPANY' && user.companyProfile) {
         initialProfile = { ...user.companyProfile };
       } else if (user.role === 'SCHOOL' && user.schoolProfile) {
@@ -48,8 +60,48 @@ const ProfileSettings: React.FC = () => {
     });
   };
 
+  const handleAddSkill = () => {
+    if (newSkill.trim() && !formData.profile.skills?.includes(newSkill.trim())) {
+      setFormData({
+        ...formData,
+        profile: {
+          ...formData.profile,
+          skills: [...(formData.profile.skills || []), newSkill.trim()]
+        }
+      });
+      setNewSkill('');
+    }
+  };
+
+  const handleRemoveSkill = (skillToRemove: string) => {
+    setFormData({
+      ...formData,
+      profile: {
+        ...formData.profile,
+        skills: (formData.profile.skills || []).filter((s: string) => s !== skillToRemove)
+      }
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validação de segurança: garantir que estudantes têm pelo menos uma skill
+    if (user?.role === 'STUDENT' && (!formData.profile.skills || formData.profile.skills.length === 0)) {
+      toast.error('Por favor, adicione pelo menos uma competência técnica.');
+      return;
+    }
+
+    if (user?.role === 'COMPANY' && !formData.profile.companyName) {
+      toast.error('O nome da empresa é obrigatório.');
+      return;
+    }
+
+    if (user?.role === 'SCHOOL' && !formData.profile.schoolName) {
+      toast.error('O nome da instituição é obrigatório.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -146,6 +198,7 @@ const ProfileSettings: React.FC = () => {
                       onChange={handleProfileChange}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-solve-blue focus:border-transparent bg-white"
                       placeholder="Ex: Universidade do Porto"
+                      required
                     />
                     <datalist id="school-suggestions">
                       {SCHOOLS.map(s => <option key={s} value={s} />)}
@@ -156,6 +209,40 @@ const ProfileSettings: React.FC = () => {
                     <input type="text" name="course" value={formData.profile.course || ''} onChange={handleProfileChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-solve-blue focus:border-transparent" />
                   </div>
                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center"><MapPin className="w-4 h-4 mr-1 text-gray-400"/>Localização (Cidade) *</label>
+                    <input type="text" name="location" value={formData.profile.location || ''} onChange={handleProfileChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-solve-blue focus:border-transparent" placeholder="Ex: Fundão, Castelo Branco..." required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">Competências Técnicas *</label>
+                    <div className="flex flex-wrap gap-2 mb-2 min-h-[32px]">
+                      {(formData.profile.skills || []).map((skill: string) => (
+                        <span key={skill} className="inline-flex items-center px-3 py-1 bg-solve-blue/10 text-solve-blue rounded-full text-xs font-bold border border-solve-blue/20">
+                          {skill}
+                          <button type="button" onClick={() => handleRemoveSkill(skill)} className="ml-2 hover:text-red-500 transition-colors">
+                            <X size={14} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        list="skill-suggestions"
+                        value={newSkill}
+                        onChange={(e) => setNewSkill(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSkill())}
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-solve-blue focus:border-transparent"
+                        placeholder="Adicione competências..."
+                      />
+                      <datalist id="skill-suggestions">
+                        {SKILLS_LIST.map(s => <option key={s} value={s} />)}
+                      </datalist>
+                      <button type="button" onClick={handleAddSkill} className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">
+                        <Plus size={20} />
+                      </button>
+                    </div>
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center"><LinkIcon className="w-4 h-4 mr-1 text-gray-400"/>GitHub URL</label>
                     <input type="url" name="githubUrl" value={formData.profile.githubUrl || ''} onChange={handleProfileChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-solve-blue focus:border-transparent" />
                   </div>
@@ -164,8 +251,8 @@ const ProfileSettings: React.FC = () => {
                     <input type="url" name="portfolioUrl" value={formData.profile.portfolioUrl || ''} onChange={handleProfileChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-solve-blue focus:border-transparent" />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Biografia Curta</label>
-                    <textarea name="bio" value={formData.profile.bio || ''} onChange={handleProfileChange} rows={3} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-solve-blue focus:border-transparent" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Biografia Profissional *</label>
+                    <textarea name="bio" value={formData.profile.bio || ''} onChange={handleProfileChange} rows={3} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-solve-blue focus:border-transparent" placeholder="Conte às empresas o que o motiva e o seu percurso académico..." required />
                   </div>
                 </>
               )}
@@ -175,7 +262,7 @@ const ProfileSettings: React.FC = () => {
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center"><Building className="w-4 h-4 mr-1 text-gray-400"/>Nome da Empresa</label>
-                    <input type="text" name="companyName" value={formData.profile.companyName || ''} onChange={handleProfileChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-solve-blue focus:border-transparent" />
+                    <input type="text" name="companyName" value={formData.profile.companyName || ''} onChange={handleProfileChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-solve-blue focus:border-transparent" required />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center"><Briefcase className="w-4 h-4 mr-1 text-gray-400"/>Indústria / Setor</label>
@@ -208,7 +295,7 @@ const ProfileSettings: React.FC = () => {
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center"><School className="w-4 h-4 mr-1 text-gray-400"/>Nome da Instituição</label>
-                    <input type="text" name="schoolName" value={formData.profile.schoolName || ''} onChange={handleProfileChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-solve-blue focus:border-transparent" />
+                    <input type="text" name="schoolName" value={formData.profile.schoolName || ''} onChange={handleProfileChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-solve-blue focus:border-transparent" required />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center"><MapPin className="w-4 h-4 mr-1 text-gray-400"/>Endereço</label>

@@ -243,9 +243,14 @@ export class SolutionController {
       // Helper para extrair user ID de estruturas aninhadas do Supabase
       const getUserId = (profile) => profile?.user?.id || (Array.isArray(profile?.user) ? profile.user[0]?.id : null);
 
+      // Verifica se a escola é a mesma do estudante que submeteu a solução
+      const isStudentFromSchool = req.userRole === 'SCHOOL' && 
+                                 solution.student?.schoolProfileId === req.schoolId;
+
       // Check authorization
       const canView = 
         req.userRole === 'ADMIN' ||
+        isStudentFromSchool ||
         getUserId(solution.student) === req.userId ||
         getUserId(solution.problem?.company) === req.userId;
 
@@ -673,6 +678,10 @@ export class SolutionController {
       // Buscar estado atual
       const { data: solution } = await supabase.from('Solution').select('isPAP').eq('id', id).single();
       
+      if (!solution) {
+        return res.status(404).json({ success: false, message: 'Solução não encontrada.' });
+      }
+
       const { data: updated, error } = await supabase
         .from('Solution')
         .update({ isPAP: !solution.isPAP })

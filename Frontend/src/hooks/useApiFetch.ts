@@ -7,8 +7,7 @@ export const useApiFetch = () => {
   
   // Em produção, usamos caminhos relativos ('') para evitar problemas de CORS e URLs trocadas.
   // Em desenvolvimento, continuamos a usar o localhost.
-  const apiUrl = import.meta.env.VITE_API_URL || 
-                 (import.meta.env.PROD ? '' : 'http://localhost:5000');
+  const apiUrl = import.meta.env.VITE_API_URL || ''; 
 
   const authenticatedFetch = useCallback(async (endpoint: string, options: any = {}) => {
     try {

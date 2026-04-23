@@ -9,6 +9,7 @@ import { notificationService } from '../../services/notification.service';
 import SchoolSolutionsList from '../layout/SchoolSolutionsList'; // Importar o novo componente
 import CertificateDocument from '../pdf/CertificateDocument'; // Importar o componente do PDF
 import UserBadge from '../ui/UserBadge';
+import api from '../../services/api';
 import { toast } from 'react-hot-toast';
 import { 
   GraduationCap, 
@@ -35,7 +36,8 @@ const SchoolDashboard = () => {
     activeProjects: 0,
     completedPaps: 0,
     averageGrade: 0,
-    acceptanceRate: 0
+    acceptanceRate: 0,
+    newStudentsToday: 0
   });
   const [students, setStudents] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -50,10 +52,11 @@ const SchoolDashboard = () => {
         if (response.success) {
           setStats({
             totalStudents: response.data.totalStudents || 0,
-            activeProjects: response.data.totalSolutions || 0, // Mapeia total de soluções como projetos ativos/submetidos
+            activeProjects: response.data.totalSolutions || 0,
             completedPaps: response.data.acceptedSolutions || 0,
             averageGrade: response.data.averageGrade || 0,
-            acceptanceRate: response.data.acceptanceRate || 0
+            acceptanceRate: response.data.acceptanceRate || 0,
+            newStudentsToday: response.data.newStudentsToday || 0
           });
         }
       } catch (error) {
@@ -115,6 +118,24 @@ const SchoolDashboard = () => {
     }
   };
 
+  const handleExportGrades = async () => {
+    try {
+      const response = await api.get('/solutions/export/grades', {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `relatorio_turma_${new Date().getFullYear()}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+    } catch (error) {
+      toast.error('Erro ao gerar o relatório da turma.');
+    }
+  };
+
   // Filtrar alunos com base na pesquisa
   const filteredStudents = students.filter(student => 
     student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -138,7 +159,7 @@ const SchoolDashboard = () => {
       {
         title: "Alunos Registados",
         value: isLoading ? '...' : (stats.totalStudents || 0).toString(),
-        change: 0, // Backend não fornece esta métrica de "hoje" ainda
+        change: stats.newStudentsToday || 0,
         icon: Users,
         color: "blue"
       },
@@ -265,7 +286,7 @@ const SchoolDashboard = () => {
                         <div>
                           <h4 className="font-semibold text-gray-900">{student.name}</h4>
                           <p className="text-sm text-gray-500">
-                            {student.studentProfile?.course || 'Curso não definido'} • {student.studentProfile?.year ? `${student.studentProfile.year}º Ano` : 'N/A'}
+                            {student.course || 'Curso não definido'} • {student.year ? `${student.year}º Ano` : 'N/A'}
                           </p>
                         </div>
                       </div>
@@ -274,10 +295,10 @@ const SchoolDashboard = () => {
                           document={
                             <CertificateDocument
                               studentName={student.name}
-                              courseName={student.studentProfile?.course || 'Programação de Informática'}
+                              courseName={student.course || 'Programação de Informática'}
                               schoolName={schoolStats.user.schoolName}
                               startDate="2023/2024" // Exemplo - idealmente viria do perfil do aluno
-                              endDate="2025/2026" // Exemplo
+                              endDate="2025/2026"
                               city="Portugal" // Default dinâmico
                               currentDate={new Date().toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' })}
                               studentEmail={student.email}
@@ -312,7 +333,10 @@ const SchoolDashboard = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.6 }}
             >
-              <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 group cursor-pointer">
+              <div 
+                onClick={handleExportGrades}
+                className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 group cursor-pointer"
+              >
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                     <FileText className="text-blue-600" size={24} />
@@ -324,17 +348,6 @@ const SchoolDashboard = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 group cursor-pointer">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                    <Award className="text-purple-600" size={24} />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 mb-1">Certificados</h3>
-                    <p className="text-gray-600 text-sm">Emitir certificados de conclusão</p>
-                  </div>
-                </div>
-              </div>
             </motion.div>
           </div>
 
@@ -358,15 +371,22 @@ const SchoolDashboard = () => {
             >
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Desempenho Global</h3>
               <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600">Taxa de Conclusão</span>
-                    <span className="font-semibold text-gray-900">{stats.acceptanceRate.toFixed(0)}%</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2">
-                    <div className="bg-green-500 h-2 rounded-full" style={{ width: `${Math.min(stats.acceptanceRate, 100)}%` }}></div>
-                  </div>
-                </div>
+                {/* Taxa de Conclusão: Projetos Aceites / Projetos Totais */}
+                {/* Se o backend não calcular, calculamos aqui em tempo real */}
+                {(() => {
+                  const realAcceptanceRate = stats.activeProjects > 0 ? (stats.completedPaps / stats.activeProjects) * 100 : 0;
+                  return (
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-gray-600">Taxa de Conclusão</span>
+                        <span className="font-semibold text-gray-900">{stats.acceptanceRate.toFixed(0)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-2">
+                        <div className="bg-green-500 h-2 rounded-full" style={{ width: `${Math.min(stats.acceptanceRate, 100)}%` }}></div>
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="text-gray-600">Alunos com Projeto</span>
@@ -378,7 +398,6 @@ const SchoolDashboard = () => {
                 </div>
               </div>
             </motion.div>
-
             {/* Notifications */}
             <motion.div
               {...({ className: "bg-white rounded-2xl p-6 shadow-lg border border-gray-200" } as any)}

@@ -54,6 +54,22 @@ const SchoolSolutionsList = () => {
     }
   };
 
+  const handleUpdateGrade = async (solutionId: string, grade: string) => {
+    try {
+      const response = await api.put(`/solutions/${solutionId}/grade`, {
+        schoolGrade: grade
+      });
+      if (response.data.success) {
+        setSolutions(prev => 
+          prev.map(s => s.id === solutionId ? { ...s, schoolGrade: grade } : s)
+        );
+        toast.success('Nota guardada com sucesso!');
+      }
+    } catch (error) {
+      toast.error('Erro ao guardar a nota.');
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const styles: { [key: string]: string } = {
       PENDING_REVIEW: 'bg-yellow-100 text-yellow-800',
@@ -147,9 +163,14 @@ const SchoolSolutionsList = () => {
                     </button>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <span className="font-semibold text-gray-700">
-                      {solution.schoolGrade || '-'}
-                    </span>
+                    <input 
+                      type="text"
+                      defaultValue={solution.schoolGrade || ''}
+                      onBlur={(e) => handleUpdateGrade(solution.id, e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                      placeholder="Nota"
+                      className="w-16 px-2 py-1 border border-gray-300 rounded-lg text-center text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-solve-blue focus:border-transparent outline-none transition-all hover:border-solve-blue/50"
+                    />
                   </td>
                   <td className="px-6 py-4 text-right">
                     <Link to={`/solutions/${solution.id}`} className="inline-block p-2 text-gray-400 hover:text-solve-blue transition-colors" title="Ver Detalhes">

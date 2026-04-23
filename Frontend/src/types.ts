@@ -34,9 +34,12 @@ export interface StudentProfile {
   id: string;
   userId: string;
   user?: User;
+  skills: string[];
+  bio?: string;
   school?: string;
   year?: number;
   solutions?: Solution[];
+  location?: string;
 }
 
 export interface CompanyProfile {

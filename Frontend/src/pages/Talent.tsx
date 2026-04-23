@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { Search, Filter, GraduationCap, MapPin, Star, MessageSquare, ExternalLink, Loader2 } from 'lucide-react';
 import { useApiFetch } from '../hooks/useApiFetch';
 import StartChatButton from '../components/chat/StartChatButton';
@@ -191,10 +192,13 @@ const Talent = () => {
                     </div>
                     <div className="flex space-x-2">
                       <StartChatButton targetUserId={talent.id} label="" className="p-2 text-gray-400 hover:text-solve-blue hover:bg-solve-blue/5 rounded-xl transition-colors" />
-                      <button className="flex items-center space-x-2 px-4 py-2 bg-gray-900 text-white rounded-xl hover:bg-solve-blue transition-all font-semibold text-sm">
+                      <Link 
+                        to={`/talent/${talent.id}`}
+                        className="flex items-center space-x-2 px-4 py-2 bg-gray-900 text-white rounded-xl hover:bg-solve-blue transition-all font-semibold text-sm"
+                      >
                         <span>Perfil</span>
                         <ExternalLink size={14} />
-                      </button>
+                      </Link>
                     </div>
                   </div>
                 </motion.div>
