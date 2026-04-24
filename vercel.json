@@ -11,9 +11,10 @@
       "use": "@vercel/node"
     }
   ],
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "Backend/src/app.js" },
-    { "source": "/assets/(.*)", "destination": "/Frontend/dist/assets/$1" },
-    { "source": "/((?!api/).*)", "destination": "/Frontend/dist/index.html" }
+  "routes": [
+    { "src": "/api/(.*)", "dest": "Backend/src/app.js" },
+    { "src": "/assets/(.*)", "dest": "/Frontend/assets/$1" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/Frontend/index.html" }
   ]
 }
