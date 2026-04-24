@@ -135,7 +135,7 @@ const Talent = () => {
               <p className="text-gray-500 font-medium">A carregar talentos...</p>
             </div>
           ) : talents.length > 0 ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
               {talents.map((talent, index) => (
                 <motion.div
                   key={talent.id}
@@ -146,15 +146,15 @@ const Talent = () => {
                   {...({ className: "bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group" } as any)} 
 
                 >
-                  <div className="flex items-start space-x-4">
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left space-y-4 sm:space-y-0 sm:space-x-4">
                     <img 
                       src={talent.avatar} 
                       alt={talent.name} 
-                      className="w-20 h-20 rounded-2xl bg-gray-100 object-cover"
+                      className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gray-100 object-cover shadow-sm"
                     />
                     <div className="flex-1">
-                      <div className="flex justify-between items-start">
-                        <div>
+                      <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start gap-2">
+                        <div className="w-full">
                           <h2 className="text-xl font-bold text-gray-900 group-hover:text-solve-blue transition-colors">
                             {talent.name}
                           </h2>
@@ -165,12 +165,12 @@ const Talent = () => {
                           <span className="text-sm font-bold text-gray-700">{talent.rating}</span>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-3 text-gray-500 text-sm mb-4">
-                        <div className="flex items-center">
+                      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-4 text-gray-500 text-sm mt-2 mb-4">
+                        <div className="flex items-center justify-center sm:justify-start">
                           <GraduationCap size={14} className="mr-1" />
-                          <span className="truncate max-w-[150px]">{talent.school}</span>
+                          <span className="truncate max-w-[200px]">{talent.school}</span>
                         </div>
-                        <div className="flex items-center">
+                        <div className="flex items-center justify-center sm:justify-start">
                           <MapPin size={14} className="mr-1" />
                           {talent.location}
                         </div>
@@ -178,7 +178,7 @@ const Talent = () => {
                     </div>
                   </div>
 
-                  <div className="mt-4 mb-6 flex flex-wrap gap-2">
+                  <div className="mt-4 mb-6 flex flex-wrap justify-center sm:justify-start gap-2">
                     {talent.skills.map((skill: string) => (
                       <span key={skill} className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
                         {skill}
@@ -186,15 +186,15 @@ const Talent = () => {
                     ))}
                   </div>
 
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-50">
-                    <div className="text-sm text-gray-500">
+                  <div className="flex flex-col xs:flex-row items-center justify-between pt-4 border-t border-gray-50 gap-4">
+                    <div className="text-sm text-gray-500 text-center xs:text-left">
                       <span className="font-bold text-gray-900">{talent.solutionsCount}</span> Projetos submetidos
                     </div>
-                    <div className="flex space-x-2">
+                    <div className="flex items-center space-x-2 w-full xs:w-auto">
                       <StartChatButton targetUserId={talent.id} label="" className="p-2 text-gray-400 hover:text-solve-blue hover:bg-solve-blue/5 rounded-xl transition-colors" />
                       <Link 
                         to={`/talent/${talent.id}`}
-                        className="flex items-center space-x-2 px-4 py-2 bg-gray-900 text-white rounded-xl hover:bg-solve-blue transition-all font-semibold text-sm"
+                        className="flex-1 xs:flex-none flex items-center justify-center space-x-2 px-4 py-2 bg-gray-900 text-white rounded-xl hover:bg-solve-blue transition-all font-semibold text-sm"
                       >
                         <span>Perfil</span>
                         <ExternalLink size={14} />

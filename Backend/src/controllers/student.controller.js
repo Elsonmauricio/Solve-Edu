@@ -28,7 +28,7 @@ export class StudentController {
             location,
             rating,
             solutionsCount,
-            Solution(count)
+            Solution(rating, status)
           )
         `);
 
@@ -68,8 +68,13 @@ export class StudentController {
       const students = data.map(user => {
         // Garantir que extraímos o perfil corretamente (lidando com array ou objeto)
         const profile = Array.isArray(user.studentProfile) ? user.studentProfile[0] : (user.studentProfile || user.StudentProfile);
-        // Extrair a contagem real de soluções do join
-        const realSolutionsCount = profile?.Solution && profile.Solution[0] ? profile.Solution[0].count : 0;
+        
+        const solutions = profile?.Solution || [];
+        const realSolutionsCount = solutions.length;
+        const ratedSolutions = solutions.filter(s => s.status === 'ACCEPTED' && s.rating != null && s.rating > 0);
+        const avgRating = ratedSolutions.length 
+          ? (ratedSolutions.reduce((acc, curr) => acc + curr.rating, 0) / ratedSolutions.length).toFixed(1)
+          : "0.0";
         
         return {
           id: user.id,
@@ -81,7 +86,7 @@ export class StudentController {
           course: profile?.course || 'Programação de Informática',
           year: profile?.year || 'N/A',
           skills: profile?.skills || [],
-          rating: profile?.rating || 0,
+          rating: avgRating,
           solutionsCount: profile?.solutionsCount || realSolutionsCount,
           location: profile?.location || 'Localização não definida'
         };
@@ -130,6 +135,7 @@ export class StudentController {
             Solution (
               id,
               title,
+              rating,
               description,
               status,
               submittedAt,
@@ -158,6 +164,11 @@ export class StudentController {
 
       // Extração das soluções (que estão dentro do perfil no select atual)
       const rawSolutions = profile?.Solution || profile?.solutions || user.Solution || [];
+      
+      const ratedSolutions = (Array.isArray(rawSolutions) ? rawSolutions : []).filter(s => s.status === 'ACCEPTED' && s.rating != null && s.rating > 0);
+      const avgRating = ratedSolutions.length 
+        ? (ratedSolutions.reduce((acc, curr) => acc + curr.rating, 0) / ratedSolutions.length).toFixed(1)
+        : "0.0";
 
       const student = {
         id: user.id,
@@ -170,7 +181,7 @@ export class StudentController {
         bio: profile?.bio || 'Este talento ainda não adicionou uma biografia.',
         skills: profile?.skills || [],
         location: profile?.location || 'Localização não definida',
-        rating: Number(profile?.rating || 0).toFixed(1),
+        rating: avgRating,
         solutionsCount: profile?.solutionsCount || rawSolutions.length || 0,
         solutions: (Array.isArray(rawSolutions) ? rawSolutions : []).map((sol) => ({
           ...sol,
