@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Calendar, Users, ArrowRight } from 'lucide-react';
 import { Problem } from '../../types';
 import { useApp } from '../../context/AppContext';
-import FeatureProblemButton from '../problems/FeatureProblemButton';
+import FeatureProblemButton from '../desafios/FeatureDesafioButton';
 
 interface ProblemCardProps {
   problem: Problem;

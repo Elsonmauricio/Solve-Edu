@@ -21,7 +21,7 @@ import AdminSecurityLogs from './components/Admin/SecurityLogs';
 
 // Lazy Loading de Páginas e Componentes Pesados
 const Home = lazy(() => import('./pages/Home'));
-const Problems = lazy(() => import('./pages/Problems'));
+const Problems = lazy(() => import('./pages/Desafios'));
 const Talent = lazy(() => import('./pages/Talent'));
 const TalentDetail = lazy(() => import('./pages/TalentDetail'));
 const Solutions = lazy(() => import('./pages/Solutions'));
@@ -39,9 +39,9 @@ const AdminContent = lazy(() => import('./components/Admin/AdminContent'));
 const AdminReports = lazy(() => import('./components/Admin/AdminReports'));
 const AdminSettings = lazy(() => import('./components/Admin/AdminSettings'));
 const SchoolDashboard = lazy(() => import('./components/dashboard/SchoolDashboard'));
-const ProblemDetail = lazy(() => import('./components/problems/ProblemDetail'));
+const ProblemDetail = lazy(() => import('./components/desafios/DesafioDetail'));
 const SolutionDetail = lazy(() => import('./components/solutions/SolutionDetail'));
-const CreateProblem = lazy(() => import('./components/problems/CreateProblem'));
+const CreateProblem = lazy(() => import('./components/desafios/CreateDesafio'));
 const SubmitSolution = lazy(() => import('./components/solutions/SubmitSolution'));
 const ProfileSettings = lazy(() => import('./components/profile/ProfileSettings'));
 

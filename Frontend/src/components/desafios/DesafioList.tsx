@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import ProblemCard from '../ui/ProblemCard';
-import { Filter, Search, X } from 'lucide-react';
+import ProblemCard from '../ui/DesafioCard';
+import { Filter, Search, X, Briefcase, Code, Award } from 'lucide-react';
 import { Problem, Pagination } from '../../types';
 import { problemsService } from '../../services/problems.service';
 import MoonLoader from '../common/MoonLoader';
@@ -15,8 +15,9 @@ const ProblemList = () => {
     search: '',
     category: '',
     difficulty: '',
-    // O backend ainda não suporta este filtro.
-    // hasReward: false 
+    skills: '',
+    company: '',
+    hasReward: false,
   });
 
   useEffect(() => {
@@ -63,10 +64,13 @@ const ProblemList = () => {
       search: '',
       category: '',
       difficulty: '',
+      skills: '',
+      company: '',
+      hasReward: false,
     });
   };
 
-  const hasActiveFilters = filters.search || filters.category || filters.difficulty;
+  const hasActiveFilters = filters.search || filters.category || filters.difficulty || filters.skills || filters.company || filters.hasReward;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -141,12 +145,37 @@ const ProblemList = () => {
             ))}
           </select>
 
+          {/* Company Filter */}
+          <div className="relative">
+            <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            <input
+              type="text"
+              placeholder="Empresa..."
+              value={filters.company}
+              onChange={(e) => handleFilterChange('company', e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-solve-blue focus:border-transparent"
+            />
+          </div>
+
+          {/* Skills Filter */}
+          <div className="relative">
+            <Code className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            <input
+              type="text"
+              placeholder="Skills (ex: React, Java)..."
+              value={filters.skills}
+              onChange={(e) => handleFilterChange('skills', e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-solve-blue focus:border-transparent"
+            />
+          </div>
+
           {/* Reward Filter */}
           <label className="flex items-center space-x-3 p-3 border border-gray-300 rounded-xl hover:bg-gray-50 cursor-pointer">
+            <Award size={20} className={filters.hasReward ? "text-solve-blue" : "text-gray-400"} />
             <input
               type="checkbox"
-              // checked={filters.hasReward} // Backend não suporta
-              // onChange={(e) => handleFilterChange('hasReward', e.target.checked)}
+              checked={filters.hasReward}
+              onChange={(e) => handleFilterChange('hasReward', e.target.checked)}
               className="w-4 h-4 text-solve-blue focus:ring-solve-blue border-gray-300 rounded"
             />
             <span className="text-gray-700">Apenas com recompensa</span>

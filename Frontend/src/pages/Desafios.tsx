@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import ProblemList from '../components/problems/ProblemList';
+import ProblemList from '../components/desafios/DesafioList';
 
 const Problems = () => {
   return (
