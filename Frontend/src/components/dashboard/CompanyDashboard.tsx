@@ -9,7 +9,7 @@ import { solutionsService } from '../../services/solution.service';
 import { companyService } from '../../services/company.service';
 import { notificationService } from '../../services/notification.service';
 import CompanySolutions from '../layout/CompanySolutions'; // Importar o novo componente
-import ProblemCard from '../ui/ProblemCard';
+import ProblemCard from '../ui/DesafioCard';
 import NotificationsDropdown from '../layout/NotificationsDropdown';
 import { Problem, Solution } from '../../types';
 import { 
