@@ -17,6 +17,7 @@ import companyRoutes from './routes/company.routes.js';
 import contactRoutes from './routes/contact.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import chatRoutes from './routes/chat.routes.js';
+import prerenderRoutes from './routes/prerender.routes.js';
 
 // Import middleware
 import { errorHandler } from './middleware/error.middleware.js';
@@ -104,6 +105,7 @@ app.use('/api/student', studentRoutes);  // Adicionamos o singular como alias pa
 app.use('/api/company', companyRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/prerender', prerenderRoutes);
 app.use('/api/notifications', notificationRoutes);
 
 // Error handling middleware (should be last)

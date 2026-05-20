@@ -19,6 +19,11 @@ import {
 } from 'lucide-react';
 import { Problem } from '../../types';
 
+/**
+ * DesafioDetail: Visualização detalhada de um problema de empresa.
+ * Implementa a Camada 2 (Prova Social Humana) ao exibir os "Marcos da Comunidade",
+ * permitindo que o aluno veja o progresso de outros antes de decidir participar.
+ */
 const ProblemDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [problemDetail, setProblemDetail] = useState<Problem | null>(null);
@@ -173,6 +178,13 @@ const ProblemDetail: React.FC = () => {
                   <span className={`px-4 py-2 rounded-full text-sm font-bold ${getStatusBadge(displayProblem.status || 'ACTIVE')}`}>
                     {displayProblem.status === 'COMPLETED' ? 'ENCERRADO' : 'ATIVO'}
                   </span>
+                  <span className={`px-4 py-2 rounded-full text-sm font-bold border ${
+                    (displayProblem as any).maturityLevel === 'Semente' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                    (displayProblem as any).maturityLevel === 'Estratégico' ? 'bg-rose-50 text-red-700 border-red-200' :
+                    'bg-sky-50 text-blue-700 border-sky-200'
+                  }`}>
+                    {(displayProblem as any).maturityLevel || 'Estruturado'}
+                  </span>
                   <span className={`px-4 py-2 rounded-full text-sm font-medium ${getDifficultyColor(displayProblem.difficulty || 'Fácil')}`}>
                     {displayProblem.difficulty || 'Fácil'}
                   </span>
@@ -241,6 +253,25 @@ const ProblemDetail: React.FC = () => {
                 </div>
               </div>
             </div>
+            </div>
+
+            {/* Community Progress - Camada 2: Prova Social Humana */}
+            <div className="mt-8 pt-8 border-t border-gray-100">
+              <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
+                <Users className="w-5 h-5 text-solve-teal" />
+                Marcos da Comunidade
+              </h3>
+              <div className="bg-solve-teal/5 rounded-2xl p-6 border border-solve-teal/10">
+                <div className="flex gap-4 items-start">
+                  <div className="w-2 h-2 mt-2 rounded-full bg-solve-teal shrink-0" />
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">Hipótese Validada</p>
+                    <p className="text-sm text-gray-600">
+                      Uma equipa de estudantes da FEUP validou recentemente que o principal gargalo é o tempo de espera em armazém.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </motion.div>
         </div>

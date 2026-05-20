@@ -11,6 +11,7 @@ interface FormData {
   description: string;
   category: string;
   difficulty: string;
+  maturityLevel: string;
   tags: string[];
   deadline: string;
   reward: string;
@@ -18,6 +19,11 @@ interface FormData {
   newTag: string;
 }
 
+/**
+ * CreateProblem: Formulário de criação de desafios para empresas.
+ * Inclui a definição do "Nível de Maturidade" (Semente/Estratégico),
+ * permitindo que a empresa ajuste a expectativa de autonomia do aluno.
+ */
 const CreateProblem = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -29,6 +35,7 @@ const CreateProblem = () => {
     description: '',
     category: '',
     difficulty: '',
+    maturityLevel: 'Estruturado',
     tags: [],
     deadline: '',
     reward: '',
@@ -38,6 +45,7 @@ const CreateProblem = () => {
 
   const categories = ['TECHNOLOGY', 'SUSTAINABILITY', 'HEALTH', 'EDUCATION', 'BUSINESS', 'DESIGN', 'SCIENCE', 'ENGINEERING'];
   const difficulties = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
+  const maturityLevels = ['Semente', 'Estruturado', 'Estratégico'];
 
   const handleInputChange = (field: keyof FormData, value: any) => {
     setFormData(prev => ({
@@ -116,6 +124,7 @@ const CreateProblem = () => {
       submitData.append('description', formData.description);
       submitData.append('category', formData.category);
       submitData.append('difficulty', formData.difficulty);
+      submitData.append('maturityLevel', formData.maturityLevel);
       submitData.append('deadline', deadlineDate.toISOString());
       if (formData.reward) submitData.append('reward', formData.reward);
       
@@ -226,6 +235,22 @@ const CreateProblem = () => {
                     <option value="">Selecionar dificuldade</option>
                     {difficulties.map(difficulty => (
                       <option key={difficulty} value={difficulty}>{difficulty}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nível de Maturidade *
+                  </label>
+                  <select
+                    value={formData.maturityLevel}
+                    onChange={(e) => handleInputChange('maturityLevel', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-solve-blue focus:border-transparent"
+                    required
+                  >
+                    {maturityLevels.map(level => (
+                      <option key={level} value={level}>{level}</option>
                     ))}
                   </select>
                 </div>

@@ -7,6 +7,13 @@ import { Solution } from '../../types';
 import MoonLoader from '../common/MoonLoader';
 import { toast } from 'react-hot-toast';
 
+/**
+ * SchoolSolutionsList: Interface de Gestão Pedagógica.
+ * Permite que professores e escolas:
+ * 1. Validem projetos como PAPs.
+ * 2. Atribuam notas oficiais e feedback institucional.
+ * 3. Exportem pautas de avaliação para o sistema administrativo.
+ */
 const SchoolSolutionsList = () => {
   const [solutions, setSolutions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);

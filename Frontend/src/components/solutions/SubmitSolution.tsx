@@ -8,6 +8,11 @@ import toast from 'react-hot-toast';
 import { useSolutions, CreateSolutionDto } from '../../hooks/useSolutions';
 import { problemsService } from '../../services/problems.service';
 
+/**
+ * SubmitSolution: Portal de submissão de inovação para estudantes.
+ * Permite anexar documentação técnica, links de demo e marcar a submissão
+ * como uma Prova de Aptidão Profissional (PAP) para validação escolar.
+ */
 const SubmitSolution = () => {
   const { id } = useParams();
   const { problems, dispatch, user } = useApp();

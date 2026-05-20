@@ -22,8 +22,7 @@ export class CompanyController {
         website,
         user:User(avatar),
         problems:Problem(id, status)
-      `)
-      .limit(5);
+      `);
 
     if (error) throw error;
 
@@ -35,7 +34,8 @@ export class CompanyController {
       avatar: Array.isArray(company.user) ? company.user[0]?.avatar : company.user?.avatar,
       activeChallenges: company.problems ? company.problems.filter((p) => p.status === 'ACTIVE').length : 0
     })).filter(c => c.activeChallenges > 0) // Apenas empresas com desafios ativos
-       .sort((a, b) => b.activeChallenges - a.activeChallenges);
+       .sort((a, b) => b.activeChallenges - a.activeChallenges)
+       .slice(0, 5); // Garante exatamente as 5 melhores após filtro
 
     res.json({ success: true, data: formattedCompanies });
   });
@@ -189,6 +189,14 @@ export class CompanyController {
           throw transactionError;
         }
 
+        /**
+         * ESTRATÉGIA DE PERFORMANCE: Payout Assíncrono.
+         * Não bloqueamos a UI à espera da liquidação bancária.
+         * 1. Criamos a transação como 'PENDING'.
+         * 2. Disparamos a ordem para o PayPal.
+         * 3. Respondemos '200 OK' ao cliente.
+         * 4. O Webhook abaixo tratará de confirmar o sucesso real mais tarde.
+         */
         // --- CHAMADA À API DE PAYOUTS DO PAYPAL (AUTOMAÇÃO) ---
         if (studentEmail) {
           try {
@@ -315,9 +323,13 @@ export class CompanyController {
   });
 
    /**
-   * Webhook endpoint to receive PayPal notifications.
-   * Valida a assinatura do PayPal e atualiza o estado das transações.
-   * POST /api/company/paypal-webhook
+   * PayPal Webhook: O "Cérebro" Assíncrono dos Pagamentos.
+   * Este endpoint resolve o problema de latência. Em vez de o utilizador esperar,
+   * o PayPal notifica-nos aqui quando o processamento termina.
+   * 
+   * Eventos tratados:
+   * - CHECKOUT.ORDER.COMPLETED: Confirma pagamento de taxas de destaque.
+   * - PAYMENT.PAYOUTS-ITEM.SUCCEEDED: Confirma que o aluno já recebeu a recompensa.
    */
   static paypalWebhook = asyncHandler(async (req, res) => {
       // 1. Verificação de Segurança (Assinatura do Webhook)
@@ -442,6 +454,66 @@ export class CompanyController {
       await supabase.from('Transaction').update({ gatewayTransactionId: senderBatchId }).eq('id', transactionId);
 
       res.json({ success: true, message: 'Payout libertado com sucesso!' });
+  });
+
+  /**
+   * Camada 2: Adiciona uma iteração de feedback (Micro-Feedback)
+   * POST /api/solutions/:solutionId/iterations
+   */
+  static addIterationFeedback = asyncHandler(async (req, res) => {
+      const { solutionId } = req.params;
+      const { type, contentUrl, comment, skillsValidated } = req.body;
+      const companyId = req.companyId;
+
+      // 1. Validar se a solução pertence a um desafio da empresa
+      const { data: solution } = await supabase
+        .from('Solution')
+        .select('id, problem!inner(companyId)')
+        .eq('id', solutionId)
+        .single();
+
+      if (!solution || solution.problem.companyId !== companyId) {
+        return res.status(403).json({ success: false, message: 'Acesso negado.' });
+      }
+
+      // 2. Criar o registo da iteração
+      const { data: iteration, error: iterationError } = await supabase
+        .from('SolutionIteration')
+        .insert({
+          solutionId,
+          feedbackType: type || 'TEXT',
+          contentUrl,
+          comment: sanitizeRichText(comment),
+          skillsValidated: skillsValidated || []
+        })
+        .select()
+        .single();
+
+      if (iterationError) throw iterationError;
+
+      // 3. Notificar o estudante (Realtime)
+      await supabase.channel(`solution_updates:${solutionId}`).send({
+        type: 'broadcast',
+        event: 'new-feedback',
+        payload: { message: 'Novo marco registado na tua Sala de Inovação!' }
+      });
+
+      res.status(201).json({ success: true, data: iteration });
+  });
+
+  /**
+   * Camada 2: Obtém o histórico de iterações
+   */
+  static getSolutionIterations = asyncHandler(async (req, res) => {
+      const { solutionId } = req.params;
+      const { data: iterations, error } = await supabase
+        .from('SolutionIteration')
+        .select('*')
+        .eq('solutionId', solutionId)
+        .order('createdAt', { ascending: false });
+
+      if (error) throw error;
+      res.json({ success: true, data: iterations });
   });
 }
 

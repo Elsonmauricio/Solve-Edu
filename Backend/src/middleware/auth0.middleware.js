@@ -20,10 +20,14 @@ const normalizeRole = (role) => {
 };
 
 /**
- * Middleware 2: Sincronizar o utilizador do Auth0 com a base de dados local.
- * Este middleware corre *depois* do validateAccessToken.
- * Ele usa o 'sub' (subject) do token para encontrar ou criar um utilizador na tua tabela `User`.
- * Este processo é conhecido como "Just-In-Time (JIT) Provisioning".
+ * Sincronização Just-In-Time (JIT):
+ * Este middleware garante que as identidades geridas pelo Auth0 (Google, LinkedIn, etc.)
+ * sejam espelhadas na nossa base de dados Supabase no momento do acesso.
+ * 
+ * Funcionalidades:
+ * 1. Mapeamento de Perfis: Cria automaticamente StudentProfile, CompanyProfile ou SchoolProfile.
+ * 2. RBAC: Injeta req.userId e req.userRole para controlo de acesso nos controllers.
+ * 3. Link Account: Previne duplicados verificando o email antes de criar novo registo.
  */
 export const syncUser = async (req, res, next) => {
   const startTime = Date.now();
@@ -246,7 +250,13 @@ export const syncUser = async (req, res, next) => {
 };
 
 /**
- * Middleware 3: Verificar se o utilizador sincronizado tem o papel (role) necessário.
+ * COMPLEX RBAC - Camada 2: Autorização de Negócio.
+ * Este middleware é a segunda camada de validação.
+ * 1. Camada 1 (Infra): validateAccessToken verificou se o token é real.
+ * 2. Camada 2 (Lógica): checkRole verifica se a Role injetada pelo syncUser 
+ *    tem permissão específica para esta rota (ex: apenas SCHOOL pode dar notas).
+ * 
+ * @param {string[]} requiredRoles - Lista de papéis permitidos.
  */
 const checkRole = (requiredRoles) => (req, res, next) => {
   if (!req.userRole || !requiredRoles.includes(req.userRole)) {

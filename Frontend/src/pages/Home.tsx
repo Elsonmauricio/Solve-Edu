@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Target, Users, Trophy, Star, Zap, LucideIcon } from 'lucide-react'; // solutionsService is no longer needed here
+import SEOMeta from '../components/common/SEOMeta';
 import { useApiFetch } from '../hooks/useApiFetch';
 
 interface Feature {
@@ -102,6 +103,11 @@ const Home: React.FC = () => {
 
   return (
     <div className="pt-16">
+      <SEOMeta 
+        title="Solve Edu | Conecta Talento Académico a Desafios Reais de Empresas"
+        description="Plataforma que transforma projetos académicos em soluções para empresas. Ganha experiência, reconhecimento e recompensas."
+      />
+      
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">

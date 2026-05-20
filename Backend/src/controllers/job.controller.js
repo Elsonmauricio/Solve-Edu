@@ -62,27 +62,44 @@ export class JobController {
 
       let enrichedJobs = jobs;
 
-      // LÓGICA MODERNA: Calcular Match Score se for estudante
+      /**
+       * Algoritmo de Smart Matching:
+       * Transforma o recrutamento numa experiência baseada em dados reais de projetos.
+       * - Vetor de Competências: Match direto entre as tags da vaga e o portfólio do aluno.
+       * - Filtro de Maturidade: Alinha a autonomia do aluno com a estrutura da empresa.
+       * - Ordenação: Prioriza os talentos com maior probabilidade de sucesso.
+       */
       if (studentId) {
         // 1. Buscar skills do estudante
         const { data: student } = await supabase
           .from('StudentProfile')
-          .select('skills')
+          .select('skills, preferences')
           .eq('id', studentId)
           .single();
 
         // Garantir que skills são únicas e minúsculas para um match preciso
         const studentSkills = [...new Set((student?.skills || []).map(s => s.toLowerCase().trim()))];
+        const studentPrefs = student?.preferences || {};
 
-        // 2. Calcular afinidade para cada vaga
+        // 2. Calcular afinidade multicamada: Skills + Maturidade + Fit Cultural
         enrichedJobs = jobs.map(job => {
           const reqs = (job.requirements || []).map(r => r.toLowerCase());
-          if (reqs.length === 0) return { ...job, matchScore: 100 }; // Sem requisitos = 100% match
-
-          const matches = reqs.filter(r => studentSkills.includes(r));
-          const score = Math.round((matches.length / reqs.length) * 100);
           
-          return { ...job, matchScore: score };
+          // Vetor 1: Skills (60% do peso)
+          const skillMatches = reqs.filter(r => studentSkills.includes(r));
+          const skillScore = reqs.length > 0 ? (skillMatches.length / reqs.length) * 60 : 60;
+
+          // Vetor 2: Maturidade do Desafio (20% do peso)
+          // Ex: Aluno prefere "Seed" (Autonomia) vs "Strategic" (Estrutura)
+          const maturityScore = (job.maturityLevel === studentPrefs?.preferredMaturity) ? 20 : 10;
+
+          // Vetor 3: Disponibilidade/Carga (20% do peso)
+          const fitScore = 20; // Placeholder para lógica de tempo/agenda
+          
+          return { 
+            ...job, 
+            matchScore: Math.round(skillScore + maturityScore + fitScore) 
+          };
         });
 
         // Ordenar por maior match

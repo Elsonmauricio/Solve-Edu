@@ -4,6 +4,7 @@ import React from 'react';
 // 'react-dom/client' é a API mais recente para renderização concorrente no React.
 import ReactDOM from 'react-dom/client';
 // --- IMPLEMENTAÇÃO AUTH0 ---
+import { HelmetProvider } from 'react-helmet-async';
 import { Auth0Provider } from '@auth0/auth0-react';
 // Importa o componente principal da aplicação, o 'App'.
 import App from './App';
@@ -29,9 +30,8 @@ if (!rootElement) throw new Error('Failed to find the root element');
 // Este elemento 'root' geralmente está no arquivo 'index.html'.
 // '.render()' é chamado na raiz para renderizar um componente React dentro dela.
 ReactDOM.createRoot(rootElement).render(
-  // '<React.StrictMode>' é um componente especial que ajuda a detectar problemas potenciais na aplicação.
-  // Ele ativa verificações e avisos adicionais para seus descendentes, mas não renderiza nenhuma UI visível.
-  // Funciona apenas em modo de desenvolvimento.
+  <React.StrictMode>
+    <HelmetProvider>
     <Auth0Provider
       domain={domain}
       clientId={clientId}
@@ -41,7 +41,7 @@ ReactDOM.createRoot(rootElement).render(
         scope: 'openid profile email offline_access',
       }}
       useRefreshTokens={true}
-      cacheLocation="localstorage"
+      cacheLocation="memory"
     >
       <AppProvider>
         <RealtimeProvider>
@@ -51,4 +51,6 @@ ReactDOM.createRoot(rootElement).render(
         </RealtimeProvider>
       </AppProvider>
     </Auth0Provider>
+    </HelmetProvider>
+  </React.StrictMode>
 );

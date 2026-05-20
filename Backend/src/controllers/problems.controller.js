@@ -129,6 +129,7 @@ export class ProblemController {
         description: sanitizeRichText(req.body.description),
         category: req.body.category,
         difficulty: req.body.difficulty,
+        maturityLevel: req.body.maturityLevel || 'Estruturado',
         deadline: req.body.deadline,
         companyId,
         status: 'ACTIVE',

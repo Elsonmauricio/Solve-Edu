@@ -17,9 +17,14 @@ import { useUserInitialization } from './hooks/useUserInitialization';
 import { useApp } from './context/AppContext';
 import { Role } from './types';
 import ChatWidget from './components/chat/ChatWidget';
-import AdminSecurityLogs from './components/Admin/SecurityLogs';
 
-// Lazy Loading de Páginas e Componentes Pesados
+/**
+ * ESTRATÉGIA DE PERFORMANCE (Code Splitting):
+ * Utilizamos 'lazy' para que o bundle inicial não contenha todas as páginas.
+ * O Vite, configurado com 'manualChunks', agrupa estas importações dinâmicas
+ * para otimizar o tempo de carregamento (LCP - Largest Contentful Paint) 
+ * e reduzir o consumo de dados do utilizador.
+ */
 const Home = lazy(() => import('./pages/Home'));
 const Problems = lazy(() => import('./pages/Desafios'));
 const Talent = lazy(() => import('./pages/Talent'));
@@ -44,8 +49,17 @@ const SolutionDetail = lazy(() => import('./components/solutions/SolutionDetail'
 const CreateProblem = lazy(() => import('./components/desafios/CreateDesafio'));
 const SubmitSolution = lazy(() => import('./components/solutions/SubmitSolution'));
 const ProfileSettings = lazy(() => import('./components/profile/ProfileSettings'));
+const AdminSecurityLogs = lazy(() => import('./components/Admin/SecurityLogs'));
 
-// Componente para proteger rotas por Role (Permissão)
+/**
+ * COMPLEX RBAC - Camada de Aplicação:
+ * Implementa a segurança no lado do cliente (UX Security).
+ * Diferente do Backend, aqui a validação é tripla:
+ * Auth (Auth0) -> Sincronização (User Context) -> Permissão de Rota (RoleGuard).
+ * 1. Verifica se o utilizador já escolheu uma Role (Onboarding).
+ * 2. Verifica se o perfil está completo (Skills/Dados da Empresa).
+ * 3. Redireciona para o dashboard correto caso o utilizador tente aceder a uma área proibida.
+ */
 const RoleGuard = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: Role[] }) => {
   const { user } = useApp();
   const { logout } = useAuth0();
@@ -53,24 +67,19 @@ const RoleGuard = ({ children, allowedRoles }: { children: React.ReactNode, allo
   const { dispatch } = useApp();
   const [step, setStep] = useState<'ROLE_SELECTION' | 'PROFILE_COMPLETION'>('ROLE_SELECTION');
 
-  if (!user) {
-    return null; // ou um spinner
-  }
+  if (!user) return null;
 
   const userRole = (user.role || "").toUpperCase() as Role;
-  
-  // Verificação de Integridade: O perfil está minimamente preenchido?
-  // Melhoria: Lidar com o facto de o perfil poder vir como objeto ou array do backend
-  const sProfile = Array.isArray(user.studentProfile) ? user.studentProfile[0] : user.studentProfile;
-  const cProfile = Array.isArray(user.companyProfile) ? user.companyProfile[0] : user.companyProfile;
-  const scProfile = Array.isArray(user.schoolProfile) ? user.schoolProfile[0] : user.schoolProfile;
+  const getFirst = (p: any) => Array.isArray(p) ? p[0] : p;
+  const sProfile = getFirst(user.studentProfile);
+  const cProfile = getFirst(user.companyProfile);
+  const scProfile = getFirst(user.schoolProfile);
 
   const isProfileIncomplete = 
     (userRole === 'STUDENT' && (!sProfile?.skills || sProfile?.skills?.length === 0)) ||
     (userRole === 'COMPANY' && !cProfile?.companyName) ||
     (userRole === 'SCHOOL' && !scProfile?.schoolName);
 
-  // Ecrã de seleção de perfil OU conclusão de perfil
   if (!userRole || (isProfileIncomplete && location.pathname !== '/settings')) {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -78,62 +87,30 @@ const RoleGuard = ({ children, allowedRoles }: { children: React.ReactNode, allo
       setIsSubmitting(true);
       try {
         const response = await api.put('/users/me/role', { role });
-        
         if (response.data.success && response.data.data) {
           dispatch({ type: 'SET_USER', payload: response.data.data });
           setStep('PROFILE_COMPLETION');
-          toast.success('Tipo de conta definido! Vamos configurar os detalhes do seu perfil.');
-        } else {
-          toast.error(response.data.message || 'Não foi possível definir o perfil.');
+          toast.success('Tipo de conta definido!');
         }
       } catch (error: any) {
-        toast.error(error.response?.data?.message || 'Ocorreu um erro de comunicação.');
+        toast.error('Erro ao definir perfil.');
       } finally {
         setIsSubmitting(false);
       }
     };
 
     if (step === 'PROFILE_COMPLETION' || isProfileIncomplete) {
-      return (
-        <Navigate to="/settings" state={{ from: 'onboarding', message: 'Por favor, complete os dados obrigatórios do seu perfil para continuar.' }} replace />
-      );
+      return <Navigate to="/settings" state={{ from: 'onboarding' }} replace />;
     }
 
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-        <div className="p-6 sm:p-8 bg-white rounded-2xl shadow-xl max-w-md w-full text-center">
-          <div className="w-14 h-14 sm:w-16 sm:h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl">⚠️</span>
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Complete o seu Perfil</h2>
-          <p className="text-gray-600 mb-6">
-            Para começar, diga-nos que tipo de conta pretende criar.
-          </p>
+        <div className="p-8 bg-white rounded-2xl shadow-xl max-w-md w-full text-center">
+          <h2 className="text-xl font-bold mb-6">Complete o seu Perfil</h2>
           <div className="flex flex-col space-y-4">
-            <button
-              onClick={() => handleRoleSelection('STUDENT')}
-              disabled={isSubmitting}
-              className="w-full flex items-center justify-center space-x-3 px-6 py-3 bg-solve-blue text-white rounded-xl hover:bg-solve-purple transition-colors font-semibold disabled:opacity-50"
-            >
-              <GraduationCap size={20} />
-              <span>Sou Estudante</span>
-            </button>
-            <button
-              onClick={() => handleRoleSelection('COMPANY')}
-              disabled={isSubmitting}
-              className="w-full flex items-center justify-center space-x-3 px-6 py-3 bg-gray-700 text-white rounded-xl hover:bg-gray-900 transition-colors font-semibold disabled:opacity-50"
-            >
-              <Building size={20} />
-              <span>Sou uma Empresa</span>
-            </button>
-            <button
-              onClick={() => handleRoleSelection('SCHOOL')}
-              disabled={isSubmitting}
-              className="w-full flex items-center justify-center space-x-3 px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors font-semibold disabled:opacity-50"
-            >
-              <School size={20} />
-              <span>Sou uma Instituição</span>
-            </button>
+            <button onClick={() => handleRoleSelection('STUDENT')} disabled={isSubmitting} className="px-6 py-3 bg-solve-blue text-white rounded-xl">Sou Estudante</button>
+            <button onClick={() => handleRoleSelection('COMPANY')} disabled={isSubmitting} className="px-6 py-3 bg-gray-700 text-white rounded-xl">Sou uma Empresa</button>
+            <button onClick={() => handleRoleSelection('SCHOOL')} disabled={isSubmitting} className="px-6 py-3 bg-emerald-600 text-white rounded-xl">Sou uma Instituição</button>
           </div>
         </div>
       </div>
@@ -141,41 +118,23 @@ const RoleGuard = ({ children, allowedRoles }: { children: React.ReactNode, allo
   }
 
   const normalizedAllowedRoles = allowedRoles.map(r => r.toUpperCase()) as Role[];
-
   if (!normalizedAllowedRoles.includes(userRole)) {
-    // Se a role não corresponder, redireciona para o dashboard correto
     let target = '/student-dashboard';
     if (userRole === 'ADMIN') target = '/admin-dashboard';
     if (userRole === 'COMPANY') target = '/company-dashboard';
     if (userRole === 'SCHOOL') target = '/school-dashboard';
-
-    // Prevenir loop infinito: Se já estamos na página alvo mas não temos permissão,
-    // NÃO redirecionar para "/" (pois o RootRedirect mandaria de volta para cá).
-    // Em vez disso, mostrar erro de acesso.
-    if (location.pathname === target) {
-      return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-          <h2 className="text-2xl font-bold text-red-600 mb-2">Acesso Não Autorizado</h2>
-          <p className="text-gray-600 mb-4">O seu perfil ({userRole}) não tem permissão para aceder a esta página.</p>
-          <div className="flex space-x-4">
-            <a href="/" className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">Voltar ao Início</a>
-            <button 
-              onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-              className="px-4 py-2 bg-solve-blue text-white rounded-lg hover:bg-solve-purple transition-colors"
-            >
-              Sair
-            </button>
-          </div>
-        </div>
-      );
-    }
     return <Navigate to={target} replace />;
   }
 
   return <>{children}</>;
 };
 
-// Layout principal para controlar a visibilidade do Footer
+/**
+ * MainLayout: Estrutura base da aplicação.
+ * - QuantumBackground: Efeito visual de fundo.
+ * - ChatWidget: Disponível globalmente para suporte/networking.
+ * - Footer Dinâmico: Escondido em dashboards para maximizar o espaço de trabalho.
+ */
 const MainLayout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   // Lista de caminhos onde o footer deve ser escondido
@@ -269,7 +228,7 @@ function App() {
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Falha ao Carregar Perfil</h2>
           <p className="text-gray-600 mb-6">
-            Não foi possível conectar à sua conta. Isto geralmente acontece quando o servidor backend está desligado ou houve um erro na criação do perfil.
+            Você não tem permissão para aceder esta página.
           </p>
           <button 
             onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}

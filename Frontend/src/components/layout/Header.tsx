@@ -21,6 +21,12 @@ interface Notification {
   data?: any;
 }
 
+/**
+ * Header: Navegação Inteligente e Centro de Notificações.
+ * - Adapta-se à Role do utilizador para mostrar o Dashboard correto.
+ * - Implementa subscrição em tempo real (Supabase) para notificações de chat e feedback.
+ * - Gere o fluxo de logout e login multiplataforma.
+ */
 const Header = () => {
   const { register, logout, isAuthenticated } = useAuth();
   const { user } = useApp(); // Usar o utilizador do contexto global (com a role correta da DB)
@@ -71,7 +77,11 @@ const Header = () => {
       )
       .subscribe();
 
-    // 3. Cleanup ao desmontar
+    /**
+     * GESTÃO DE MEMORY LEAKS:
+     * Removemos o canal do Supabase assim que o componente Header ou a sessão
+     * do utilizador termina, prevenindo listeners órfãos e consumo excessivo de memória.
+     */
     return () => {
       supabase.removeChannel(channel);
     };

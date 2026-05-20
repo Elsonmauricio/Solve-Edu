@@ -20,6 +20,11 @@ interface Pagination {
   totalPages: number;
 }
 
+/**
+ * SolutionList: O "Marketplace de Inovação".
+ * Lista soluções validadas academicamente e permite filtros por
+ * tecnologia e status de aceitação pelas empresas.
+ */
 const SolutionList = () => {
   const { problems } = useApp(); // Keep for filter dropdown
   const [solutions, setSolutions] = useState<Solution[]>([]);

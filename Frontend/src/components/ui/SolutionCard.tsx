@@ -37,7 +37,6 @@ const SolutionCard: React.FC<SolutionCardProps> = ({ solution }) => {
 
   const handleViewAttachment = async () => {
     const filePath = (solution as any).files && (solution as any).files[0];
-    if (!filePath) return;
 
     // Se for uma URL completa, abre direto, senão gera URL assinada
     if (filePath.startsWith('http')) {
@@ -75,9 +74,9 @@ const SolutionCard: React.FC<SolutionCardProps> = ({ solution }) => {
                 <User size={14} className="text-gray-400" />
                 <span className="text-sm text-gray-500 truncate max-w-[120px] sm:max-w-none">{typeof solution.student === 'string' ? solution.student : solution.student?.user?.name || "Estudante"}</span>
                 <span className="text-gray-300 hidden xs:inline">•</span>
-                <span className="text-sm text-gray-500 truncate max-w-[150px] sm:max-w-none">{(solution as any).school || (typeof solution.student !== 'string' ? solution.student?.school : '')}</span>
+                <span className="text-sm text-gray-500 truncate max-w-[150px] sm:max-w-none">{(solution as any).school || (typeof solution.student !== 'string' && (solution.student as any)?.school) || ''}</span>
               </div>
-            </div>
+          </div>
           </div>
         </div>
       </div>
@@ -126,7 +125,7 @@ const SolutionCard: React.FC<SolutionCardProps> = ({ solution }) => {
           {(solution as any).files && (solution as any).files.length > 0 && (
             <button
               onClick={handleViewAttachment}
-              className="flex items-center space-x-1 text-solve-teal hover:underline focus:outline-none"
+              className="flex items-center space-x-1 text-gray-500 hover:underline focus:outline-none"
               title="Ver ficheiro da solução"
             >
               <FileText size={14} />

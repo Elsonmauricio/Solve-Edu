@@ -24,6 +24,14 @@ const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
             {problem.description}
           </p>
         </div>
+        <div className="flex flex-col items-end gap-2">
+          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+            (problem as any).maturityLevel === 'Semente' ? 'bg-emerald-100 text-emerald-700' :
+            (problem as any).maturityLevel === 'Estratégico' ? 'bg-rose-100 text-red-700' :
+            'bg-sky-100 text-blue-700'
+          }`}>
+            { (problem as any).maturityLevel || 'Estruturado' }
+          </span>
         <span className={`px-2 py-1 rounded text-xs font-medium ${
           problem.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 
           problem.status === 'EXPIRED' ? 'bg-red-100 text-red-700' :
@@ -32,6 +40,7 @@ const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
           {problem.status === 'ACTIVE' ? 'Ativo' : 
            problem.status === 'EXPIRED' ? 'Expirado' : 'Inativo'}
         </span>
+        </div>
       </div>
       
       <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">

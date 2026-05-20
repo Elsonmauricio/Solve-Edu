@@ -6,7 +6,18 @@ import ExcelJS from 'exceljs';
 import { sanitizeRichText } from '../utils/sanitizer.js';
 import asyncHandler from '../utils/asyncHandler.js';
 
+/**
+ * Motor de Inovação SolveEdu:
+ * Gere a transformação de uma submissão de código num Ativo Pedagógico Validado.
+ * 
+ * Funcionalidades Críticas:
+ * - Fluxo de Validação: Submissão -> Revisão -> Aceitação (Marketplace).
+ * - Integração Académica: Permite que escolas convertam soluções em PAPs (Prova de Aptidão Profissional).
+ * - Exportação de Pautas: Automação para administração escolar via ExcelJS.
+ */
 export class SolutionController {
+  
+  // Submissão de nova solução: Garante sanitização de dados e notificação da empresa.
   static createSolution = asyncHandler(async (req, res) => {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -137,6 +148,10 @@ export class SolutionController {
       });
   });
 
+  // Listagem global: Implementa filtros complexos para diferentes visões:
+  // 1. Marketplace (Público)
+  // 2. Dashboard de Empresa (Apenas os seus desafios)
+  // 3. Dashboard de Escola (Apenas os seus alunos)
   static getSolutions = asyncHandler(async (req, res) => {
       const {
         page = 1,
@@ -224,6 +239,9 @@ export class SolutionController {
       });
   });
 
+  // Detalhe de Solução: Implementa uma camada de segurança RBAC (Role-Based Access Control).
+  // Acesso permitido se: Admin, Dono da Solução, Empresa do Desafio, Escola do Aluno 
+  // ou se a solução já foi validada e marcada como 'ACCEPTED' (Marketplace).
   static getSolution = asyncHandler(async (req, res) => {
       const { id } = req.params;
 
@@ -244,15 +262,25 @@ export class SolutionController {
       const getUserId = (profile) => profile?.user?.id || (Array.isArray(profile?.user) ? profile.user[0]?.id : null);
 
       // Verifica se a escola é a mesma do estudante que submeteu a solução
-      const isStudentFromSchool = req.userRole === 'SCHOOL' && 
+      const isStudentFromSchool = req.userRole === 'SCHOOL' && req.schoolId &&
                                  solution.student?.schoolProfileId === req.schoolId;
+
+      // Identificar proprietários (Estudante que submeteu ou Empresa que propôs o desafio)
+      const studentUserId = solution.student?.userId || getUserId(solution.student);
+      const companyUserId = solution.problem?.company?.userId || getUserId(solution.problem?.company);
+
+      // Comparação robusta (converte para string para evitar erros de tipo UUID)
+      const isOwner = req.userId && String(studentUserId) === String(req.userId);
+      const isCompanyOwner = req.userId && String(companyUserId) === String(req.userId);
+      const isAccepted = solution.status === 'ACCEPTED' || solution.status === 'Aceite';
 
       // Check authorization
       const canView = 
         req.userRole === 'ADMIN' ||
         isStudentFromSchool ||
-        getUserId(solution.student) === req.userId ||
-        getUserId(solution.problem?.company) === req.userId;
+        isOwner ||
+        isCompanyOwner ||
+        isAccepted; // Permitir visualização pública de soluções já validadas
 
       if (!canView) {
         return res.status(403).json({ 
@@ -634,6 +662,8 @@ export class SolutionController {
       });
   });
 
+  // Gestão de Comentários: Permite a interação social e feedback entre 
+  // mentores, empresas e alunos.
   static getComments = asyncHandler(async (req, res) => {
       const { id } = req.params; // Solution ID
       const { data: comments, error } = await supabase
@@ -668,6 +698,8 @@ export class SolutionController {
       res.status(201).json({ success: true, message: 'Comentário adicionado.', data: comment });
   });
 
+  // Funcionalidade de Escola: Marca um projeto como Prova de Aptidão Profissional (PAP).
+  // Essencial para o valor pedagógico da plataforma.
   static togglePAP = asyncHandler(async (req, res) => {
       const { id } = req.params;
       
@@ -692,6 +724,8 @@ export class SolutionController {
       res.json({ success: true, message: updated.isPAP ? 'Marcado como PAP.' : 'Desmarcado como PAP.', data: updated });
   });
 
+  // Avaliação Oficial: Permite que professores atribuam notas e feedback 
+  // institucional às soluções submetidas pelos alunos.
   static gradeSolution = asyncHandler(async (req, res) => {
       const { id } = req.params;
       const { schoolGrade, schoolFeedback } = req.body;
@@ -719,6 +753,8 @@ export class SolutionController {
       });
   });
 
+  // Exportação Excel: Gera a pauta de notas para a administração escolar,
+  // filtrando automaticamente apenas os alunos vinculados àquela escola.
   static exportGrades = asyncHandler(async (req, res) => {
       if (req.userRole !== 'SCHOOL' && req.userRole !== 'ADMIN') {
         return res.status(403).json({ success: false, message: 'Acesso negado.' });

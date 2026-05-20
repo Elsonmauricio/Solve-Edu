@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
+import InnovationTimeline from './InnovationTimeline';
 import { solutionsService } from '../../services/solution.service';
 import { 
   ArrowLeft, 
@@ -21,11 +22,22 @@ import {
   AlertCircle,
   Loader,
   LucideIcon,
-  Send
+  Send,
+  Zap,
+  X
 } from 'lucide-react';
 import { Solution } from '../../types';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
+
+interface Iteration {
+  id: string;
+  feedbackType: 'AUDIO' | 'VIDEO' | 'TEXT';
+  contentUrl?: string;
+  comment: string;
+  skillsValidated: string[];
+  createdAt: string;
+}
 
 const SolutionDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -33,6 +45,10 @@ const SolutionDetail: React.FC = () => {
   const [solutionDetail, setSolutionDetail] = useState<Solution | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [studentStats, setStudentStats] = useState<any>(null);
+  const [iterations, setIterations] = useState<Iteration[]>([]);
+  const [isAlignmentModalOpen, setIsAlignmentModalOpen] = useState(false);
+  const [alignmentComment, setAlignmentComment] = useState('');
+  const [isSubmittingIteration, setIsSubmittingIteration] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -81,6 +97,7 @@ const SolutionDetail: React.FC = () => {
 
           // Carregar comentários
           loadComments();
+          loadIterations();
         }
       } catch (error) {
         console.error('Erro ao carregar detalhe da solução:', error);
@@ -101,6 +118,46 @@ const SolutionDetail: React.FC = () => {
       }
     } catch (error) {
       console.error('Erro ao carregar comentários:', error);
+    }
+  };
+
+  /**
+   * Sala de Inovação (Micro-Feedback):
+   * Implementa a Camada 2 da estratégia SolveEdu.
+   * Em vez de apenas um comentário final, permite que a empresa registe uma 
+   * linha do tempo (timeline) de alinhamentos e pivôs durante o desenvolvimento.
+   */
+  const loadIterations = async () => {
+    if (!id) return;
+    try {
+      const res = await api.get(`/solutions/${id}/iterations`);
+      if (res.data.success) {
+        setIterations(res.data.data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar iterações:', error);
+    }
+  };
+
+  const handleAddIteration = async (type: string = 'TEXT') => {
+    if (!id || !alignmentComment.trim()) return;
+    setIsSubmittingIteration(true);
+    try {
+      const res = await api.post(`/solutions/${id}/iterations`, {
+        type,
+        comment: alignmentComment,
+        skillsValidated: ['Comunicação', 'Alinhamento Estratégico']
+      });
+      if (res.data.success) {
+        toast.success('Marco registado na Sala de Inovação!');
+        setAlignmentComment('');
+        setIsAlignmentModalOpen(false);
+        loadIterations();
+      }
+    } catch (error) {
+      toast.error('Erro ao registar marco.');
+    } finally {
+      setIsSubmittingIteration(false);
     }
   };
 
@@ -441,6 +498,14 @@ const SolutionDetail: React.FC = () => {
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* Innovation Timeline */}
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Sala de Inovação</h3>
+              <InnovationTimeline iterations={iterations} />
+            </div>
+          </motion.div>
+
           {/* Problem Info */}
           {problem && (
             <motion.div
@@ -599,10 +664,49 @@ const SolutionDetail: React.FC = () => {
                 <span>Deixar Comentário</span>
               </button>
             </div>
+
+            {/* Botão de Alinhamento para Empresa */}
+            {user?.role === 'COMPANY' && problem?.companyId === user?.companyProfile?.id && (
+              <button 
+                onClick={() => setIsAlignmentModalOpen(true)}
+                className="w-full mt-3 bg-white/20 border border-white/30 text-white py-3 rounded-xl font-bold hover:bg-white/30 transition-all flex items-center justify-center gap-2"
+              >
+                <Zap size={18} />
+                {iterations.length === 0 ? 'Registar Alinhamento' : 'Novo Micro-Feedback'}
+              </button>
+            )}
           </div>
         </motion.div>
         </div>
       </div>
+
+      {/* Modal de Feedback / Alinhamento */}
+      {isAlignmentModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div {...({ initial: { scale: 0.9, opacity: 0 }, animate: { scale: 1, opacity: 1 }, className: "bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl" } as any)}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-black text-gray-900">
+                {iterations.length === 0 ? '🚀 Alinhamento Inicial' : '📝 Novo Feedback'}
+              </h3>
+              <button onClick={() => setIsAlignmentModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X /></button>
+            </div>
+            <textarea 
+              className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-solve-teal outline-none mb-6"
+              rows={5}
+              placeholder="Descreva o progresso ou os pontos de alinhamento..."
+              value={alignmentComment}
+              onChange={(e) => setAlignmentComment(e.target.value)}
+            />
+            <button 
+              onClick={() => handleAddIteration()}
+              disabled={isSubmittingIteration}
+              className="w-full bg-solve-teal text-white py-4 rounded-2xl font-bold hover:bg-teal-600 transition-all disabled:opacity-50"
+            >
+              {isSubmittingIteration ? 'A guardar...' : 'Confirmar e Publicar'}
+            </button>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
